@@ -14,11 +14,11 @@
                 showStatus('No valid token. Please authenticate first.', 'error');
                 return;
             }
-    
+            
             const responseArea = document.getElementById(resultElementId);
             responseArea.style.display = 'block';
             responseArea.textContent = 'Making API call...';
-    
+            
             try {
                 // Add SID and Chapter to endpoint if available
                 let fullEndpoint = endpoint;
@@ -28,65 +28,23 @@
                 if (appState.chapter && endpoint.includes('{chapter}')) {
                     fullEndpoint = fullEndpoint.replace('{chapter}', appState.chapter);
                 }
-        
+                
                 const response = await fetch(`/api/blackbaud?action=api&endpoint=${encodeURIComponent(fullEndpoint)}&token=${appState.accessToken}`, {
                     method: 'GET'
                 });
-        
+                
                 if (!response.ok) {
                     throw new Error(`API call failed: ${response.status}`);
                 }
-        
+                
                 const data = await response.json();
                 responseArea.textContent = JSON.stringify(data, null, 2);
                 showStatus('API call successful!', 'success');
-        
+                
             } catch (error) {
                 console.error('API call error:', error);
                 responseArea.textContent = `Error: ${error.message}`;
                 showStatus(`API call failed: ${error.message}`, 'error');
-            }
-        }
-
-        async function testApiCall() {
-            if (!isTokenValid()) {
-                showStatus('No valid token. Please authenticate first.', 'error');
-                return;
-            }
-    
-            const endpoint = document.getElementById('customEndpoint').value || 
-                   document.getElementById('apiEndpoint').value;
-    
-            const responseArea = document.getElementById('apiResponse');
-            responseArea.style.display = 'block';
-            responseArea.textContent = 'Making API call...';
-    
-            try {
-                // Add SID and Chapter to endpoint if available
-                let fullEndpoint = endpoint;
-                if (appState.sid && endpoint.includes('{sid}')) {
-                    fullEndpoint = fullEndpoint.replace('{sid}', appState.sid);
-                }
-                if (appState.chapter && endpoint.includes('{chapter}')) {
-                    fullEndpoint = fullEndpoint.replace('{chapter}', appState.chapter);
-                }
-        
-                const response = await fetch(`/api/blackbaud?action=api&endpoint=${encodeURIComponent(fullEndpoint)}&token=${appState.accessToken}`, {
-                    method: 'GET'
-                });
-        
-                if (!response.ok) {
-                    throw new Error(`API call failed: ${response.status}`);
-                }
-        
-                const data = await response.json();
-                responseArea.textContent = JSON.stringify(data, null, 2);
-                showStatus('Test API call successful!', 'success');
-        
-            } catch (error) {
-                console.error('API call error:', error);
-                responseArea.textContent = `Error: ${error.message}`;
-                showStatus(`Test API call failed: ${error.message}`, 'error');
             }
         }
         
@@ -189,21 +147,15 @@
                     fullEndpoint = fullEndpoint.replace('{chapter}', appState.chapter);
                 }
                 
-                const response = await fetch(CONFIG.apiBaseUrl + fullEndpoint.replace(/^\//, ''), {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `${appState.tokenType} ${appState.accessToken}`,
-                        'Bb-Api-Subscription-Key': appState.subscriptionKey,
-                        'Content-Type': 'application/json'
-                    }
+                const response = await fetch(`/api/blackbaud?action=api&endpoint=${encodeURIComponent(fullEndpoint)}&token=${appState.accessToken}`, {
+                    method: 'GET'
                 });
                 
-                const data = await response.json();
-                
                 if (!response.ok) {
-                    throw new Error(`API call failed: ${response.status} ${response.statusText}`);
+                    throw new Error(`API call failed: ${response.status}`);
                 }
                 
+                const data = await response.json();
                 responseArea.textContent = JSON.stringify(data, null, 2);
                 showStatus('Test API call successful!', 'success');
                 
@@ -577,6 +529,7 @@
             parseURLParameters();
             loadStoredCredentials();
             checkTokenStatus();
+            showMainMenu(); // Ensure we start on main menu
         });
 
         function parseURLParameters() {
@@ -633,29 +586,29 @@
 
         async function authenticate() {
             showStatus('Authenticating with server...', 'info');
-    
+            
             try {
                 const response = await fetch('/api/blackbaud?action=auth', {
                     method: 'GET'
                 });
-        
+                
                 if (!response.ok) {
                     throw new Error(`Authentication failed: ${response.status}`);
                 }
-        
+                
                 const tokenData = await response.json();
-        
+                
                 // Store token information
                 appState.accessToken = tokenData.access_token;
                 appState.tokenType = tokenData.token_type || 'Bearer';
                 appState.expiresAt = new Date().getTime() + (tokenData.expires_in * 1000);
-        
+                
                 // Schedule token refresh
                 scheduleTokenRefresh(tokenData.expires_in);
-        
+                
                 updateTokenInfo();
                 showStatus('Authentication successful!', 'success');
-        
+                
             } catch (error) {
                 console.error('Authentication error:', error);
                 showStatus(`Authentication failed: ${error.message}`, 'error');
