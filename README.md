@@ -1,6 +1,6 @@
 # SN Chapter Management
 
-A web application for managing chapter operations through integration with Blackbaud SKY API. This application provides a streamlined interface for chapter administrators and members to access essential chapter management functions.
+A web application for managing chapter operations through integration with Blackbaud SKY API. This single page application provides a streamlined interface for chapter administrators and members to access essential chapter management functions.
 
 ## Features
 
