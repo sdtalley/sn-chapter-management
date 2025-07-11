@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SN Chapter Management</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        async function makeApiCall(endpoint, resultElementId) {
+            if (!isTokenValid()) {
+                showStatus('No valid token. Please authenticate first.', 'error');
+                return;
+            }
+    
+            const responseArea = document.getElementById(resultElementId);
+            responseArea.style.display = 'block';
+            responseArea.textContent = 'Making API call...';
+    
+            try {
+                // Add SID and Chapter to endpoint if available
+                let fullEndpoint = endpoint;
+                if (appState.sid && endpoint.includes('{sid}')) {
+                    fullEndpoint = fullEndpoint.replace('{sid}', appState.sid);
+                }
+                if (appState.chapter && endpoint.includes('{chapter}')) {
+                    fullEndpoint = fullEndpoint.replace('{chapter}', appState.chapter);
+                }
+        
+                const response = await fetch(`/api/blackbaud?action=api&endpoint=${encodeURIComponent(fullEndpoint)}&token=${appState.accessToken}`, {
+                    method: 'GET'
+                });
+        
+                if (!response.ok) {
+                    throw new Error(`API call failed: ${response.status}`);
+                }
+        
+                const data = await response.json();
+                responseArea.textContent = JSON.stringify(data, null, 2);
+                showStatus('API call successful!', 'success');
+        
+            } catch (error) {
+                console.error('API call error:', error);
+                responseArea.textContent = `Error: ${error.message}`;
+                showStatus(`API call failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testApiCall() {
+            if (!isTokenValid()) {
+                showStatus('No valid token. Please authenticate first.', 'error');
+                return;
+            }
+    
+            const endpoint = document.getElementById('customEndpoint').value || 
+                   document.getElementById('apiEndpoint').value;
+    
+            const responseArea = document.getElementById('apiResponse');
+            responseArea.style.display = 'block';
+            responseArea.textContent = 'Making API call...';
+    
+            try {
+                // Add SID and Chapter to endpoint if available
+                let fullEndpoint = endpoint;
+                if (appState.sid && endpoint.includes('{sid}')) {
+                    fullEndpoint = fullEndpoint.replace('{sid}', appState.sid);
+                }
+                if (appState.chapter && endpoint.includes('{chapter}')) {
+                    fullEndpoint = fullEndpoint.replace('{chapter}', appState.chapter);
+                }
+        
+                const response = await fetch(`/api/blackbaud?action=api&endpoint=${encodeURIComponent(fullEndpoint)}&token=${appState.accessToken}`, {
+                    method: 'GET'
+                });
+        
+                if (!response.ok) {
+                    throw new Error(`API call failed: ${response.status}`);
+                }
+        
+                const data = await response.json();
+                responseArea.textContent = JSON.stringify(data, null, 2);
+                showStatus('Test API call successful!', 'success');
+        
+            } catch (error) {
+                console.error('API call error:', error);
+                responseArea.textContent = `Error: ${error.message}`;
+                showStatus(`Test API call failed: ${error.message}`, 'error');
+            }
+        }
+        
+        // Page-specific functions
+        async function verifyCandidate() {
+            const candidateId = document.getElementById('candidateId').value;
+            if (!candidateId) {
+                showStatus('Please enter a candidate ID.', 'error');
+                return;
+            }
+            
+            const endpoint = `/constituents/${candidateId}`;
+            await makeApiCall(endpoint, 'candidateResult');
+        }
+        
+        async function verifyInitiate() {
+            const initiateId = document.getElementById('initiateId').value;
+            if (!initiateId) {
+                showStatus('Please enter an initiate ID.', 'error');
+                return;
+            }
+            
+            const endpoint = `/constituents/${initiateId}`;
+            await makeApiCall(endpoint, 'initiateResult');
+        }
+        
+        async function getRosterInfo() {
+            const rosterType = document.getElementById('rosterType').value;
+            
+            // This would need to be customized based on your specific API structure
+            let endpoint = '/constituents';
+            
+            // Add filtering based on roster type and chapter info
+            if (appState.chapter) {
+                endpoint += `?chapter=${appState.chapter}`;
+            }
+            
+            await makeApiCall(endpoint, 'rosterResult');
+        }
+        
+        async function getOfficerInfo() {
+            const officerPosition = document.getElementById('officerPosition').value;
+            
+            // This would need to be customized based on your specific API structure
+            let endpoint = '/constituents';
+            
+            // Add filtering for officers
+            if (appState.chapter) {
+                endpoint += `?chapter=${appState.chapter}&role=officer`;
+            }
+            
+            await makeApiCall(endpoint, 'officerResult');
+        }
+        
+        async function getContactInfo() {
+            // This would need to be customized based on your specific API structure
+            let endpoint = '/constituents';
+            
+            if (appState.chapter) {
+                endpoint += `?chapter=${appState.chapter}&contact_info=true`;
+            }
+            
+            await makeApiCall(endpoint, 'contactResult');
+        }
+        
+        async function getFeeStatus() {
+            const memberId = document.getElementById('memberId').value;
+            
+            // This would need to be customized based on your specific API structure
+            let endpoint = memberId ? `/constituents/${memberId}/fees` : '/fees';
+            
+            if (appState.chapter && !memberId) {
+                endpoint += `?chapter=${appState.chapter}`;
+            }
+            
+            await makeApiCall(endpoint, 'feeResult');
+        }
+        
+        // Admin/Testing function
+        async function testApiCall() {
+            if (!isTokenValid()) {
+                showStatus('No valid token. Please authenticate first.', 'error');
+                return;
+            }
+            
+            const endpoint = document.getElementById('customEndpoint').value || 
+                           document.getElementById('apiEndpoint').value;
+            
+            const responseArea = document.getElementById('apiResponse');
+            responseArea.style.display = 'block';
+            responseArea.textContent = 'Making API call...';
+            
+            try {
+                // Add SID and Chapter to endpoint if available
+                let fullEndpoint = endpoint;
+                if (appState.sid && endpoint.includes('{sid}')) {
+                    fullEndpoint = fullEndpoint.replace('{sid}', appState.sid);
+                }
+                if (appState.chapter && endpoint.includes('{chapter}')) {
+                    fullEndpoint = fullEndpoint.replace('{chapter}', appState.chapter);
+                }
+                
+                const response = await fetch(CONFIG.apiBaseUrl + fullEndpoint.replace(/^\//, ''), {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `${appState.tokenType} ${appState.accessToken}`,
+                        'Bb-Api-Subscription-Key': appState.subscriptionKey,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(`API call failed: ${response.status} ${response.statusText}`);
+                }
+                
+                responseArea.textContent = JSON.stringify(data, null, 2);
+                showStatus('Test API call successful!', 'success');
+                
+            } catch (error) {
+                console.error('API call error:', error);
+                responseArea.textContent = `Error: ${error.message}`;
+                showStatus(`Test API call failed: ${error.message}`, 'error');
+            }
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            max-width: 600px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+        
+        input[type="text"], input[type="password"], select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+        
+        input[type="text"]:focus, input[type="password"]:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #343a40 0%, #212529 100%);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+            margin-top: 20px;
+            transition: transform 0.2s ease;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            display: none;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .token-info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .token-info h3 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .token-info p {
+            margin-bottom: 5px;
+            color: #666;
+        }
+        
+        .navigation-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 2px solid #e9ecef;
+        }
+        
+        .navigation-section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .nav-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 20px;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .nav-btn {
+            background: linear-gradient(135deg, #343a40 0%, #212529 100%);
+            color: white;
+            padding: 15px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+        
+        .nav-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 58, 64, 0.3);
+        }
+        
+        .nav-btn:active {
+            transform: translateY(0);
+        }
+        
+        .config-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #fff3cd;
+            border-radius: 10px;
+            border: 2px solid #ffeaa7;
+        }
+        
+        .config-section h3 {
+            color: #856404;
+            margin-bottom: 15px;
+        }
+        
+        .page-content {
+            margin-top: 30px;
+            padding: 25px;
+            background: white;
+            border-radius: 10px;
+            border: 2px solid #dee2e6;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .page-content h2 {
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+        
+        .back-btn {
+            background: linear-gradient(135deg, #343a40 0%, #212529 100%);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-bottom: 20px;
+            transition: all 0.2s ease;
+        }
+        
+        .admin-btn {
+            background: linear-gradient(135deg, #343a40 0%, #212529 100%);
+        }
+        
+        .admin-btn:hover {
+            box-shadow: 0 5px 15px rgba(52, 58, 64, 0.3);
+        }
+        
+        .testing-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: #e7f3ff;
+            border-radius: 10px;
+            border: 2px solid #b3d9ff;
+        }
+        
+        .testing-section h3 {
+            color: #004085;
+            margin-bottom: 15px;
+        }
+        
+        .response-area {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .url-params {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .url-params h3 {
+            color: #495057;
+            margin-bottom: 10px;
+        }
+        
+        .url-params p {
+            margin-bottom: 5px;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>SN Chapter Management</h1>
+        
+        <!-- URL Parameters Display -->
+        <div class="url-params">
+            <h3>Chapter Information</h3>
+            <p><strong>SID:</strong> <span id="sid">Not provided</span></p>
+            <p><strong>Chapter:</strong> <span id="chapter">Not provided</span></p>
+        </div>
+        
+        <!-- Main Navigation -->
+        <div class="navigation-section">
+            <h2>Chapter Management Tools</h2>
+            <div class="nav-buttons">
+                <button class="nav-btn" onclick="showPage('verify-candidates')">Verify Candidates</button>
+                <button class="nav-btn" onclick="showPage('verify-initiates')">Verify Initiates</button>
+                <button class="nav-btn" onclick="showPage('roster-info')">Roster Information</button>
+                <button class="nav-btn" onclick="showPage('officer-info')">Officer Information</button>
+                <button class="nav-btn" onclick="showPage('contact-info')">Chapter Contact Information</button>
+                <button class="nav-btn" onclick="showPage('fee-status')">Fee Status</button>
+            </div>
+        </div>
+
+        <!-- Configuration Form -->
+        <div class="config-section">
+            <h3>API Configuration</h3>
+        <div class="form-group">
+            <label for="clientId">Client ID:</label>
+            <input type="text" id="clientId" placeholder="Enter your Blackbaud Client ID">
+        </div>
+        
+        <div class="form-group">
+            <label for="clientSecret">Client Secret:</label>
+            <input type="password" id="clientSecret" placeholder="Enter your Blackbaud Client Secret">
+        </div>
+        
+        <div class="form-group">
+            <label for="subscriptionKey">Subscription Key:</label>
+            <input type="password" id="subscriptionKey" placeholder="Enter your SKY API Subscription Key">
+        </div>
+        
+        <button class="btn" onclick="authenticate()">Authenticate & Get Token</button>
+        
+        <div id="status" class="status"></div>
+        
+        <div id="tokenInfo" class="token-info" style="display: none;">
+            <h3>Token Information</h3>
+            <p><strong>Access Token:</strong> <span id="accessToken">***</span></p>
+            <p><strong>Token Type:</strong> <span id="tokenType">Bearer</span></p>
+            <p><strong>Expires At:</strong> <span id="expiresAt">-</span></p>
+            <p><strong>Status:</strong> <span id="tokenStatus">Active</span></p>
+        </div>
+        
+        <!-- API Testing Form -->
+        <div class="api-form">
+            <h2>Chapter Data Management</h2>
+            <div class="form-group">
+                <label for="apiEndpoint">API Endpoint:</label>
+                <select id="apiEndpoint">
+                    <option value="/constituents">Constituents</option>
+                    <option value="/gifts">Gifts</option>
+                    <option value="/funds">Funds</option>
+                    <option value="/appeals">Appeals</option>
+                    <option value="/campaigns">Campaigns</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="customEndpoint">Custom Endpoint (optional):</label>
+                <input type="text" id="customEndpoint" placeholder="e.g., /constituents/123">
+            </div>
+            
+            <button class="btn" onclick="makeApiCall()">Retrieve Chapter Data</button>
+            
+            <div id="apiResponse" class="response-area" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const CONFIG = {
+            tokenEndpoint: 'https://oauth2.sky.blackbaud.com/token',
+            apiBaseUrl: 'https://api.sky.blackbaud.com/',
+            tokenRefreshBuffer: 300000 // 5 minutes in milliseconds
+        };
+
+        // Application state
+        let appState = {
+            accessToken: null,
+            tokenType: 'Bearer',
+            expiresAt: null,
+            refreshTimer: null,
+            clientId: null,
+            clientSecret: null,
+            subscriptionKey: null,
+            sid: null,
+            chapter: null,
+            currentPage: 'main'
+        };
+
+        // Initialize application
+        document.addEventListener('DOMContentLoaded', function() {
+            parseURLParameters();
+            loadStoredCredentials();
+            checkTokenStatus();
+        });
+
+        function parseURLParameters() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const sid = urlParams.get('sid') || urlParams.get('SID') || 'Not provided';
+            const chapter = urlParams.get('chapter') || urlParams.get('Chapter') || 'Not provided';
+            
+            // Store in application state
+            appState.sid = sid !== 'Not provided' ? sid : null;
+            appState.chapter = chapter !== 'Not provided' ? chapter : null;
+            
+            document.getElementById('sid').textContent = sid;
+            document.getElementById('chapter').textContent = chapter;
+        }
+
+        function loadStoredCredentials() {
+            // In a real application, you'd load these from secure server-side storage
+            // For demo purposes, we'll use the form inputs
+        }
+
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+            statusDiv.style.display = 'block';
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        function updateTokenInfo() {
+            const tokenInfo = document.getElementById('tokenInfo');
+            const accessTokenSpan = document.getElementById('accessToken');
+            const tokenTypeSpan = document.getElementById('tokenType');
+            const expiresAtSpan = document.getElementById('expiresAt');
+            const tokenStatusSpan = document.getElementById('tokenStatus');
+            
+            if (appState.accessToken) {
+                tokenInfo.style.display = 'block';
+                accessTokenSpan.textContent = appState.accessToken.substring(0, 20) + '...';
+                tokenTypeSpan.textContent = appState.tokenType;
+                expiresAtSpan.textContent = appState.expiresAt ? new Date(appState.expiresAt).toLocaleString() : 'Unknown';
+                tokenStatusSpan.textContent = isTokenValid() ? 'Active' : 'Expired';
+            } else {
+                tokenInfo.style.display = 'none';
+            }
+        }
+
+        function isTokenValid() {
+            return appState.accessToken && appState.expiresAt && new Date().getTime() < appState.expiresAt;
+        }
+
+        async function authenticate() {
+            showStatus('Authenticating with server...', 'info');
+    
+            try {
+                const response = await fetch('/api/blackbaud?action=auth', {
+                    method: 'GET'
+                });
+        
+                if (!response.ok) {
+                    throw new Error(`Authentication failed: ${response.status}`);
+                }
+        
+                const tokenData = await response.json();
+        
+                // Store token information
+                appState.accessToken = tokenData.access_token;
+                appState.tokenType = tokenData.token_type || 'Bearer';
+                appState.expiresAt = new Date().getTime() + (tokenData.expires_in * 1000);
+        
+                // Schedule token refresh
+                scheduleTokenRefresh(tokenData.expires_in);
+        
+                updateTokenInfo();
+                showStatus('Authentication successful!', 'success');
+        
+            } catch (error) {
+                console.error('Authentication error:', error);
+                showStatus(`Authentication failed: ${error.message}`, 'error');
+            }
+        }
+
+        function scheduleTokenRefresh(expiresInSeconds) {
+            // Clear existing timer
+            if (appState.refreshTimer) {
+                clearTimeout(appState.refreshTimer);
+            }
+            
+            // Schedule refresh 5 minutes before expiration
+            const refreshTime = (expiresInSeconds * 1000) - CONFIG.tokenRefreshBuffer;
+            
+            appState.refreshTimer = setTimeout(() => {
+                refreshToken();
+            }, refreshTime);
+        }
+
+        async function refreshToken() {
+            if (!appState.clientId || !appState.clientSecret) {
+                showStatus('Missing credentials for token refresh', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(CONFIG.tokenEndpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'Authorization': `Basic ${btoa(appState.clientId + ':' + appState.clientSecret)}`
+                    },
+                    body: 'grant_type=client_credentials'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Token refresh failed: ${response.status}`);
+                }
+                
+                const tokenData = await response.json();
+                
+                appState.accessToken = tokenData.access_token;
+                appState.expiresAt = new Date().getTime() + (tokenData.expires_in * 1000);
+                
+                scheduleTokenRefresh(tokenData.expires_in);
+                updateTokenInfo();
+                
+                console.log('Token refreshed successfully');
+                
+            } catch (error) {
+                console.error('Token refresh error:', error);
+                showStatus('Token refresh failed. Please re-authenticate.', 'error');
+            }
+        }
+
+        function checkTokenStatus() {
+            // Check token validity every minute
+            setInterval(() => {
+                updateTokenInfo();
+            }, 60000);
+        }
+
+        function showPage(pageId) {
+            // Hide all page content
+            const pages = document.querySelectorAll('.page-content');
+            pages.forEach(page => page.style.display = 'none');
+            
+            // Hide main navigation
+            const navSection = document.querySelector('.navigation-section');
+            navSection.style.display = 'none';
+            
+            // Show selected page
+            const selectedPage = document.getElementById(pageId);
+            if (selectedPage) {
+                selectedPage.style.display = 'block';
+                appState.currentPage = pageId;
+                
+                // Add back button if it doesn't exist
+                if (!selectedPage.querySelector('.back-btn')) {
+                    const backBtn = document.createElement('button');
+                    backBtn.className = 'back-btn';
+                    backBtn.textContent = '← Back to Main Menu';
+                    backBtn.onclick = showMainMenu;
+                    selectedPage.insertBefore(backBtn, selectedPage.firstChild);
+                }
+            }
+        }
+        
+        function showMainMenu() {
+            // Hide all page content
+            const pages = document.querySelectorAll('.page-content');
+            pages.forEach(page => page.style.display = 'none');
+            
+            // Show main navigation
+            const navSection = document.querySelector('.navigation-section');
+            navSection.style.display = 'block';
+            
+            appState.currentPage = 'main';
+        }
+    </script>
+</body>
+</html>
