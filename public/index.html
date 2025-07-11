@@ -344,12 +344,21 @@
         }
         
         .page-content {
+            display: none;
             margin-top: 30px;
             padding: 25px;
             background: white;
             border-radius: 10px;
             border: 2px solid #dee2e6;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        #page-container {
+            display: none;
+        }
+        
+        #main-menu {
+            display: block;
         }
         
         .page-content h2 {
@@ -526,10 +535,22 @@
 
         // Initialize application
         document.addEventListener('DOMContentLoaded', function() {
+            // Ensure proper initial state
+            const pageContainer = document.getElementById('page-container');
+            const mainMenu = document.getElementById('main-menu');
+            
+            if (pageContainer) pageContainer.style.display = 'none';
+            if (mainMenu) mainMenu.style.display = 'block';
+            
+            // Hide all page content
+            const pages = document.querySelectorAll('.page-content');
+            pages.forEach(page => {
+                page.style.display = 'none';
+            });
+            
             parseURLParameters();
             loadStoredCredentials();
             checkTokenStatus();
-            showMainMenu(); // Ensure we start on main menu
         });
 
         function parseURLParameters() {
@@ -673,39 +694,34 @@
         }
 
         function showPage(pageId) {
+            // Hide main navigation
+            const mainMenu = document.getElementById('main-menu');
+            const pageContainer = document.getElementById('page-container');
+            
+            if (mainMenu) mainMenu.style.display = 'none';
+            if (pageContainer) pageContainer.style.display = 'block';
+            
             // Hide all page content
             const pages = document.querySelectorAll('.page-content');
-            pages.forEach(page => page.style.display = 'none');
-            
-            // Hide main navigation
-            const navSection = document.querySelector('.navigation-section');
-            navSection.style.display = 'none';
+            pages.forEach(page => {
+                page.style.display = 'none';
+            });
             
             // Show selected page
             const selectedPage = document.getElementById(pageId);
             if (selectedPage) {
                 selectedPage.style.display = 'block';
                 appState.currentPage = pageId;
-                
-                // Add back button if it doesn't exist
-                if (!selectedPage.querySelector('.back-btn')) {
-                    const backBtn = document.createElement('button');
-                    backBtn.className = 'back-btn';
-                    backBtn.textContent = '← Back to Main Menu';
-                    backBtn.onclick = showMainMenu;
-                    selectedPage.insertBefore(backBtn, selectedPage.firstChild);
-                }
             }
         }
         
         function showMainMenu() {
-            // Hide all page content
-            const pages = document.querySelectorAll('.page-content');
-            pages.forEach(page => page.style.display = 'none');
+            // Hide page container
+            const pageContainer = document.getElementById('page-container');
+            const mainMenu = document.getElementById('main-menu');
             
-            // Show main navigation
-            const navSection = document.querySelector('.navigation-section');
-            navSection.style.display = 'block';
+            if (pageContainer) pageContainer.style.display = 'none';
+            if (mainMenu) mainMenu.style.display = 'block';
             
             appState.currentPage = 'main';
         }
