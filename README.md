@@ -1,6 +1,6 @@
 # SN Chapter Management
 
-A web application for managing chapter operations through integration with Blackbaud SKY API. This single page application provides a streamlined interface for chapter administrators and members to access essential chapter management functions.
+A web application for managing chapter operations through integration with Blackbaud SKY API. This application provides a streamlined interface for chapter administrators and members to access essential chapter management functions.
 
 ## Features
 
@@ -54,7 +54,7 @@ https://your-app.vercel.app?sid=12345&chapter=ALPHA
 
 ### Prerequisites
 
-- Node.js 18.x or higher
+- Node.js 22.x or higher
 - Blackbaud Developer Account
 - GitHub account
 - Vercel account (free)
@@ -170,7 +170,7 @@ BLACKBAUD_SUBSCRIPTION_KEY=your_subscription_key_here
 
 The `vercel.json` file configures:
 - Static file serving from `public/`
-- Serverless functions in `api/`
+- Serverless functions in `api/` using Node.js 22.x runtime
 - Route handling for SPA functionality
 
 ## API Integration
@@ -228,4 +228,75 @@ Navigate to Admin → Configure API → Test endpoints
 - Chapter-specific data access via URL parameters
 - Admin functions separated from user functions
 
-## Troublesh
+## Troubleshooting
+
+### Common Issues
+
+**Authentication Failures**:
+- Verify API credentials are correct
+- Check environment variables are set
+- Ensure application has proper Blackbaud permissions
+
+**API Call Errors**:
+- Check token expiration and refresh
+- Verify endpoint URLs and parameters
+- Review Blackbaud API documentation for endpoint requirements
+
+**Deployment Issues**:
+- Confirm all environment variables are set in Vercel
+- Check build logs for errors
+- Verify `vercel.json` configuration
+
+### Getting Help
+
+1. **Check Status Display** - The application shows detailed status messages
+2. **Use Admin Panel** - Test API calls and view token information
+3. **Review Logs** - Check Vercel function logs for server-side errors
+4. **Blackbaud Documentation** - [developer.blackbaud.com](https://developer.blackbaud.com)
+
+## Development
+
+### Adding New Functions
+
+1. **Create Page Section** - Add new `<div class="page-content">` in `index.html`
+2. **Add Navigation Button** - Include new button in `.nav-buttons`
+3. **Implement Function** - Create corresponding JavaScript function
+4. **Test Integration** - Use Admin panel to test API endpoints
+
+### Customizing API Calls
+
+Edit the endpoint logic in the page-specific functions:
+
+```javascript
+async function customFunction() {
+    const endpoint = `/custom-endpoint/${appState.sid}`;
+    await makeApiCall(endpoint, 'resultElementId');
+}
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License. See LICENSE file for details.
+
+## Support
+
+For technical support or questions:
+- Review this README
+- Check the Admin panel for system status
+- Review Blackbaud SKY API documentation
+- Submit issues via GitHub
+
+---
+
+**Version**: 1.0.0  
+**Last Updated**: July 2025  
+**Node.js Runtime**: 22.x  
+**Compatibility**: Blackbaud SKY API v1
