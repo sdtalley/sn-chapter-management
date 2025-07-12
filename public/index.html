@@ -26,12 +26,42 @@
         <div id="verify-candidates" class="page">
             <button class="back-btn" onclick="showMainMenu()">← Back to Main Menu</button>
             <h2>Verify Candidates</h2>
-            <div class="form-group">
-                <label for="candidateId">Candidate ID:</label>
-                <input type="text" id="candidateId" placeholder="Enter candidate ID">
+            
+            <div class="loading-message" id="candidates-loading" style="display: none;">
+                <p>Loading prospective candidates...</p>
             </div>
-            <button class="btn" onclick="verifyCandidate()">Verify Candidate</button>
-            <div id="candidateResult" class="response-area" style="display: none;"></div>
+            
+            <div id="candidates-content" style="display: none;">
+                <div class="candidates-info">
+                    <p><strong>Chapter:</strong> <span id="candidates-chapter">-</span></p>
+                    <p><strong>Total Candidates:</strong> <span id="candidates-count">0</span></p>
+                </div>
+                
+                <div class="candidates-table-container">
+                    <table class="candidates-table" id="candidates-table">
+                        <thead>
+                            <tr>
+                                <th>First Name</th>
+                                <th>Last Name</th>
+                                <th>Candidate Ceremony Date</th>
+                                <th>Approve</th>
+                            </tr>
+                        </thead>
+                        <tbody id="candidates-tbody">
+                            <!-- Dynamic content will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="submit-section">
+                    <button class="btn" onclick="submitCandidateVerifications()">Submit Verifications</button>
+                </div>
+            </div>
+            
+            <div id="candidates-error" class="error-message" style="display: none;">
+                <p>Error loading candidates. Please try again or check your authentication.</p>
+                <button class="btn" onclick="loadCandidates()">Retry</button>
+            </div>
         </div>
 
         <!-- VERIFY INITIATES PAGE -->
@@ -177,6 +207,220 @@
             tokenEndpoint: 'https://oauth2.sky.blackbaud.com/token',
             apiBaseUrl: 'https://api.sky.blackbaud.com/',
             tokenRefreshBuffer: 300000 // 5 minutes in milliseconds
+        }
+
+        // CANDIDATES FUNCTIONALITY
+        async function loadCandidates() {
+            if (!isTokenValid()) {
+                showStatus('No valid token. Please authenticate first.', 'error');
+                return;
+            }
+
+            if (!appState.chapter) {
+                showError('candidates-error', 'No chapter specified. Please access this page with a chapter parameter.');
+                return;
+            }
+
+            // Show loading state
+            showLoading('candidates-loading');
+            hideElement('candidates-content');
+            hideElement('candidates-error');
+
+            try {
+                // Get all constituents with constituent code "Prospective Candidate"
+                const endpoint = '/constituents?constituent_code=Prospective Candidate&limit=500';
+                
+                const response = await fetch(`/api/blackbaud?action=api&endpoint=${encodeURIComponent(endpoint)}&token=${appState.accessToken}`, {
+                    method: 'GET'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API call failed: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                // Filter candidates by preferred chapter custom field
+                const candidates = filterCandidatesByChapter(data.value || data);
+                
+                // Display candidates
+                displayCandidates(candidates);
+                
+            } catch (error) {
+                console.error('Error loading candidates:', error);
+                showError('candidates-error', `Failed to load candidates: ${error.message}`);
+            }
+        }
+
+        function filterCandidatesByChapter(constituents) {
+            if (!Array.isArray(constituents)) {
+                console.warn('Expected array of constituents, got:', constituents);
+                return [];
+            }
+
+            return constituents.filter(constituent => {
+                // Look for "Preferred Chapter" custom field
+                if (constituent.custom_fields) {
+                    const preferredChapterField = constituent.custom_fields.find(field => 
+                        field.name === 'Preferred Chapter' || 
+                        field.category === 'Preferred Chapter' ||
+                        field.text_value === appState.chapter
+                    );
+                    
+                    if (preferredChapterField && 
+                        (preferredChapterField.text_value === appState.chapter || 
+                         preferredChapterField.value === appState.chapter)) {
+                        return true;
+                    }
+                }
+                
+                // Alternative: check if chapter is mentioned in any field
+                const constituentString = JSON.stringify(constituent).toLowerCase();
+                return constituentString.includes(appState.chapter.toLowerCase());
+            });
+        }
+
+        function displayCandidates(candidates) {
+            const chapterSpan = document.getElementById('candidates-chapter');
+            const countSpan = document.getElementById('candidates-count');
+            const tbody = document.getElementById('candidates-tbody');
+            
+            if (chapterSpan) chapterSpan.textContent = appState.chapter || 'Unknown';
+            if (countSpan) countSpan.textContent = candidates.length;
+            
+            // Clear existing rows
+            if (tbody) {
+                tbody.innerHTML = '';
+                
+                if (candidates.length === 0) {
+                    const row = tbody.insertRow();
+                    const cell = row.insertCell();
+                    cell.colSpan = 4;
+                    cell.textContent = 'No prospective candidates found for this chapter.';
+                    cell.style.textAlign = 'center';
+                    cell.style.padding = '20px';
+                    cell.style.fontStyle = 'italic';
+                    cell.style.color = '#666';
+                } else {
+                    candidates.forEach((candidate, index) => {
+                        const row = tbody.insertRow();
+                        
+                        // Store candidate ID as data attribute
+                        row.dataset.candidateId = candidate.id;
+                        
+                        // First Name
+                        const firstNameCell = row.insertCell();
+                        firstNameCell.textContent = candidate.first || candidate.first_name || 'N/A';
+                        
+                        // Last Name
+                        const lastNameCell = row.insertCell();
+                        lastNameCell.textContent = candidate.last || candidate.last_name || 'N/A';
+                        
+                        // Candidate Ceremony Date
+                        const dateCell = row.insertCell();
+                        const dateInput = document.createElement('input');
+                        dateInput.type = 'date';
+                        dateInput.className = 'date-input';
+                        dateInput.id = `ceremony-date-${index}`;
+                        dateCell.appendChild(dateInput);
+                        
+                        // Approve
+                        const approveCell = row.insertCell();
+                        const approveSelect = document.createElement('select');
+                        approveSelect.className = 'approval-select';
+                        approveSelect.id = `approval-${index}`;
+                        
+                        const defaultOption = document.createElement('option');
+                        defaultOption.value = '';
+                        defaultOption.textContent = 'Select...';
+                        approveSelect.appendChild(defaultOption);
+                        
+                        const approveOption = document.createElement('option');
+                        approveOption.value = 'approve';
+                        approveOption.textContent = 'Approve';
+                        approveSelect.appendChild(approveOption);
+                        
+                        const disapproveOption = document.createElement('option');
+                        disapproveOption.value = 'disapprove';
+                        disapproveOption.textContent = 'Disapprove';
+                        approveSelect.appendChild(disapproveOption);
+                        
+                        approveCell.appendChild(approveSelect);
+                    });
+                }
+            }
+            
+            // Show content
+            hideElement('candidates-loading');
+            showElement('candidates-content');
+            
+            // Trigger resize
+            resizeIframe();
+        }
+
+        function submitCandidateVerifications() {
+            // Get all candidate data
+            const candidates = [];
+            const tbody = document.getElementById('candidates-tbody');
+            
+            if (tbody) {
+                const rows = tbody.querySelectorAll('tr');
+                
+                rows.forEach((row, index) => {
+                    const candidateId = row.dataset.candidateId;
+                    if (candidateId) {
+                        const dateInput = document.getElementById(`ceremony-date-${index}`);
+                        const approvalSelect = document.getElementById(`approval-${index}`);
+                        
+                        if (dateInput && approvalSelect) {
+                            candidates.push({
+                                id: candidateId,
+                                ceremonyDate: dateInput.value,
+                                approval: approvalSelect.value
+                            });
+                        }
+                    }
+                });
+            }
+            
+            // Validate that all fields are filled
+            const incomplete = candidates.filter(c => !c.ceremonyDate || !c.approval);
+            
+            if (incomplete.length > 0) {
+                showStatus(`Please complete all fields. ${incomplete.length} candidate(s) missing information.`, 'error');
+                return;
+            }
+            
+            // For now, just show what would be submitted
+            console.log('Candidate verifications to submit:', candidates);
+            showStatus(`Ready to submit ${candidates.length} candidate verification(s). (Submit functionality not yet implemented)`, 'info');
+        }
+
+        // UTILITY FUNCTIONS
+        function showLoading(elementId) {
+            const element = document.getElementById(elementId);
+            if (element) element.style.display = 'block';
+        }
+
+        function hideElement(elementId) {
+            const element = document.getElementById(elementId);
+            if (element) element.style.display = 'none';
+        }
+
+        function showElement(elementId) {
+            const element = document.getElementById(elementId);
+            if (element) element.style.display = 'block';
+        }
+
+        function showError(elementId, message) {
+            hideElement('candidates-loading');
+            hideElement('candidates-content');
+            const errorElement = document.getElementById(elementId);
+            if (errorElement) {
+                const errorText = errorElement.querySelector('p');
+                if (errorText) errorText.textContent = message;
+                errorElement.style.display = 'block';
+            }
         };
 
         // Application state
@@ -206,6 +450,11 @@
             // Show selected page
             document.getElementById(pageId).style.display = 'block';
             appState.currentPage = pageId;
+            
+            // Load page-specific data
+            if (pageId === 'verify-candidates') {
+                loadCandidates();
+            }
             
             // Notify parent of height change
             resizeIframe();
