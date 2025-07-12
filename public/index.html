@@ -206,6 +206,9 @@
             // Show selected page
             document.getElementById(pageId).style.display = 'block';
             appState.currentPage = pageId;
+            
+            // Notify parent of height change
+            resizeIframe();
         }
 
         function showMainMenu() {
@@ -217,6 +220,24 @@
             // Show main menu
             document.getElementById('main-menu').style.display = 'block';
             appState.currentPage = 'main';
+            
+            // Notify parent of height change
+            resizeIframe();
+        }
+
+        // Function to communicate height to parent iframe
+        function resizeIframe() {
+            // Wait for DOM to settle
+            setTimeout(() => {
+                const height = document.body.scrollHeight;
+                // Send height to parent window
+                if (window.parent) {
+                    window.parent.postMessage({
+                        type: 'resize',
+                        height: height
+                    }, '*');
+                }
+            }, 100);
         }
 
         // Initialize application
@@ -224,6 +245,9 @@
             parseURLParameters();
             loadStoredCredentials();
             checkTokenStatus();
+            
+            // Initial iframe resize
+            resizeIframe();
         });
 
         function parseURLParameters() {
