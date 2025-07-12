@@ -227,17 +227,28 @@
 
         // Function to communicate height to parent iframe
         function resizeIframe() {
-            // Wait for DOM to settle
+            // Wait for DOM to settle, then force recalculation
             setTimeout(() => {
-                const height = document.body.scrollHeight;
+                // Force the body to shrink to its content
+                document.body.style.height = 'auto';
+                
+                // Force a reflow
+                document.body.offsetHeight;
+                
+                // Get the actual content height
+                const container = document.querySelector('.container');
+                const containerHeight = container ? container.offsetHeight : 0;
+                const bodyPadding = 40; // 20px top + 20px bottom
+                const totalHeight = containerHeight + bodyPadding;
+                
                 // Send height to parent window
                 if (window.parent) {
                     window.parent.postMessage({
                         type: 'resize',
-                        height: height
+                        height: totalHeight
                     }, '*');
                 }
-            }, 100);
+            }, 150);
         }
 
         // Initialize application
