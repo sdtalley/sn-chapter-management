@@ -4,21 +4,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SN Chapter Management</title>
-    <link rel="stylesheet" href="https://sn-chapter-management.vercel.app/styles.css">
+    <link rel="stylesheet" href="stylesheet.css">
 </head>
 <body>
     <div class="container">
+        <!-- UNAUTHORIZED ACCESS MESSAGE -->
+        <div id="unauthorized" class="unauthorized" style="display: none;">
+            <h2>Unauthorized Access</h2>
+            <p>You do not have permission to access this application.</p>
+            <p>Please contact your administrator for access.</p>
+        </div>
+
         <!-- MAIN MENU (Visible by default) -->
         <div id="main-menu" class="main-menu">
             <h2>Chapter Management</h2>
             <div class="nav-buttons">
-                <button class="nav-btn" onclick="showPage('verify-candidates')">Verify Candidates</button>
-                <button class="nav-btn" onclick="showPage('verify-initiates')">Verify Initiates</button>
-                <button class="nav-btn" onclick="showPage('roster-info')">Roster Information</button>
-                <button class="nav-btn" onclick="showPage('officer-info')">Officer Information</button>
-                <button class="nav-btn" onclick="showPage('contact-info')">Chapter Contact Information</button>
-                <button class="nav-btn" onclick="showPage('fee-status')">Fee Status</button>
-                <button class="nav-btn" onclick="showPage('admin')">Admin</button>
+                <button class="nav-btn" id="btn-verify-candidates" onclick="showPage('verify-candidates')">Verify Candidates</button>
+                <button class="nav-btn" id="btn-verify-initiates" onclick="showPage('verify-initiates')">Verify Initiates</button>
+                <button class="nav-btn" id="btn-roster-info" onclick="showPage('roster-info')">Roster Information</button>
+                <button class="nav-btn" id="btn-officer-info" onclick="showPage('officer-info')">Officer Information</button>
+                <button class="nav-btn" id="btn-contact-info" onclick="showPage('contact-info')">Chapter Contact Information</button>
+                <button class="nav-btn" id="btn-fee-status" onclick="showPage('fee-status')">Fee Status</button>
+                <button class="nav-btn" id="btn-admin" onclick="showPage('admin')">Admin</button>
             </div>
         </div>
 
@@ -227,8 +234,8 @@
             hideElement('candidates-error');
 
             try {
-                // Get all constituents with constituent code "Prospective Candidate"
-                const endpoint = '/constituents?constituent_code=Prospective Candidate&limit=500';
+                // Get all constituents with constituent code "Prospective Candidate" and include custom fields
+                const endpoint = '/constituent/v1/constituents?constituent_code=Prospective%20Candidate&limit=800&include_custom_fields=true';
                 
                 const response = await fetch(`/api/blackbaud?action=api&endpoint=${encodeURIComponent(endpoint)}&token=${appState.accessToken}`, {
                     method: 'GET'
@@ -259,24 +266,20 @@
             }
 
             return constituents.filter(constituent => {
-                // Look for "Preferred Chapter" custom field
-                if (constituent.custom_fields) {
+                // Look for "Preferred Chapter Name" custom field
+                if (constituent.custom_fields && Array.isArray(constituent.custom_fields)) {
                     const preferredChapterField = constituent.custom_fields.find(field => 
-                        field.name === 'Preferred Chapter' || 
-                        field.category === 'Preferred Chapter' ||
-                        field.text_value === appState.chapter
+                        field.name === 'Preferred Chapter Name' || 
+                        field.category === 'Preferred Chapter Name'
                     );
                     
-                    if (preferredChapterField && 
-                        (preferredChapterField.text_value === appState.chapter || 
-                         preferredChapterField.value === appState.chapter)) {
-                        return true;
+                    if (preferredChapterField) {
+                        const fieldValue = preferredChapterField.text_value || preferredChapterField.value || '';
+                        return fieldValue.toLowerCase() === appState.chapter.toLowerCase();
                     }
                 }
                 
-                // Alternative: check if chapter is mentioned in any field
-                const constituentString = JSON.stringify(constituent).toLowerCase();
-                return constituentString.includes(appState.chapter.toLowerCase());
+                return false; // Only include constituents with matching Preferred Chapter Name field
             });
         }
 
@@ -434,11 +437,17 @@
             subscriptionKey: null,
             sid: null,
             chapter: null,
+            sts: null,
             currentPage: 'main'
         };
 
         // SIMPLE NAVIGATION FUNCTIONS
         function showPage(pageId) {
+            // Check authorization before showing any page
+            if (!isAuthorized()) {
+                return;
+            }
+            
             // Hide main menu
             document.getElementById('main-menu').style.display = 'none';
             
@@ -461,6 +470,11 @@
         }
 
         function showMainMenu() {
+            // Check authorization
+            if (!isAuthorized()) {
+                return;
+            }
+            
             // Hide all pages
             document.querySelectorAll('.page').forEach(page => {
                 page.style.display = 'none';
@@ -471,6 +485,71 @@
             appState.currentPage = 'main';
             
             // Notify parent of height change
+            resizeIframe();
+        }
+
+        // Authorization check function
+        function isAuthorized() {
+            return appState.sts !== null && ['0', '1', '2'].includes(appState.sts);
+        }
+
+        // Apply security level based on sts parameter
+        function applySecurityLevel() {
+            const mainMenu = document.getElementById('main-menu');
+            const unauthorized = document.getElementById('unauthorized');
+            
+            // If no sts parameter or invalid value, show unauthorized
+            if (appState.sts === null || !['0', '1', '2'].includes(appState.sts)) {
+                mainMenu.style.display = 'none';
+                unauthorized.style.display = 'block';
+                
+                // Hide all pages
+                document.querySelectorAll('.page').forEach(page => {
+                    page.style.display = 'none';
+                });
+                
+                resizeIframe();
+                return;
+            }
+            
+            // Show main menu
+            unauthorized.style.display = 'none';
+            mainMenu.style.display = 'block';
+            
+            // Hide all buttons first
+            const buttons = {
+                'btn-verify-candidates': false,
+                'btn-verify-initiates': false,
+                'btn-roster-info': false,
+                'btn-officer-info': false,
+                'btn-contact-info': false,
+                'btn-fee-status': false,
+                'btn-admin': false
+            };
+            
+            // Show buttons based on sts value
+            switch(appState.sts) {
+                case '0': // Show all buttons including Admin
+                    Object.keys(buttons).forEach(btn => buttons[btn] = true);
+                    break;
+                case '1': // Show all buttons except Admin
+                    Object.keys(buttons).forEach(btn => {
+                        buttons[btn] = btn !== 'btn-admin';
+                    });
+                    break;
+                case '2': // Show only Fee Status (Treasurer) button
+                    buttons['btn-fee-status'] = true;
+                    break;
+            }
+            
+            // Apply visibility
+            Object.keys(buttons).forEach(btnId => {
+                const button = document.getElementById(btnId);
+                if (button) {
+                    button.style.display = buttons[btnId] ? 'block' : 'none';
+                }
+            });
+            
             resizeIframe();
         }
 
@@ -514,15 +593,20 @@
             const urlParams = new URLSearchParams(window.location.search);
             const sid = urlParams.get('sid') || urlParams.get('SID') || 'Not provided';
             const chapter = urlParams.get('chapter') || urlParams.get('Chapter') || 'Not provided';
+            const sts = urlParams.get('sts') || urlParams.get('STS');
             
             // Store in application state
             appState.sid = sid !== 'Not provided' ? sid : null;
             appState.chapter = chapter !== 'Not provided' ? chapter : null;
+            appState.sts = sts;
             
             const sidElement = document.getElementById('sid');
             const chapterElement = document.getElementById('chapter');
             if (sidElement) sidElement.textContent = sid;
             if (chapterElement) chapterElement.textContent = chapter;
+            
+            // Apply security based on sts parameter
+            applySecurityLevel();
         }
 
         function loadStoredCredentials() {
