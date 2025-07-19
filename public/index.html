@@ -226,7 +226,16 @@
             if (!isTokenValid()) {
                 showStatus('No valid token. Please authenticate first.', 'error');
                 console.error('Token validation failed');
-                return;
+                
+                // Auto-authenticate if we have environment variables set
+                console.log('Attempting auto-authentication...');
+                await authenticate();
+                
+                // Check again after authentication
+                if (!isTokenValid()) {
+                    console.error('Authentication failed - still no valid token');
+                    return;
+                }
             }
 
             if (!appState.chapter) {
@@ -903,7 +912,15 @@
         }
 
         function isTokenValid() {
-            return appState.accessToken && appState.expiresAt && new Date().getTime() < appState.expiresAt;
+            console.log('Checking token validity...');
+            console.log('Access Token exists:', !!appState.accessToken);
+            console.log('Expires At:', appState.expiresAt);
+            console.log('Current Time:', new Date().getTime());
+            console.log('Time until expiration:', appState.expiresAt ? (appState.expiresAt - new Date().getTime()) / 1000 + ' seconds' : 'N/A');
+            
+            const valid = appState.accessToken && appState.expiresAt && new Date().getTime() < appState.expiresAt;
+            console.log('Token is valid:', valid);
+            return valid;
         }
 
         async function authenticate() {
