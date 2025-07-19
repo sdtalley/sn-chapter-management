@@ -295,6 +295,14 @@ input[type="text"]:focus, input[type="password"]:focus, select:focus {
     border-bottom: none;
 }
 
+/* Empty state cell */
+.empty-state-cell {
+    text-align: center;
+    padding: 40px 20px;
+    font-style: italic;
+    color: #666;
+}
+
 .date-input {
     width: 100%;
     padding: 8px;
@@ -306,6 +314,11 @@ input[type="text"]:focus, input[type="password"]:focus, select:focus {
 .date-input:focus {
     outline: none;
     border-color: #667eea;
+}
+
+.date-input:disabled {
+    background-color: #e9ecef;
+    cursor: not-allowed;
 }
 
 .approval-select {

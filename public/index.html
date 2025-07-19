@@ -234,21 +234,8 @@
             hideElement('candidates-error');
 
             try {
-                // Get all constituents with constituent code "Prospective Candidate" and include custom fields
-                const endpoint = '/constituent/v1/constituents?constituent_code=Prospective%20Candidate&limit=800&include_custom_fields=true';
-                
-                const response = await fetch(`/api/blackbaud?action=api&endpoint=${encodeURIComponent(endpoint)}&token=${appState.accessToken}`, {
-                    method: 'GET'
-                });
-
-                if (!response.ok) {
-                    throw new Error(`API call failed: ${response.status}`);
-                }
-
-                const data = await response.json();
-                
-                // Filter candidates by preferred chapter custom field
-                const candidates = filterCandidatesByChapter(data.value || data);
+                // Execute ad-hoc query to get candidates
+                const candidates = await executeCandidatesQuery();
                 
                 // Display candidates
                 displayCandidates(candidates);
@@ -257,6 +244,160 @@
                 console.error('Error loading candidates:', error);
                 showError('candidates-error', `Failed to load candidates: ${error.message}`);
             }
+        }
+
+        async function executeCandidatesQuery() {
+            // Get chapter QUID from chapter lookup
+            const chapterQuid = await getChapterQuid(appState.chapter);
+            if (!chapterQuid) {
+                throw new Error(`Chapter QUID not found for ${appState.chapter}`);
+            }
+
+            // Build query request with QUID
+            const queryRequest = {
+                "query": {
+                    "advanced_processing_options": {
+                        "use_alternate_sql_code_table_fields": false
+                    },
+                    "category_id": 1,
+                    "constituent_filters": {
+                        "include_deceased": true,
+                        "include_inactive": true,
+                        "include_no_valid_addresses": true
+                    },
+                    "filter_fields": [
+                        {
+                            "compare_type": "None",
+                            "filter_values": ["6985"],
+                            "operator": "Equals",
+                            "query_field_id": 2217
+                        },
+                        {
+                            "compare_type": "And",
+                            "filter_values": [String(chapterQuid)], // Convert QUID to string
+                            "operator": "Equals",
+                            "query_field_id": 656,
+                            "unique_id": "120"
+                        }
+                    ],
+                    "summary_fields": [],
+                    "format": "Dynamic",
+                    "gift_processing_options": {
+                        "matching_gift_credit_option": "MatchingGiftCompany",
+                        "soft_credit_option": "Donor"
+                    },
+                    "others_can_execute": true,
+                    "others_can_modify": true,
+                    "select_fields": [
+                        {
+                            "query_field_id": 349
+                        },
+                        {
+                            "query_field_id": 597
+                        }
+                    ],
+                    "sort_fields": [],
+                    "type_id": 18
+                },
+                "ux_mode": "Synchronous",
+                "output_format": "Json",
+                "formatting_mode": "UI",
+                "time_zone_offset_in_minutes": 120
+            };
+
+            // Step 1: Execute the query
+            const executeResponse = await fetch(`/api/blackbaud?action=query-execute&token=${appState.accessToken}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(queryRequest)
+            });
+
+            if (!executeResponse.ok) {
+                throw new Error(`Query execution failed: ${executeResponse.status}`);
+            }
+
+            const executeData = await executeResponse.json();
+            
+            // For synchronous mode, the results should be in the response
+            if (executeData.results) {
+                return processQueryResults(executeData.results);
+            }
+
+            // If not synchronous, we need to poll for results
+            const jobId = executeData.id;
+            if (!jobId) {
+                throw new Error('No job ID returned from query execution');
+            }
+
+            // Step 2: Poll for job completion
+            let attempts = 0;
+            const maxAttempts = 30; // 30 seconds timeout
+            
+            while (attempts < maxAttempts) {
+                const statusResponse = await fetch(`/api/blackbaud?action=query-status&jobId=${jobId}&token=${appState.accessToken}`, {
+                    method: 'GET'
+                });
+
+                if (!statusResponse.ok) {
+                    throw new Error(`Query status check failed: ${statusResponse.status}`);
+                }
+
+                const statusData = await statusResponse.json();
+
+                if (statusData.status === 'completed' && statusData.results) {
+                    return processQueryResults(statusData.results);
+                } else if (statusData.status === 'failed') {
+                    throw new Error('Query execution failed');
+                }
+
+                // Wait 1 second before next attempt
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                attempts++;
+            }
+
+            throw new Error('Query execution timeout');
+        }
+
+        function processQueryResults(results) {
+            // Extract ID and Name from query results
+            const candidates = [];
+            
+            if (results && results.rows && Array.isArray(results.rows)) {
+                results.rows.forEach(row => {
+                    // The query returns fields in the order they were selected
+                    // Field 349 = ID, Field 597 = Name
+                    if (row.values && row.values.length >= 2) {
+                        candidates.push({
+                            id: row.values[0], // First field is ID
+                            name: row.values[1] || 'N/A' // Second field is Name
+                        });
+                    }
+                });
+            }
+
+            return candidates;
+        }
+
+        async function getChapterQuid(chapterName) {
+            // First, try to get from server-side lookup
+            try {
+                const response = await fetch(`/api/blackbaud?action=chapter-lookup&chapter=${encodeURIComponent(chapterName)}`, {
+                    method: 'GET'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    return data.quid;
+                }
+            } catch (error) {
+                console.warn('Server-side chapter lookup failed, using fallback');
+            }
+
+            // Fallback - this would need to be populated from your chapter-records.js
+            // For now, return null and handle in calling function
+            return null;
         }
 
         function filterCandidatesByChapter(constituents) {
@@ -298,12 +439,9 @@
                 if (candidates.length === 0) {
                     const row = tbody.insertRow();
                     const cell = row.insertCell();
-                    cell.colSpan = 4;
+                    cell.colSpan = 3; // Updated colspan for 3 columns
+                    cell.className = 'empty-state-cell';
                     cell.textContent = 'No prospective candidates found for this chapter.';
-                    cell.style.textAlign = 'center';
-                    cell.style.padding = '20px';
-                    cell.style.fontStyle = 'italic';
-                    cell.style.color = '#666';
                 } else {
                     candidates.forEach((candidate, index) => {
                         const row = tbody.insertRow();
@@ -311,32 +449,22 @@
                         // Store candidate ID as data attribute
                         row.dataset.candidateId = candidate.id;
                         
-                        // First Name
-                        const firstNameCell = row.insertCell();
-                        firstNameCell.textContent = candidate.first || candidate.first_name || 'N/A';
+                        // Name (single column)
+                        const nameCell = row.insertCell();
+                        nameCell.textContent = candidate.name || 'N/A';
                         
-                        // Last Name
-                        const lastNameCell = row.insertCell();
-                        lastNameCell.textContent = candidate.last || candidate.last_name || 'N/A';
-                        
-                        // Candidate Ceremony Date
-                        const dateCell = row.insertCell();
-                        const dateInput = document.createElement('input');
-                        dateInput.type = 'date';
-                        dateInput.className = 'date-input';
-                        dateInput.id = `ceremony-date-${index}`;
-                        dateCell.appendChild(dateInput);
-                        
-                        // Approve
+                        // Approve dropdown
                         const approveCell = row.insertCell();
                         const approveSelect = document.createElement('select');
                         approveSelect.className = 'approval-select';
                         approveSelect.id = `approval-${index}`;
                         
-                        const defaultOption = document.createElement('option');
-                        defaultOption.value = '';
-                        defaultOption.textContent = 'Select...';
-                        approveSelect.appendChild(defaultOption);
+                        // No Change option (default, blank value)
+                        const noChangeOption = document.createElement('option');
+                        noChangeOption.value = '';
+                        noChangeOption.textContent = 'No Change';
+                        noChangeOption.selected = true;
+                        approveSelect.appendChild(noChangeOption);
                         
                         const approveOption = document.createElement('option');
                         approveOption.value = 'approve';
@@ -348,7 +476,31 @@
                         disapproveOption.textContent = 'Disapprove';
                         approveSelect.appendChild(disapproveOption);
                         
+                        const unknownOption = document.createElement('option');
+                        unknownOption.value = 'unknown';
+                        unknownOption.textContent = 'Unknown (Remove)';
+                        approveSelect.appendChild(unknownOption);
+                        
+                        // Add change event listener
+                        approveSelect.addEventListener('change', function() {
+                            handleApprovalChange(index, this.value);
+                        });
+                        
                         approveCell.appendChild(approveSelect);
+                        
+                        // Candidate Ceremony Date
+                        const dateCell = row.insertCell();
+                        const dateInput = document.createElement('input');
+                        dateInput.type = 'date';
+                        dateInput.className = 'date-input';
+                        dateInput.id = `ceremony-date-${index}`;
+                        dateInput.disabled = true; // Initially disabled
+                        
+                        // Set max date to today
+                        const today = new Date();
+                        dateInput.max = today.toISOString().split('T')[0];
+                        
+                        dateCell.appendChild(dateInput);
                     });
                 }
             }
@@ -359,6 +511,35 @@
             
             // Trigger resize
             resizeIframe();
+        }
+
+        function handleApprovalChange(index, approvalValue) {
+            const dateInput = document.getElementById(`ceremony-date-${index}`);
+            if (!dateInput) return;
+
+            if (approvalValue === 'approve') {
+                // Enable date picker for approved candidates
+                dateInput.disabled = false;
+                dateInput.value = ''; // Clear any default value
+            } else if (approvalValue === '' || !approvalValue) {
+                // No Change selected - disable and clear date
+                dateInput.disabled = true;
+                dateInput.value = '';
+            } else {
+                // Disapprove or Unknown - disable date picker and set to today's date in Eastern Time
+                dateInput.disabled = true;
+                
+                // Get today's date in Eastern Time
+                const easternTime = new Date().toLocaleString("en-US", {timeZone: "America/New_York"});
+                const easternDate = new Date(easternTime);
+                
+                // Format as YYYY-MM-DD for input field
+                const year = easternDate.getFullYear();
+                const month = String(easternDate.getMonth() + 1).padStart(2, '0');
+                const day = String(easternDate.getDate()).padStart(2, '0');
+                
+                dateInput.value = `${year}-${month}-${day}`;
+            }
         }
 
         function submitCandidateVerifications() {
@@ -372,31 +553,47 @@
                 rows.forEach((row, index) => {
                     const candidateId = row.dataset.candidateId;
                     if (candidateId) {
-                        const dateInput = document.getElementById(`ceremony-date-${index}`);
                         const approvalSelect = document.getElementById(`approval-${index}`);
+                        const dateInput = document.getElementById(`ceremony-date-${index}`);
                         
-                        if (dateInput && approvalSelect) {
-                            candidates.push({
-                                id: candidateId,
-                                ceremonyDate: dateInput.value,
-                                approval: approvalSelect.value
-                            });
+                        if (approvalSelect && dateInput) {
+                            // Only include candidates where a change was made (not "No Change")
+                            if (approvalSelect.value !== '') {
+                                // Format date as mm/dd/yyyy for display
+                                let formattedDate = '';
+                                if (dateInput.value) {
+                                    const [year, month, day] = dateInput.value.split('-');
+                                    formattedDate = `${month}/${day}/${year}`;
+                                }
+                                
+                                candidates.push({
+                                    id: candidateId,
+                                    approval: approvalSelect.value,
+                                    ceremonyDate: dateInput.value,
+                                    ceremonyDateFormatted: formattedDate
+                                });
+                            }
                         }
                     }
                 });
             }
             
-            // Validate that all fields are filled
-            const incomplete = candidates.filter(c => !c.ceremonyDate || !c.approval);
+            if (candidates.length === 0) {
+                showStatus('No changes have been made. Please select approval status for at least one candidate.', 'error');
+                return;
+            }
+            
+            // Validate that all changed candidates have ceremony dates
+            const incomplete = candidates.filter(c => !c.ceremonyDate);
             
             if (incomplete.length > 0) {
-                showStatus(`Please complete all fields. ${incomplete.length} candidate(s) missing information.`, 'error');
+                showStatus(`Please ensure all candidates have ceremony dates. ${incomplete.length} candidate(s) missing ceremony date.`, 'error');
                 return;
             }
             
             // For now, just show what would be submitted
             console.log('Candidate verifications to submit:', candidates);
-            showStatus(`Ready to submit ${candidates.length} candidate verification(s). (Submit functionality not yet implemented)`, 'info');
+            showStatus(`Ready to submit ${candidates.length} candidate verification(s). (Submit functionality coming soon)`, 'info');
         }
 
         // UTILITY FUNCTIONS

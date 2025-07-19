@@ -13,7 +13,18 @@ export default async function handler(req, res) {
   }
   
   try {
-    const { action, endpoint } = req.query;
+    const { action, endpoint, chapter, jobId } = req.query;
+    
+    // Handle chapter lookup
+    if (action === 'chapter-lookup' && chapter) {
+      const chapterInfo = getChapterData(chapter);
+      if (chapterInfo) {
+        res.json(chapterInfo);
+      } else {
+        res.status(404).json({ error: 'Chapter not found' });
+      }
+      return;
+    }
     
     if (action === 'auth') {
       // Get access token
@@ -32,6 +43,47 @@ export default async function handler(req, res) {
       
       const tokenData = await tokenResponse.json();
       res.json(tokenData);
+      
+    } else if (action === 'query-execute') {
+      // Execute ad-hoc query
+      const { token } = req.query;
+      const queryRequest = req.body;
+      
+      const queryResponse = await fetch('https://api.sky.blackbaud.com/query/v1/query-results', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Bb-Api-Subscription-Key': process.env.BLACKBAUD_SUBSCRIPTION_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(queryRequest)
+      });
+      
+      if (!queryResponse.ok) {
+        const errorText = await queryResponse.text();
+        throw new Error(`Query execution failed: ${queryResponse.status} - ${errorText}`);
+      }
+      
+      const queryData = await queryResponse.json();
+      res.json(queryData);
+      
+    } else if (action === 'query-status' && jobId) {
+      // Check query job status
+      const { token } = req.query;
+      
+      const statusResponse = await fetch(`https://api.sky.blackbaud.com/query/v1/query-results/${jobId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Bb-Api-Subscription-Key': process.env.BLACKBAUD_SUBSCRIPTION_KEY
+        }
+      });
+      
+      if (!statusResponse.ok) {
+        throw new Error(`Query status check failed: ${statusResponse.status}`);
+      }
+      
+      const statusData = await statusResponse.json();
+      res.json(statusData);
       
     } else if (action === 'api' && endpoint) {
       // Make API call
