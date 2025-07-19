@@ -93,30 +93,51 @@ export default async function handler(req, res) {
     
     // Get valid access token for all API calls
     const accessToken = await getValidAccessToken();
+    console.log('Access token obtained:', accessToken ? 'Yes' : 'No');
+    console.log('Subscription key exists:', process.env.BLACKBAUD_SUBSCRIPTION_KEY ? 'Yes' : 'No');
     
     if (action === 'query-execute') {
-      // Execute ad-hoc query using the correct endpoint from documentation
+      // Execute ad-hoc query - trying different endpoint variations
       const queryRequest = req.body;
       
-      // POST /query/v1/jobs with required parameters
-      const queryResponse = await fetch('https://api.sky.blackbaud.com/query/v1/jobs?product=RE&module=none', {
+      console.log('Attempting query execution with request:', JSON.stringify(queryRequest, null, 2));
+      
+      // Try the endpoint as shown in Blackbaud documentation
+      const queryUrl = 'https://api.sky.blackbaud.com/query/v1/jobs?product=RE&module=none';
+      console.log('Query URL:', queryUrl);
+      
+      const queryResponse = await fetch(queryUrl, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'Bb-Api-Subscription-Key': process.env.BLACKBAUD_SUBSCRIPTION_KEY,
-          'Content-Type': 'application/json'
+          'bb-api-subscription-key': process.env.BLACKBAUD_SUBSCRIPTION_KEY, // Try lowercase too
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
         body: JSON.stringify(queryRequest)
       });
       
+      const responseText = await queryResponse.text();
+      console.log('Query response status:', queryResponse.status);
+      console.log('Query response headers:', queryResponse.headers);
+      console.log('Query response body:', responseText);
+      
       if (!queryResponse.ok) {
-        const errorText = await queryResponse.text();
-        console.error('Query execution error:', errorText);
-        throw new Error(`Query execution failed: ${queryResponse.status} - ${errorText}`);
+        // Log more details about the error
+        console.error('Query execution failed');
+        console.error('Status:', queryResponse.status);
+        console.error('Response:', responseText);
+        throw new Error(`Query execution failed: ${queryResponse.status} - ${responseText}`);
       }
       
-      const queryData = await queryResponse.json();
-      res.json(queryData);
+      try {
+        const queryData = JSON.parse(responseText);
+        res.json(queryData);
+      } catch (e) {
+        console.error('Failed to parse response as JSON:', e);
+        res.json({ rawResponse: responseText });
+      }
       
     } else if (action === 'query-status' && jobId) {
       // Check query job status using the correct endpoint from documentation
