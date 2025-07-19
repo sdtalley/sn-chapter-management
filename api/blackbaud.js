@@ -1,3 +1,6 @@
+// Import chapter lookup data at the very top of the file
+const { chapterLookup, getChapterData } = require('./chapter-records');
+
 export default async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
