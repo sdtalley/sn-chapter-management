@@ -98,7 +98,7 @@ export default async function handler(req, res) {
       // Execute ad-hoc query
       const queryRequest = req.body;
       
-      const queryResponse = await fetch('https://api.sky.blackbaud.com/query/v1/query-results', {
+      const queryResponse = await fetch('https://api.sky.blackbaud.com/query/v1/query-results?product=RE&module=none', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -117,8 +117,8 @@ export default async function handler(req, res) {
       res.json(queryData);
       
     } else if (action === 'query-status' && jobId) {
-      // Check query job status
-      const statusResponse = await fetch(`https://api.sky.blackbaud.com/query/v1/query-results/${jobId}`, {
+      // Check query job status with include_read_url parameter
+      const statusResponse = await fetch(`https://api.sky.blackbaud.com/query/v1/query-results/${jobId}?product=RE&module=none&include_read_url=OnceCompleted`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'Bb-Api-Subscription-Key': process.env.BLACKBAUD_SUBSCRIPTION_KEY
@@ -131,6 +131,24 @@ export default async function handler(req, res) {
       
       const statusData = await statusResponse.json();
       res.json(statusData);
+      
+    } else if (action === 'query-results' && req.query.url) {
+      // Fetch query results from provided URL
+      const resultsUrl = decodeURIComponent(req.query.url);
+      
+      const resultsResponse = await fetch(resultsUrl, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Bb-Api-Subscription-Key': process.env.BLACKBAUD_SUBSCRIPTION_KEY
+        }
+      });
+      
+      if (!resultsResponse.ok) {
+        throw new Error(`Failed to fetch query results: ${resultsResponse.status}`);
+      }
+      
+      const resultsData = await resultsResponse.json();
+      res.json(resultsData);
       
     } else if (action === 'api' && endpoint) {
       // Make API call

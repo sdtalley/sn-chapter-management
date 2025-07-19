@@ -265,11 +265,11 @@
             const queryRequest = {
                 "query": {
                     "advanced_processing_options": {
-                        "use_alternate_sql_code_table_fields": false
+                        "use_alternate_sql_code_table_fields": false,
+                        "use_alternate_sql_multiple_attributes": false
                     },
-                    "category_id": 1,
                     "constituent_filters": {
-                        "include_deceased": true,
+                        "include_deceased": false,
                         "include_inactive": true,
                         "include_no_valid_addresses": true
                     },
@@ -277,8 +277,10 @@
                         {
                             "compare_type": "None",
                             "filter_values": ["6985"],
+                            "left_parenthesis": false,
                             "operator": "Equals",
-                            "query_field_id": 2217
+                            "query_field_id": 2217,
+                            "right_parenthesis": false
                         },
                         {
                             "compare_type": "And",
@@ -288,28 +290,34 @@
                             "unique_id": "120"
                         }
                     ],
-                    "summary_fields": [],
-                    "format": "Dynamic",
                     "gift_processing_options": {
                         "matching_gift_credit_option": "MatchingGiftCompany",
-                        "soft_credit_option": "Donor"
+                        "soft_credit_option": "Donor",
+                        "use_gross_amount_for_covenants": false
                     },
-                    "others_can_execute": true,
-                    "others_can_modify": true,
                     "select_fields": [
                         {
-                            "query_field_id": 349
+                            "query_field_id": 349,
+                            "user_alias": "ID"
                         },
                         {
                             "query_field_id": 597
                         }
                     ],
-                    "sort_fields": [],
-                    "type_id": 18
+                    "sort_fields": [
+                        {
+                            "query_field_id": 597,
+                            "sort_order": "Ascending"
+                        }
+                    ],
+                    "suppress_duplicates": true,
+                    "type_id": 18,
+                    "sql_generation_mode": "Query"
                 },
                 "ux_mode": "Synchronous",
                 "output_format": "Json",
                 "formatting_mode": "UI",
+                "results_file_name": "prospective_candidates",
                 "time_zone_offset_in_minutes": 120
             };
 
@@ -336,23 +344,18 @@
             const executeData = await executeResponse.json();
             console.log('Execute response data:', executeData);
             
-            // For synchronous mode, the results should be in the response
-            if (executeData.results) {
-                console.log('Synchronous results found');
-                return processQueryResults(executeData.results);
-            }
-
-            // If not synchronous, we need to poll for results
-            const jobId = executeData.id;
+            // Get the job ID from the response
+            const jobId = executeData.id || executeData.job_id;
             if (!jobId) {
                 throw new Error('No job ID returned from query execution');
             }
 
-            console.log('Asynchronous mode - Job ID:', jobId);
+            console.log('Query job ID:', jobId);
 
             // Step 2: Poll for job completion
             let attempts = 0;
             const maxAttempts = 30; // 30 seconds timeout
+            let resultsUrl = null;
             
             while (attempts < maxAttempts) {
                 console.log(`Polling attempt ${attempts + 1}/${maxAttempts}...`);
@@ -370,11 +373,15 @@
                 const statusData = await statusResponse.json();
                 console.log('Status data:', statusData);
 
-                if (statusData.status === 'completed' && statusData.results) {
-                    console.log('Query completed successfully');
-                    return processQueryResults(statusData.results);
-                } else if (statusData.status === 'failed') {
-                    throw new Error('Query execution failed');
+                if (statusData.status === 'completed' || statusData.status === 'Completed') {
+                    // Get the results URL
+                    resultsUrl = statusData.url || statusData.result_url || statusData.read_url;
+                    if (resultsUrl) {
+                        console.log('Query completed - results URL:', resultsUrl);
+                        break;
+                    }
+                } else if (statusData.status === 'failed' || statusData.status === 'Failed') {
+                    throw new Error('Query execution failed: ' + (statusData.message || 'Unknown error'));
                 }
 
                 // Wait 1 second before next attempt
@@ -382,35 +389,63 @@
                 attempts++;
             }
 
-            throw new Error('Query execution timeout');
+            if (!resultsUrl) {
+                throw new Error('Query execution timeout or no results URL provided');
+            }
+
+            // Step 3: Fetch the actual results
+            console.log('Fetching query results from URL...');
+            const resultsResponse = await fetch(`/api/blackbaud?action=query-results&url=${encodeURIComponent(resultsUrl)}`, {
+                method: 'GET'
+            });
+
+            if (!resultsResponse.ok) {
+                throw new Error(`Failed to fetch query results: ${resultsResponse.status}`);
+            }
+
+            const resultsData = await resultsResponse.json();
+            console.log('Query results received:', resultsData);
+            
+            return processQueryResults(resultsData);
         }
 
         function processQueryResults(results) {
             console.log('=== processQueryResults() started ===');
             console.log('Raw results:', results);
             
-            // Extract ID and Name from query results
             const candidates = [];
             
-            if (results && results.rows && Array.isArray(results.rows)) {
-                console.log(`Processing ${results.rows.length} rows`);
+            // Handle the JSON format from the query results file
+            if (Array.isArray(results)) {
+                console.log(`Processing ${results.length} candidates`);
                 
-                results.rows.forEach((row, index) => {
+                results.forEach((row, index) => {
                     console.log(`Row ${index}:`, row);
                     
-                    // The query returns fields in the order they were selected
-                    // Field 349 = ID, Field 597 = Name
+                    const candidate = {
+                        id: row.ID || row.QRECID || row.id,
+                        name: row.Name || row.name || 'N/A'
+                    };
+                    
+                    console.log(`Candidate ${index}:`, candidate);
+                    candidates.push(candidate);
+                });
+            } else if (results && results.rows && Array.isArray(results.rows)) {
+                // Handle alternative format if the API returns it differently
+                console.log(`Processing ${results.rows.length} rows (alternative format)`);
+                
+                results.rows.forEach((row, index) => {
                     if (row.values && row.values.length >= 2) {
                         const candidate = {
-                            id: row.values[0], // First field is ID
-                            name: row.values[1] || 'N/A' // Second field is Name
+                            id: row.values[0],
+                            name: row.values[1] || 'N/A'
                         };
                         console.log(`Candidate ${index}:`, candidate);
                         candidates.push(candidate);
                     }
                 });
             } else {
-                console.warn('No rows found in results');
+                console.warn('Unexpected results format:', results);
             }
 
             console.log(`Total candidates processed: ${candidates.length}`);
