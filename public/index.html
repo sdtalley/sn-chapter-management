@@ -220,24 +220,8 @@
         // CANDIDATES FUNCTIONALITY
         async function loadCandidates() {
             console.log('=== loadCandidates() started ===');
-            console.log('Current token valid:', isTokenValid());
             console.log('Chapter:', appState.chapter);
             
-            if (!isTokenValid()) {
-                showStatus('No valid token. Please authenticate first.', 'error');
-                console.error('Token validation failed');
-                
-                // Auto-authenticate if we have environment variables set
-                console.log('Attempting auto-authentication...');
-                await authenticate();
-                
-                // Check again after authentication
-                if (!isTokenValid()) {
-                    console.error('Authentication failed - still no valid token');
-                    return;
-                }
-            }
-
             if (!appState.chapter) {
                 showError('candidates-error', 'No chapter specified. Please access this page with a chapter parameter.');
                 console.error('No chapter parameter found');
@@ -331,9 +315,9 @@
 
             console.log('Query request built:', JSON.stringify(queryRequest, null, 2));
 
-            // Step 1: Execute the query
+            // Step 1: Execute the query (no token needed - server handles it)
             console.log('Executing query via API...');
-            const executeResponse = await fetch(`/api/blackbaud?action=query-execute&token=${appState.accessToken}`, {
+            const executeResponse = await fetch(`/api/blackbaud?action=query-execute`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -373,7 +357,7 @@
             while (attempts < maxAttempts) {
                 console.log(`Polling attempt ${attempts + 1}/${maxAttempts}...`);
                 
-                const statusResponse = await fetch(`/api/blackbaud?action=query-status&jobId=${jobId}&token=${appState.accessToken}`, {
+                const statusResponse = await fetch(`/api/blackbaud?action=query-status&jobId=${jobId}`, {
                     method: 'GET'
                 });
 

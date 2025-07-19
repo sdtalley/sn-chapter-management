@@ -1,6 +1,54 @@
 // Import chapter lookup data at the very top of the file
 const { chapterLookup, getChapterData } = require('./chapter-records');
 
+// Cache for access token
+let tokenCache = {
+  accessToken: null,
+  expiresAt: null
+};
+
+// Helper function to get valid access token
+async function getValidAccessToken() {
+  // Check if we have a valid cached token
+  if (tokenCache.accessToken && tokenCache.expiresAt && new Date().getTime() < tokenCache.expiresAt) {
+    console.log('Using cached access token');
+    return tokenCache.accessToken;
+  }
+
+  console.log('Getting new access token using refresh token');
+  
+  // Get new access token using refresh token
+  const tokenResponse = await fetch('https://oauth2.sky.blackbaud.com/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Authorization': `Basic ${Buffer.from(`${process.env.BLACKBAUD_CLIENT_ID}:${process.env.BLACKBAUD_CLIENT_SECRET}`).toString('base64')}`
+    },
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: process.env.BLACKBAUD_REFRESH_TOKEN
+    })
+  });
+
+  if (!tokenResponse.ok) {
+    const errorText = await tokenResponse.text();
+    throw new Error(`Token refresh failed: ${tokenResponse.status} - ${errorText}`);
+  }
+
+  const tokenData = await tokenResponse.json();
+  
+  // Cache the new token
+  tokenCache.accessToken = tokenData.access_token;
+  tokenCache.expiresAt = new Date().getTime() + ((tokenData.expires_in - 300) * 1000); // Expire 5 minutes early
+  
+  // If a new refresh token was provided, you might want to log it for manual update
+  if (tokenData.refresh_token && tokenData.refresh_token !== process.env.BLACKBAUD_REFRESH_TOKEN) {
+    console.warn('NEW REFRESH TOKEN PROVIDED - Update your environment variable:', tokenData.refresh_token);
+  }
+  
+  return tokenCache.accessToken;
+}
+
 export default async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -26,33 +74,34 @@ export default async function handler(req, res) {
       return;
     }
     
+    // For auth action, just return success since we're using refresh tokens
     if (action === 'auth') {
-      // Get access token
-      const tokenResponse = await fetch('https://oauth2.sky.blackbaud.com/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Authorization': `Basic ${Buffer.from(`${process.env.BLACKBAUD_CLIENT_ID}:${process.env.BLACKBAUD_CLIENT_SECRET}`).toString('base64')}`
-        },
-        body: 'grant_type=client_credentials'
-      });
-      
-      if (!tokenResponse.ok) {
-        throw new Error(`Authentication failed: ${tokenResponse.status}`);
+      // Get a fresh token to verify credentials work
+      try {
+        const accessToken = await getValidAccessToken();
+        res.json({ 
+          access_token: accessToken,
+          token_type: 'Bearer',
+          expires_in: 3600,
+          message: 'Using server-side refresh token authentication'
+        });
+      } catch (error) {
+        res.status(401).json({ error: 'Authentication failed: ' + error.message });
       }
-      
-      const tokenData = await tokenResponse.json();
-      res.json(tokenData);
-      
-    } else if (action === 'query-execute') {
+      return;
+    }
+    
+    // Get valid access token for all API calls
+    const accessToken = await getValidAccessToken();
+    
+    if (action === 'query-execute') {
       // Execute ad-hoc query
-      const { token } = req.query;
       const queryRequest = req.body;
       
       const queryResponse = await fetch('https://api.sky.blackbaud.com/query/v1/query-results', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${accessToken}`,
           'Bb-Api-Subscription-Key': process.env.BLACKBAUD_SUBSCRIPTION_KEY,
           'Content-Type': 'application/json'
         },
@@ -69,11 +118,9 @@ export default async function handler(req, res) {
       
     } else if (action === 'query-status' && jobId) {
       // Check query job status
-      const { token } = req.query;
-      
       const statusResponse = await fetch(`https://api.sky.blackbaud.com/query/v1/query-results/${jobId}`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${accessToken}`,
           'Bb-Api-Subscription-Key': process.env.BLACKBAUD_SUBSCRIPTION_KEY
         }
       });
@@ -87,11 +134,9 @@ export default async function handler(req, res) {
       
     } else if (action === 'api' && endpoint) {
       // Make API call
-      const { token } = req.query;
-      
       const apiResponse = await fetch(`https://api.sky.blackbaud.com${endpoint}`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${accessToken}`,
           'Bb-Api-Subscription-Key': process.env.BLACKBAUD_SUBSCRIPTION_KEY,
           'Content-Type': 'application/json'
         }
