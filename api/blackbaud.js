@@ -95,10 +95,11 @@ export default async function handler(req, res) {
     const accessToken = await getValidAccessToken();
     
     if (action === 'query-execute') {
-      // Execute ad-hoc query
+      // Execute ad-hoc query using the correct endpoint from documentation
       const queryRequest = req.body;
       
-      const queryResponse = await fetch('https://api.sky.blackbaud.com/query/v1/query-results?product=RE&module=none', {
+      // POST /query/v1/jobs with required parameters
+      const queryResponse = await fetch('https://api.sky.blackbaud.com/query/v1/jobs?product=RE&module=none', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -110,6 +111,7 @@ export default async function handler(req, res) {
       
       if (!queryResponse.ok) {
         const errorText = await queryResponse.text();
+        console.error('Query execution error:', errorText);
         throw new Error(`Query execution failed: ${queryResponse.status} - ${errorText}`);
       }
       
@@ -117,8 +119,9 @@ export default async function handler(req, res) {
       res.json(queryData);
       
     } else if (action === 'query-status' && jobId) {
-      // Check query job status with include_read_url parameter
-      const statusResponse = await fetch(`https://api.sky.blackbaud.com/query/v1/query-results/${jobId}?product=RE&module=none&include_read_url=OnceCompleted`, {
+      // Check query job status using the correct endpoint from documentation
+      // GET /query/v1/jobs/{id} with required parameters
+      const statusResponse = await fetch(`https://api.sky.blackbaud.com/query/v1/jobs/${jobId}?product=RE&module=none`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'Bb-Api-Subscription-Key': process.env.BLACKBAUD_SUBSCRIPTION_KEY
@@ -126,7 +129,9 @@ export default async function handler(req, res) {
       });
       
       if (!statusResponse.ok) {
-        throw new Error(`Query status check failed: ${statusResponse.status}`);
+        const errorText = await statusResponse.text();
+        console.error('Query status error:', errorText);
+        throw new Error(`Query status check failed: ${statusResponse.status} - ${errorText}`);
       }
       
       const statusData = await statusResponse.json();

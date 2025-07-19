@@ -8,7 +8,7 @@
 </head>
 <body>
     <div class="container">
-        <!-- UNAUTHORIZED ACCESS MESSAGE  -->
+        <!-- UNAUTHORIZED ACCESS MESSAGE -->
         <div id="unauthorized" class="unauthorized" style="display: none;">
             <h2>Unauthorized Access</h2>
             <p>You do not have permission to access this application.</p>
@@ -344,9 +344,10 @@
             const executeData = await executeResponse.json();
             console.log('Execute response data:', executeData);
             
-            // Get the job ID from the response
-            const jobId = executeData.id || executeData.job_id;
+            // Get the job ID from the response - check different possible field names
+            const jobId = executeData.id || executeData.job_id || executeData.jobId;
             if (!jobId) {
+                console.error('No job ID found in response:', executeData);
                 throw new Error('No job ID returned from query execution');
             }
 
@@ -354,7 +355,7 @@
 
             // Step 2: Poll for job completion
             let attempts = 0;
-            const maxAttempts = 30; // 30 seconds timeout
+            const maxAttempts = 60; // 60 seconds timeout
             let resultsUrl = null;
             
             while (attempts < maxAttempts) {
@@ -373,15 +374,27 @@
                 const statusData = await statusResponse.json();
                 console.log('Status data:', statusData);
 
-                if (statusData.status === 'completed' || statusData.status === 'Completed') {
-                    // Get the results URL
-                    resultsUrl = statusData.url || statusData.result_url || statusData.read_url;
+                // Check for completion - API might use different field names
+                const status = statusData.status || statusData.state;
+                console.log('Job status:', status);
+
+                if (status === 'completed' || status === 'Completed' || status === 'COMPLETED' || status === 'succeeded') {
+                    // Get the results URL - check various possible field names
+                    resultsUrl = statusData.url || statusData.result_url || statusData.read_url || statusData.results_url;
+                    
+                    // Sometimes the URL might be in a nested object
+                    if (!resultsUrl && statusData.result) {
+                        resultsUrl = statusData.result.url || statusData.result.read_url;
+                    }
+                    
                     if (resultsUrl) {
                         console.log('Query completed - results URL:', resultsUrl);
                         break;
+                    } else {
+                        console.warn('Job completed but no results URL found:', statusData);
                     }
-                } else if (statusData.status === 'failed' || statusData.status === 'Failed') {
-                    throw new Error('Query execution failed: ' + (statusData.message || 'Unknown error'));
+                } else if (status === 'failed' || status === 'Failed' || status === 'FAILED' || status === 'error') {
+                    throw new Error('Query execution failed: ' + (statusData.message || statusData.error || 'Unknown error'));
                 }
 
                 // Wait 1 second before next attempt
