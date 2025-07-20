@@ -4,8 +4,8 @@ const { Redis } = require('@upstash/redis');
 
 // Initialize Redis client (Vercel will auto-populate these env vars when you connect Upstash)
 const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN,
+  url: process.env.KV_REST_API_URL,
+  token: process.env.KV_REST_API_TOKEN,
 });
 
 // Cache for access token
