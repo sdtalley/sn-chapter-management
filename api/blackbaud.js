@@ -1,5 +1,12 @@
 // Import chapter lookup data at the very top of the file
 const { chapterLookup, getChapterData } = require('./chapter-records');
+const { Redis } = require('@upstash/redis');
+
+// Initialize Redis client (Vercel will auto-populate these env vars when you connect Upstash)
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN,
+});
 
 // Cache for access token
 let tokenCache = {
@@ -17,6 +24,33 @@ async function getValidAccessToken() {
 
   console.log('Getting new access token using refresh token');
   
+  // Get current refresh token from Redis, fallback to env var
+  let currentRefreshToken;
+  try {
+    currentRefreshToken = await redis.get('blackbaud_refresh_token');
+    console.log('Got refresh token from Redis');
+  } catch (error) {
+    console.log('Redis error, using env var:', error.message);
+  }
+  
+  // Fallback to environment variable if Redis doesn't have it
+  if (!currentRefreshToken) {
+    currentRefreshToken = process.env.BLACKBAUD_REFRESH_TOKEN;
+    console.log('Using refresh token from environment variable');
+    
+    // Store it in Redis for next time
+    try {
+      await redis.set('blackbaud_refresh_token', currentRefreshToken);
+      console.log('Stored env refresh token in Redis');
+    } catch (error) {
+      console.log('Failed to store in Redis:', error.message);
+    }
+  }
+  
+  if (!currentRefreshToken) {
+    throw new Error('No refresh token available');
+  }
+  
   // Get new access token using refresh token
   const tokenResponse = await fetch('https://oauth2.sky.blackbaud.com/token', {
     method: 'POST',
@@ -26,24 +60,36 @@ async function getValidAccessToken() {
     },
     body: new URLSearchParams({
       grant_type: 'refresh_token',
-      refresh_token: process.env.BLACKBAUD_REFRESH_TOKEN
+      refresh_token: currentRefreshToken
     })
   });
 
   if (!tokenResponse.ok) {
     const errorText = await tokenResponse.text();
+    console.error('Token refresh failed:', errorText);
     throw new Error(`Token refresh failed: ${tokenResponse.status} - ${errorText}`);
   }
 
   const tokenData = await tokenResponse.json();
   
-  // Cache the new token
+  // Cache the new access token
   tokenCache.accessToken = tokenData.access_token;
   tokenCache.expiresAt = new Date().getTime() + ((tokenData.expires_in - 300) * 1000); // Expire 5 minutes early
   
-  // If a new refresh token was provided, you might want to log it for manual update
-  if (tokenData.refresh_token && tokenData.refresh_token !== process.env.BLACKBAUD_REFRESH_TOKEN) {
-    console.warn('NEW REFRESH TOKEN PROVIDED - Update your environment variable:', tokenData.refresh_token);
+  // IMPORTANT: Update the refresh token if a new one was provided
+  if (tokenData.refresh_token && tokenData.refresh_token !== currentRefreshToken) {
+    console.log('New refresh token received - updating Redis');
+    try {
+      await redis.set('blackbaud_refresh_token', tokenData.refresh_token);
+      console.log('Successfully updated refresh token in Redis');
+    } catch (error) {
+      console.error('Failed to update refresh token in Redis:', error);
+      // Still log it so you can manually update if needed
+      console.warn('===========================================');
+      console.warn('FAILED TO SAVE - MANUAL UPDATE NEEDED:');
+      console.warn(`BLACKBAUD_REFRESH_TOKEN=${tokenData.refresh_token}`);
+      console.warn('===========================================');
+    }
   }
   
   return tokenCache.accessToken;
