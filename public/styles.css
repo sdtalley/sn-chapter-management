@@ -337,27 +337,34 @@ input[type="text"]:focus, input[type="password"]:focus, select:focus {
     cursor: not-allowed;
 }
 
-/* Select wrapper to fix border issues */
+/* Select wrapper with border */
 .select-wrapper {
     position: relative;
     width: 100%;
     display: block;
+    border: 2px solid #ddd;
+    border-radius: 4px;
+    background: white;
+}
+
+.select-wrapper:focus-within {
+    border-color: #667eea;
 }
 
 .approval-select {
     width: 100%;
     padding: 8px;
-    border: 2px solid #ddd;
+    border: none;
     border-radius: 4px;
     font-size: 14px;
-    background: white;
+    background: transparent;
     box-sizing: border-box;
     display: block;
+    cursor: pointer;
 }
 
 .approval-select:focus {
     outline: none;
-    border-color: #667eea;
 }
 
 /* Ensure table cells don't clip content */
