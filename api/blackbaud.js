@@ -143,13 +143,13 @@ export default async function handler(req, res) {
     console.log('Subscription key exists:', process.env.BLACKBAUD_SUBSCRIPTION_KEY ? 'Yes' : 'No');
     
     if (action === 'query-execute') {
-      // Execute ad-hoc query - trying different endpoint variations
+      // Execute ad-hoc query using the correct endpoint
       const queryRequest = req.body;
       
       console.log('Attempting query execution with request:', JSON.stringify(queryRequest, null, 2));
       
-      // Try the endpoint as shown in Blackbaud documentation
-      const queryUrl = 'https://api.sky.blackbaud.com/query/v1/jobs?product=RE&module=none';
+      // POST /query/queries/execute with required parameters
+      const queryUrl = 'https://api.sky.blackbaud.com/query/queries/execute?product=RE&module=None';
       console.log('Query URL:', queryUrl);
       
       const queryResponse = await fetch(queryUrl, {
@@ -157,7 +157,6 @@ export default async function handler(req, res) {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'Bb-Api-Subscription-Key': process.env.BLACKBAUD_SUBSCRIPTION_KEY,
-          'bb-api-subscription-key': process.env.BLACKBAUD_SUBSCRIPTION_KEY, // Try lowercase too
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
@@ -166,11 +165,9 @@ export default async function handler(req, res) {
       
       const responseText = await queryResponse.text();
       console.log('Query response status:', queryResponse.status);
-      console.log('Query response headers:', queryResponse.headers);
       console.log('Query response body:', responseText);
       
       if (!queryResponse.ok) {
-        // Log more details about the error
         console.error('Query execution failed');
         console.error('Status:', queryResponse.status);
         console.error('Response:', responseText);
@@ -186,9 +183,12 @@ export default async function handler(req, res) {
       }
       
     } else if (action === 'query-status' && jobId) {
-      // Check query job status using the correct endpoint from documentation
-      // GET /query/v1/jobs/{id} with required parameters
-      const statusResponse = await fetch(`https://api.sky.blackbaud.com/query/v1/jobs/${jobId}?product=RE&module=none`, {
+      // Check query job status using the correct endpoint
+      // GET /query/jobs/{id} with required parameters including include_read_url
+      const statusUrl = `https://api.sky.blackbaud.com/query/jobs/${jobId}?product=RE&module=None&include_read_url=OnceCompleted`;
+      console.log('Status check URL:', statusUrl);
+      
+      const statusResponse = await fetch(statusUrl, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'Bb-Api-Subscription-Key': process.env.BLACKBAUD_SUBSCRIPTION_KEY
@@ -202,6 +202,7 @@ export default async function handler(req, res) {
       }
       
       const statusData = await statusResponse.json();
+      console.log('Status response:', JSON.stringify(statusData, null, 2));
       res.json(statusData);
       
     } else if (action === 'query-results' && req.query.url) {
