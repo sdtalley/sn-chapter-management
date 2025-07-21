@@ -85,6 +85,7 @@
                 <div class="candidates-info">
                     <p><strong>Chapter:</strong> <span id="initiates-chapter">-</span></p>
                     <p><strong>Total Candidates:</strong> <span id="initiates-count">0</span></p>
+                    <p id="last-badge-info" style="display: none;"><strong>The last badge assigned is <span id="last-badge-number">-</span>.</strong></p>
                 </div>
                 
                 <div class="candidates-table-container">
@@ -487,6 +488,45 @@
             };
         }
 
+        function buildTopBadgeQuery(chapterMemcatid) {
+            return {
+                "query": {
+                    "advanced_processing_options": {},
+                    "constituent_filters": {
+                        "include_deceased": true,
+                        "include_inactive": true,
+                        "include_no_valid_addresses": true
+                    },
+                    "filter_fields": [
+                        {
+                            "compare_type": "None",
+                            "filter_values": [String(chapterMemcatid)],
+                            "operator": "Equals",
+                            "query_field_id": 21792
+                        }
+                    ],
+                    "gift_processing_options": {
+                        "matching_gift_credit_option": "MatchingGiftCompany",
+                        "soft_credit_option": "Donor"
+                    },
+                    "select_fields": [
+                        {
+                            "query_field_id": 21801,
+                            "user_alias": "Badge"
+                        }
+                    ],
+                    "sort_fields": [
+                        {
+                            "query_field_id": 21801,
+                            "sort_order": "Descending"
+                        }
+                    ],
+                    "type_id": 18,
+                    "sql_generation_mode": "Query"
+                }
+            };
+        }
+
         // CANDIDATES FUNCTIONALITY
         async function loadCandidates() {
             console.log('=== loadCandidates() started ===');
@@ -625,6 +665,30 @@
 
             // Fallback - this would need to be populated from your chapter-records.js
             console.error('Chapter QUID not found');
+            return null;
+        }
+
+        async function getChapterData(chapterName) {
+            console.log('=== getChapterData() started ===');
+            console.log('Looking up data for chapter:', chapterName);
+            
+            try {
+                const response = await fetch(`/api/blackbaud?action=chapter-lookup&chapter=${encodeURIComponent(chapterName)}`, {
+                    method: 'GET'
+                });
+                
+                console.log('Chapter lookup response status:', response.status);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Chapter data received:', data);
+                    return data;
+                }
+            } catch (error) {
+                console.warn('Server-side chapter lookup failed:', error);
+            }
+
+            console.error('Chapter data not found');
             return null;
         }
 
@@ -1227,25 +1291,36 @@
             hideElement('initiates-error');
 
             try {
-                // Get chapter QUID
-                console.log('Getting chapter QUID for:', appState.chapter);
-                const chapterQuid = await getChapterQuid(appState.chapter);
-                console.log('Chapter QUID retrieved:', chapterQuid);
+                // Get full chapter data (includes both quid and memcatid)
+                console.log('Getting chapter data for:', appState.chapter);
+                const chapterData = await getChapterData(appState.chapter);
+                console.log('Chapter data retrieved:', chapterData);
                 
-                if (!chapterQuid) {
-                    throw new Error(`Chapter QUID not found for ${appState.chapter}`);
+                if (!chapterData || !chapterData.quid) {
+                    throw new Error(`Chapter data not found for ${appState.chapter}`);
                 }
 
-                // Build and execute query
-                const queryRequest = buildInitiatesQuery(chapterQuid);
-                const resultsData = await executeQuery(queryRequest, 'candidates');
+                // Execute both queries in parallel
+                const [initiatesResults, topBadgeResults] = await Promise.all([
+                    // Query 1: Get initiates
+                    executeQuery(buildInitiatesQuery(chapterData.quid), 'candidates'),
+                    // Query 2: Get top badge (only if memcatid exists)
+                    chapterData.memcatid ? executeQuery(buildTopBadgeQuery(chapterData.memcatid), 'topbadge') : Promise.resolve(null)
+                ]);
                 
-                // Process results
-                const initiates = processInitiatesResults(resultsData);
+                // Process initiates results
+                const initiates = processInitiatesResults(initiatesResults);
                 console.log('Processed initiates:', initiates);
                 
-                // Display initiates
-                displayInitiates(initiates);
+                // Process top badge if available
+                let topBadge = null;
+                if (topBadgeResults && Array.isArray(topBadgeResults) && topBadgeResults.length > 0) {
+                    topBadge = topBadgeResults[0].Badge;
+                    console.log('Top badge found:', topBadge);
+                }
+                
+                // Display initiates with top badge info
+                displayInitiates(initiates, topBadge);
                 
             } catch (error) {
                 console.error('Error loading initiates:', error);
@@ -1282,16 +1357,25 @@
             return initiates;
         }
 
-        function displayInitiates(initiates) {
+        function displayInitiates(initiates, topBadge = null) {
             console.log('=== displayInitiates() started ===');
             console.log('Number of initiates to display:', initiates.length);
+            console.log('Top badge:', topBadge);
             
             const chapterSpan = document.getElementById('initiates-chapter');
             const countSpan = document.getElementById('initiates-count');
             const tbody = document.getElementById('initiates-tbody');
+            const lastBadgeInfo = document.getElementById('last-badge-info');
+            const lastBadgeNumber = document.getElementById('last-badge-number');
             
             if (chapterSpan) chapterSpan.textContent = appState.chapter || 'Unknown';
             if (countSpan) countSpan.textContent = initiates.length;
+            
+            // Display top badge if available
+            if (topBadge && lastBadgeInfo && lastBadgeNumber) {
+                lastBadgeNumber.textContent = topBadge;
+                lastBadgeInfo.style.display = 'block';
+            }
             
             // Clear existing rows
             if (tbody) {
