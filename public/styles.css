@@ -340,16 +340,17 @@ input[type="text"]:focus, input[type="password"]:focus, select:focus {
 .approval-select {
     width: 100%;
     padding: 8px;
-    border: 2px solid #ddd;
+    border: 2px solid #ddd !important;
     border-radius: 4px;
     font-size: 14px;
     background: white;
     box-sizing: border-box;
+    display: block;
 }
 
 .approval-select:focus {
     outline: none;
-    border-color: #667eea;
+    border-color: #667eea !important;
 }
 
 /* Ensure borders are always visible */
@@ -361,10 +362,23 @@ input[type="text"]:focus, input[type="password"]:focus, select:focus {
     overflow: visible;
 }
 
-/* Fix for dropdown border visibility */
+/* Remove conflicting styles */
+.candidates-table tbody tr:hover {
+    background: #f8f9fa;
+}
+
+/* Fix for select elements in tables */
 .candidates-table select {
     position: relative;
     z-index: 1;
+    margin: 0;
+    border: 2px solid #ddd !important;
+    outline: 2px solid transparent;
+}
+
+/* Force border rendering */
+.candidates-table select:not(:focus) {
+    border: 2px solid #ddd !important;
 }
 
 .submit-section {
