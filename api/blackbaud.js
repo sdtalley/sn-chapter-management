@@ -205,20 +205,41 @@ export default async function handler(req, res) {
       console.log('Status response:', JSON.stringify(statusData, null, 2));
       res.json(statusData);
       
-    } else if (action === 'query-results' && req.query.url) {
-      // Fetch query results from provided URL
-      const resultsUrl = decodeURIComponent(req.query.url);
+    } else if (action === 'query-results') {
+      // For POST requests, get URL from body to avoid URL encoding issues
+      let resultsUrl;
       
-      console.log('Fetching results from SAS URI:', resultsUrl);
+      if (req.method === 'POST' && req.body && req.body.url) {
+        resultsUrl = req.body.url;
+        console.log('Fetching results from SAS URI (POST):', resultsUrl);
+      } else if (req.query.url) {
+        // Fallback to GET with careful decoding
+        resultsUrl = decodeURIComponent(req.query.url);
+        console.log('Fetching results from SAS URI (GET):', resultsUrl);
+      } else {
+        throw new Error('No SAS URI provided');
+      }
+      
+      // Validate the URL looks like a proper SAS URI
+      if (!resultsUrl.includes('blob.core.windows.net') || !resultsUrl.includes('sig=')) {
+        console.error('Invalid SAS URI format:', resultsUrl);
+        throw new Error('Invalid SAS URI format');
+      }
       
       // SAS URIs are pre-signed, they don't need authentication headers
-      const resultsResponse = await fetch(resultsUrl);
+      const resultsResponse = await fetch(resultsUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
       
       if (!resultsResponse.ok) {
         const errorText = await resultsResponse.text();
         console.error('Failed to fetch from SAS URI');
         console.error('Status:', resultsResponse.status);
         console.error('Response:', errorText);
+        console.error('SAS URI (first 100 chars):', resultsUrl.substring(0, 100) + '...');
         throw new Error(`Failed to fetch query results: ${resultsResponse.status} - ${errorText}`);
       }
       

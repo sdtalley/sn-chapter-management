@@ -401,8 +401,13 @@
 
             // Step 3: Fetch the actual results
             console.log('Fetching query results from URL...');
-            const resultsResponse = await fetch(`/api/blackbaud?action=query-results&url=${encodeURIComponent(resultsUrl)}`, {
-                method: 'GET'
+            // Use POST to avoid URL encoding issues with SAS URIs
+            const resultsResponse = await fetch('/api/blackbaud?action=query-results', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ url: resultsUrl })
             });
 
             if (!resultsResponse.ok) {
