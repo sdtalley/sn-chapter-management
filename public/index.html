@@ -174,7 +174,6 @@
             <div id="officer-content" style="display: none;">
                 <div class="candidates-info">
                     <p><strong>Chapter:</strong> <span id="officer-chapter">-</span></p>
-                    <p><strong>Current Officers:</strong> <span id="officer-count">0</span></p>
                 </div>
                 
                 <div class="candidates-table-container">
@@ -2376,22 +2375,22 @@
 
         // Define all 16 officer positions in order
         const OFFICER_POSITIONS = [
-            'Commander',
-            'Lt. Commander',
-            'Recorder',
-            'Treasurer',
-            'Herald',
             'Alumni Relations',
             'Chaplain',
-            'Historian',
+            'Commander',
+            'House Manager',
+            'LEAD Chairman',
+            'Lt. Commander',
             'Marshal',
-            'Philanthropy',
-            'Risk Management',
-            'Rush',
-            'Scholarship',
-            'Social',
-            'Web Master',
-            'LEAD'
+            'Philanthropy/Community Relations',
+            'Recorder',
+            'Recruitment Chairman',
+            'Reporter',
+            'Risk Reduction Officer',
+            'Scholarship Chairman',
+            'Sentinel',
+            'Social Chairman',
+            'Treasurer'
         ];
 
         function displayOfficers(officers, roster) {
@@ -2400,7 +2399,6 @@
             console.log('Number of roster members:', roster.length);
             
             const chapterSpan = document.getElementById('officer-chapter');
-            const countSpan = document.getElementById('officer-count');
             const tbody = document.getElementById('officer-tbody');
             
             // Process officers to handle duplicates - keep only the latest
@@ -2412,10 +2410,7 @@
                 }
             });
             
-            const uniqueOfficersCount = Object.keys(officerMap).length;
-            
             if (chapterSpan) chapterSpan.textContent = appState.chapter || 'Unknown';
-            if (countSpan) countSpan.textContent = uniqueOfficersCount;
             
             // Clear existing rows
             if (tbody) {
