@@ -344,11 +344,27 @@ input[type="text"]:focus, input[type="password"]:focus, select:focus {
     border-radius: 4px;
     font-size: 14px;
     background: white;
+    box-sizing: border-box;
 }
 
 .approval-select:focus {
     outline: none;
     border-color: #667eea;
+}
+
+/* Ensure borders are always visible */
+.candidates-table td {
+    padding: 12px;
+    border-bottom: 1px solid #dee2e6;
+    vertical-align: middle;
+    position: relative;
+    overflow: visible;
+}
+
+/* Fix for dropdown border visibility */
+.candidates-table select {
+    position: relative;
+    z-index: 1;
 }
 
 .submit-section {
