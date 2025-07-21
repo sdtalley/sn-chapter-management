@@ -75,12 +75,44 @@
         <div id="verify-initiates" class="page">
             <button class="back-btn" onclick="showMainMenu()">← Back to Main Menu</button>
             <h2>Verify Initiates</h2>
-            <div class="form-group">
-                <label for="initiateId">Initiate ID:</label>
-                <input type="text" id="initiateId" placeholder="Enter initiate ID">
+            
+            <div class="loading-message" id="initiates-loading" style="display: none;">
+                <div class="spinner"></div>
+                <p>Loading prospective initiates...</p>
             </div>
-            <button class="btn" onclick="verifyInitiate()">Verify Initiate</button>
-            <div id="initiateResult" class="response-area" style="display: none;"></div>
+            
+            <div id="initiates-content" style="display: none;">
+                <div class="candidates-info">
+                    <p><strong>Chapter:</strong> <span id="initiates-chapter">-</span></p>
+                    <p><strong>Total Initiates:</strong> <span id="initiates-count">0</span></p>
+                </div>
+                
+                <div class="candidates-table-container">
+                    <table class="candidates-table" id="initiates-table">
+                        <thead>
+                            <tr>
+                                <th>Initiated</th>
+                                <th>Name</th>
+                                <th>Candidate Ceremony Date</th>
+                                <th>Initiate Ceremony Date</th>
+                                <th>Badge Number</th>
+                            </tr>
+                        </thead>
+                        <tbody id="initiates-tbody">
+                            <!-- Dynamic content will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="submit-section">
+                    <button class="btn" onclick="submitInitiateVerifications()">Submit Verifications</button>
+                </div>
+            </div>
+            
+            <div id="initiates-error" class="error-message" style="display: none;">
+                <p>Error loading initiates. Please try again or check your authentication.</p>
+                <button class="btn" onclick="loadInitiates()">Retry</button>
+            </div>
         </div>
 
         <!-- ROSTER INFORMATION PAGE -->
@@ -377,6 +409,69 @@
                         },
                         {
                             "query_field_id": 597
+                        }
+                    ],
+                    "sort_fields": [
+                        {
+                            "query_field_id": 597,
+                            "sort_order": "Ascending"
+                        }
+                    ],
+                    "suppress_duplicates": true,
+                    "type_id": 18,
+                    "sql_generation_mode": "Query"
+                }
+            };
+        }
+
+        function buildInitiatesQuery(chapterQuid) {
+            return {
+                "query": {
+                    "advanced_processing_options": {
+                        "use_alternate_sql_code_table_fields": false,
+                        "use_alternate_sql_multiple_attributes": false
+                    },
+                    "constituent_filters": {
+                        "include_deceased": false,
+                        "include_inactive": true,
+                        "include_no_valid_addresses": true
+                    },
+                    "filter_fields": [
+                        {
+                            "compare_type": "None",
+                            "filter_values": ["5707"],
+                            "left_parenthesis": false,
+                            "operator": "Equals",
+                            "query_field_id": 2217,
+                            "right_parenthesis": false
+                        },
+                        {
+                            "compare_type": "And",
+                            "filter_values": [String(chapterQuid)],
+                            "left_parenthesis": false,
+                            "operator": "Equals",
+                            "query_field_id": 656,
+                            "right_parenthesis": false,
+                            "unique_id": "120"
+                        }
+                    ],
+                    "gift_processing_options": {
+                        "matching_gift_credit_option": "MatchingGiftCompany",
+                        "soft_credit_option": "Donor",
+                        "use_gross_amount_for_covenants": false
+                    },
+                    "select_fields": [
+                        {
+                            "query_field_id": 349,
+                            "user_alias": "ID"
+                        },
+                        {
+                            "query_field_id": 597
+                        },
+                        {
+                            "query_field_id": 656,
+                            "unique_id": "38",
+                            "user_alias": "Candidate_Ceremony_Date"
                         }
                     ],
                     "sort_fields": [
@@ -784,6 +879,8 @@
             // Load page-specific data
             if (pageId === 'verify-candidates') {
                 loadCandidates();
+            } else if (pageId === 'verify-initiates') {
+                loadInitiates();
             }
             
             // Notify parent of height change
@@ -1112,27 +1209,297 @@
             }
         }
         
-        // Page-specific functions
-        async function verifyCandidate() {
-            const candidateId = document.getElementById('candidateId').value;
-            if (!candidateId) {
-                showStatus('Please enter a candidate ID.', 'error');
+        // INITIATES FUNCTIONALITY
+        async function loadInitiates() {
+            console.log('=== loadInitiates() started ===');
+            console.log('Chapter:', appState.chapter);
+            
+            if (!appState.chapter) {
+                showError('initiates-error', 'No chapter specified. Please access this page with a chapter parameter.');
+                console.error('No chapter parameter found');
                 return;
             }
-            
-            const endpoint = `/constituents/${candidateId}`;
-            await makeApiCall(endpoint, 'candidateResult');
+
+            // Show loading state
+            console.log('Showing loading state...');
+            showLoading('initiates-loading');
+            hideElement('initiates-content');
+            hideElement('initiates-error');
+
+            try {
+                // Get chapter QUID
+                console.log('Getting chapter QUID for:', appState.chapter);
+                const chapterQuid = await getChapterQuid(appState.chapter);
+                console.log('Chapter QUID retrieved:', chapterQuid);
+                
+                if (!chapterQuid) {
+                    throw new Error(`Chapter QUID not found for ${appState.chapter}`);
+                }
+
+                // Build and execute query
+                const queryRequest = buildInitiatesQuery(chapterQuid);
+                const resultsData = await executeQuery(queryRequest, 'prospective_initiates');
+                
+                // Process results
+                const initiates = processInitiatesResults(resultsData);
+                console.log('Processed initiates:', initiates);
+                
+                // Display initiates
+                displayInitiates(initiates);
+                
+            } catch (error) {
+                console.error('Error loading initiates:', error);
+                showError('initiates-error', `Failed to load initiates: ${error.message}`);
+            }
         }
-        
-        async function verifyInitiate() {
-            const initiateId = document.getElementById('initiateId').value;
-            if (!initiateId) {
-                showStatus('Please enter an initiate ID.', 'error');
+
+        function processInitiatesResults(results) {
+            console.log('=== processInitiatesResults() started ===');
+            console.log('Raw results:', results);
+            
+            const initiates = [];
+            
+            if (Array.isArray(results)) {
+                console.log(`Processing ${results.length} initiates`);
+                
+                results.forEach((row, index) => {
+                    console.log(`Row ${index}:`, row);
+                    
+                    const initiate = {
+                        id: row.ID || row.QRECID || row.id,
+                        name: row.Name || row.name || 'N/A',
+                        candidateCeremonyDate: row.Candidate_Ceremony_Date || ''
+                    };
+                    
+                    console.log(`Initiate ${index}:`, initiate);
+                    initiates.push(initiate);
+                });
+            } else {
+                console.warn('Unexpected results format:', results);
+            }
+
+            console.log(`Total initiates processed: ${initiates.length}`);
+            return initiates;
+        }
+
+        function displayInitiates(initiates) {
+            console.log('=== displayInitiates() started ===');
+            console.log('Number of initiates to display:', initiates.length);
+            
+            const chapterSpan = document.getElementById('initiates-chapter');
+            const countSpan = document.getElementById('initiates-count');
+            const tbody = document.getElementById('initiates-tbody');
+            
+            if (chapterSpan) chapterSpan.textContent = appState.chapter || 'Unknown';
+            if (countSpan) countSpan.textContent = initiates.length;
+            
+            // Clear existing rows
+            if (tbody) {
+                tbody.innerHTML = '';
+                
+                if (initiates.length === 0) {
+                    console.log('No initiates found - showing empty state');
+                    const row = tbody.insertRow();
+                    const cell = row.insertCell();
+                    cell.colSpan = 5; // 5 columns for initiates table
+                    cell.className = 'empty-state-cell';
+                    cell.textContent = 'No prospective initiates found for this chapter.';
+                } else {
+                    console.log('Creating table rows for initiates...');
+                    initiates.forEach((initiate, index) => {
+                        console.log(`Creating row ${index} for:`, initiate);
+                        
+                        const row = tbody.insertRow();
+                        
+                        // Store initiate ID as data attribute
+                        row.dataset.initiateId = initiate.id;
+                        
+                        // Initiated checkbox
+                        const initiatedCell = row.insertCell();
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.className = 'initiated-checkbox';
+                        checkbox.id = `initiated-${index}`;
+                        checkbox.addEventListener('change', function() {
+                            handleInitiatedChange(index, this.checked);
+                        });
+                        initiatedCell.appendChild(checkbox);
+                        
+                        // Name
+                        const nameCell = row.insertCell();
+                        nameCell.textContent = initiate.name || 'N/A';
+                        
+                        // Candidate Ceremony Date
+                        const candidateDateCell = row.insertCell();
+                        if (initiate.candidateCeremonyDate) {
+                            // Format date for display if it exists
+                            candidateDateCell.textContent = formatDateForDisplay(initiate.candidateCeremonyDate);
+                        } else {
+                            candidateDateCell.textContent = 'N/A';
+                        }
+                        
+                        // Initiate Ceremony Date
+                        const initiateDateCell = row.insertCell();
+                        const dateInput = document.createElement('input');
+                        dateInput.type = 'date';
+                        dateInput.className = 'date-input';
+                        dateInput.id = `initiate-ceremony-date-${index}`;
+                        dateInput.disabled = true; // Initially disabled
+                        
+                        // Set max date to today
+                        const today = new Date();
+                        dateInput.max = today.toISOString().split('T')[0];
+                        
+                        // Set min date to day after candidate ceremony date if it exists
+                        if (initiate.candidateCeremonyDate) {
+                            const candidateDate = parseDate(initiate.candidateCeremonyDate);
+                            if (candidateDate) {
+                                candidateDate.setDate(candidateDate.getDate() + 1);
+                                dateInput.min = candidateDate.toISOString().split('T')[0];
+                            }
+                        }
+                        
+                        initiateDateCell.appendChild(dateInput);
+                        
+                        // Badge Number
+                        const badgeCell = row.insertCell();
+                        const badgeInput = document.createElement('input');
+                        badgeInput.type = 'number';
+                        badgeInput.className = 'badge-input';
+                        badgeInput.id = `badge-number-${index}`;
+                        badgeInput.disabled = true; // Initially disabled
+                        badgeInput.min = '0';
+                        badgeInput.max = '9999';
+                        badgeInput.placeholder = '0000';
+                        
+                        // Restrict to 4 digits
+                        badgeInput.addEventListener('input', function() {
+                            if (this.value.length > 4) {
+                                this.value = this.value.slice(0, 4);
+                            }
+                        });
+                        
+                        badgeCell.appendChild(badgeInput);
+                    });
+                }
+            }
+            
+            // Show content
+            console.log('Hiding loading state and showing content...');
+            hideElement('initiates-loading');
+            showElement('initiates-content');
+            
+            // Trigger resize
+            resizeIframe();
+            console.log('=== displayInitiates() completed ===');
+        }
+
+        function handleInitiatedChange(index, isChecked) {
+            const dateInput = document.getElementById(`initiate-ceremony-date-${index}`);
+            const badgeInput = document.getElementById(`badge-number-${index}`);
+            
+            if (dateInput) {
+                dateInput.disabled = !isChecked;
+                if (!isChecked) {
+                    dateInput.value = '';
+                }
+            }
+            
+            if (badgeInput) {
+                badgeInput.disabled = !isChecked;
+                if (!isChecked) {
+                    badgeInput.value = '';
+                }
+            }
+        }
+
+        function formatDateForDisplay(dateString) {
+            if (!dateString) return 'N/A';
+            
+            // Handle various date formats
+            const date = parseDate(dateString);
+            if (date && !isNaN(date)) {
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const year = date.getFullYear();
+                return `${month}/${day}/${year}`;
+            }
+            
+            return dateString; // Return as-is if parsing fails
+        }
+
+        function parseDate(dateString) {
+            if (!dateString) return null;
+            
+            // Try parsing various formats
+            // Format: MM/DD/YYYY
+            if (dateString.includes('/')) {
+                const parts = dateString.split('/');
+                if (parts.length === 3) {
+                    return new Date(parts[2], parts[0] - 1, parts[1]);
+                }
+            }
+            
+            // Format: YYYY-MM-DD
+            if (dateString.includes('-')) {
+                return new Date(dateString);
+            }
+            
+            // Try default parsing
+            return new Date(dateString);
+        }
+
+        function submitInitiateVerifications() {
+            // Get all initiate data
+            const initiates = [];
+            const tbody = document.getElementById('initiates-tbody');
+            
+            if (tbody) {
+                const rows = tbody.querySelectorAll('tr');
+                
+                rows.forEach((row, index) => {
+                    const initiateId = row.dataset.initiateId;
+                    if (initiateId) {
+                        const checkbox = document.getElementById(`initiated-${index}`);
+                        const dateInput = document.getElementById(`initiate-ceremony-date-${index}`);
+                        const badgeInput = document.getElementById(`badge-number-${index}`);
+                        
+                        if (checkbox && checkbox.checked && dateInput && badgeInput) {
+                            // Format date as mm/dd/yyyy for display
+                            let formattedDate = '';
+                            if (dateInput.value) {
+                                const [year, month, day] = dateInput.value.split('-');
+                                formattedDate = `${month}/${day}/${year}`;
+                            }
+                            
+                            initiates.push({
+                                id: initiateId,
+                                initiated: true,
+                                ceremonyDate: dateInput.value,
+                                ceremonyDateFormatted: formattedDate,
+                                badgeNumber: badgeInput.value
+                            });
+                        }
+                    }
+                });
+            }
+            
+            if (initiates.length === 0) {
+                showStatus('No initiates have been selected. Please check at least one initiate.', 'error');
                 return;
             }
             
-            const endpoint = `/constituents/${initiateId}`;
-            await makeApiCall(endpoint, 'initiateResult');
+            // Validate that all selected initiates have ceremony dates and badge numbers
+            const incomplete = initiates.filter(i => !i.ceremonyDate || !i.badgeNumber);
+            
+            if (incomplete.length > 0) {
+                showStatus(`Please ensure all selected initiates have ceremony dates and badge numbers. ${incomplete.length} initiate(s) missing required information.`, 'error');
+                return;
+            }
+            
+            // For now, just show what would be submitted
+            console.log('Initiate verifications to submit:', initiates);
+            showStatus(`Ready to submit ${initiates.length} initiate verification(s). (Submit functionality coming soon)`, 'info');
         }
         
         async function getRosterInfo() {
