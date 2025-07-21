@@ -61,7 +61,35 @@
                 </div>
                 
                 <div class="submit-section">
-                    <button class="btn" onclick="submitCandidateVerifications()">Submit Verifications</button>
+                    <button class="btn" onclick="reviewCandidateChanges()">Review Changes</button>
+                </div>
+            </div>
+            
+            <!-- CANDIDATES REVIEW SECTION -->
+            <div id="candidates-review" style="display: none;">
+                <div class="candidates-info">
+                    <p><strong>Chapter:</strong> <span id="candidates-review-chapter">-</span></p>
+                    <p><strong>Changes to Submit:</strong> <span id="candidates-review-count">0</span></p>
+                </div>
+                
+                <div class="candidates-table-container">
+                    <table class="candidates-table" id="candidates-review-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Approval Status</th>
+                                <th>Candidate Ceremony Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="candidates-review-tbody">
+                            <!-- Dynamic content will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="submit-section">
+                    <button class="btn" onclick="backToCandidates()">Back</button>
+                    <button class="btn" onclick="submitCandidateVerifications()">Submit</button>
                 </div>
             </div>
             
@@ -106,7 +134,35 @@
                 </div>
                 
                 <div class="submit-section">
-                    <button class="btn" onclick="submitInitiateVerifications()">Submit Verifications</button>
+                    <button class="btn" onclick="reviewInitiateChanges()">Review Changes</button>
+                </div>
+            </div>
+            
+            <!-- INITIATES REVIEW SECTION -->
+            <div id="initiates-review" style="display: none;">
+                <div class="candidates-info">
+                    <p><strong>Chapter:</strong> <span id="initiates-review-chapter">-</span></p>
+                    <p><strong>Changes to Submit:</strong> <span id="initiates-review-count">0</span></p>
+                </div>
+                
+                <div class="candidates-table-container">
+                    <table class="candidates-table" id="initiates-review-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Initiate Ceremony Date</th>
+                                <th>Badge Number</th>
+                            </tr>
+                        </thead>
+                        <tbody id="initiates-review-tbody">
+                            <!-- Dynamic content will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="submit-section">
+                    <button class="btn" onclick="backToInitiates()">Back</button>
+                    <button class="btn" onclick="submitInitiateVerifications()">Submit</button>
                 </div>
             </div>
             
@@ -151,7 +207,36 @@
                 </div>
                 
                 <div class="submit-section">
-                    <button class="btn" onclick="submitRosterChanges()">Submit Status Changes</button>
+                    <button class="btn" onclick="reviewRosterChanges()">Review Changes</button>
+                </div>
+            </div>
+            
+            <!-- ROSTER REVIEW SECTION -->
+            <div id="roster-review" style="display: none;">
+                <div class="candidates-info">
+                    <p><strong>Chapter:</strong> <span id="roster-review-chapter">-</span></p>
+                    <p><strong>Changes to Submit:</strong> <span id="roster-review-count">0</span></p>
+                </div>
+                
+                <div class="candidates-table-container">
+                    <table class="candidates-table" id="roster-review-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Current Status</th>
+                                <th>New Status</th>
+                                <th>Effective Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="roster-review-tbody">
+                            <!-- Dynamic content will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="submit-section">
+                    <button class="btn" onclick="backToRoster()">Back</button>
+                    <button class="btn" onclick="submitRosterChanges()">Submit</button>
                 </div>
             </div>
             
@@ -194,7 +279,36 @@
                 </div>
                 
                 <div class="submit-section">
-                    <button class="btn" onclick="submitOfficerChanges()">Submit Officer Changes</button>
+                    <button class="btn" onclick="reviewOfficerChanges()">Review Changes</button>
+                </div>
+            </div>
+            
+            <!-- OFFICER REVIEW SECTION -->
+            <div id="officer-review" style="display: none;">
+                <div class="candidates-info">
+                    <p><strong>Chapter:</strong> <span id="officer-review-chapter">-</span></p>
+                    <p><strong>Changes to Submit:</strong> <span id="officer-review-count">0</span></p>
+                </div>
+                
+                <div class="candidates-table-container">
+                    <table class="candidates-table" id="officer-review-table">
+                        <thead>
+                            <tr>
+                                <th>Position</th>
+                                <th>Current Officer</th>
+                                <th>New Officer</th>
+                                <th>Start Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="officer-review-tbody">
+                            <!-- Dynamic content will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="submit-section">
+                    <button class="btn" onclick="backToOfficers()">Back</button>
+                    <button class="btn" onclick="submitOfficerChanges()">Submit</button>
                 </div>
             </div>
             
@@ -2437,6 +2551,13 @@
         }
 
         function submitRosterChanges() {
+            // For now, just show what would be submitted
+            console.log('Roster changes to submit from review');
+            showStatus('Submit functionality coming soon', 'info');
+        }
+
+        // ROSTER REVIEW FUNCTIONS
+        function reviewRosterChanges() {
             // Get all roster changes
             const changes = [];
             const tbody = document.getElementById('roster-tbody');
@@ -2449,21 +2570,20 @@
                     if (memberId) {
                         const statusSelect = document.getElementById(`status-${index}`);
                         const dateInput = document.getElementById(`roster-date-${index}`);
+                        const nameCell = row.cells[0];
+                        const currentStatusCell = row.cells[1];
                         
                         if (statusSelect && statusSelect.value && statusSelect.value !== '' && dateInput) {
-                            // Format date as mm/dd/yyyy for display
-                            let formattedDate = '';
-                            if (dateInput.value) {
-                                const [year, month, day] = dateInput.value.split('-');
-                                formattedDate = `${month}/${day}/${year}`;
-                            }
+                            const selectedOption = statusSelect.options[statusSelect.selectedIndex];
                             
                             changes.push({
                                 id: memberId,
-                                currentStatus: row.dataset.memberStatus,
+                                name: nameCell.textContent,
+                                currentStatus: currentStatusCell.textContent,
                                 newStatus: statusSelect.value,
+                                newStatusText: selectedOption.textContent,
                                 effectiveDate: dateInput.value,
-                                effectiveDateFormatted: formattedDate
+                                effectiveDateFormatted: dateInput.value ? formatDateForDisplay(dateInput.value) : ''
                             });
                         }
                     }
@@ -2483,9 +2603,52 @@
                 return;
             }
             
-            // For now, just show what would be submitted
-            console.log('Roster changes to submit:', changes);
-            showStatus(`Ready to submit ${changes.length} status change(s). (Submit functionality coming soon)`, 'info');
+            // Display review table
+            displayRosterReview(changes);
+        }
+
+        function displayRosterReview(changes) {
+            const chapterSpan = document.getElementById('roster-review-chapter');
+            const countSpan = document.getElementById('roster-review-count');
+            const tbody = document.getElementById('roster-review-tbody');
+            
+            if (chapterSpan) chapterSpan.textContent = appState.chapter || 'Unknown';
+            if (countSpan) countSpan.textContent = changes.length;
+            
+            if (tbody) {
+                tbody.innerHTML = '';
+                
+                changes.forEach(change => {
+                    const row = tbody.insertRow();
+                    
+                    // Name
+                    const nameCell = row.insertCell();
+                    nameCell.textContent = change.name;
+                    
+                    // Current Status
+                    const currentCell = row.insertCell();
+                    currentCell.textContent = change.currentStatus;
+                    
+                    // New Status
+                    const newStatusCell = row.insertCell();
+                    newStatusCell.textContent = change.newStatusText;
+                    
+                    // Effective Date
+                    const dateCell = row.insertCell();
+                    dateCell.textContent = change.effectiveDateFormatted;
+                });
+            }
+            
+            // Hide main content, show review
+            hideElement('roster-content');
+            showElement('roster-review');
+            resizeIframe();
+        }
+
+        function backToRoster() {
+            hideElement('roster-review');
+            showElement('roster-content');
+            resizeIframe();
         }
         
         async function getOfficerInfo() {
@@ -2758,6 +2921,13 @@
         }
 
         function submitOfficerChanges() {
+            // For now, just show what would be submitted
+            console.log('Officer changes to submit from review');
+            showStatus('Submit functionality coming soon', 'info');
+        }
+
+        // OFFICER REVIEW FUNCTIONS
+        function reviewOfficerChanges() {
             // Get all officer changes
             const changes = [];
             const tbody = document.getElementById('officer-tbody');
@@ -2770,25 +2940,19 @@
                     if (position) {
                         const officerSelect = document.getElementById(`new-officer-${index}`);
                         const dateInput = document.getElementById(`officer-start-date-${index}`);
+                        const currentOfficerCell = row.cells[1];
                         
                         if (officerSelect && officerSelect.value && officerSelect.value !== '' && dateInput) {
                             const selectedOption = officerSelect.options[officerSelect.selectedIndex];
                             
-                            // Format date as mm/dd/yyyy for display
-                            let formattedDate = '';
-                            if (dateInput.value) {
-                                const [year, month, day] = dateInput.value.split('-');
-                                formattedDate = `${month}/${day}/${year}`;
-                            }
-                            
                             changes.push({
                                 position: position,
+                                currentOfficer: currentOfficerCell.textContent === '-' ? 'None' : currentOfficerCell.textContent,
                                 currentOfficerId: row.dataset.currentOfficerId || null,
-                                currentOfficerName: row.dataset.currentOfficerName || 'None',
                                 newOfficerId: officerSelect.value,
                                 newOfficerName: selectedOption.textContent,
                                 startDate: dateInput.value,
-                                startDateFormatted: formattedDate
+                                startDateFormatted: dateInput.value ? formatDateForDisplay(dateInput.value) : ''
                             });
                         }
                     }
@@ -2808,9 +2972,52 @@
                 return;
             }
             
-            // For now, just show what would be submitted
-            console.log('Officer changes to submit:', changes);
-            showStatus(`Ready to submit ${changes.length} officer change(s). (Submit functionality coming soon)`, 'info');
+            // Display review table
+            displayOfficerReview(changes);
+        }
+
+        function displayOfficerReview(changes) {
+            const chapterSpan = document.getElementById('officer-review-chapter');
+            const countSpan = document.getElementById('officer-review-count');
+            const tbody = document.getElementById('officer-review-tbody');
+            
+            if (chapterSpan) chapterSpan.textContent = appState.chapter || 'Unknown';
+            if (countSpan) countSpan.textContent = changes.length;
+            
+            if (tbody) {
+                tbody.innerHTML = '';
+                
+                changes.forEach(change => {
+                    const row = tbody.insertRow();
+                    
+                    // Position
+                    const positionCell = row.insertCell();
+                    positionCell.textContent = change.position;
+                    
+                    // Current Officer
+                    const currentCell = row.insertCell();
+                    currentCell.textContent = change.currentOfficer;
+                    
+                    // New Officer
+                    const newOfficerCell = row.insertCell();
+                    newOfficerCell.textContent = change.newOfficerName;
+                    
+                    // Start Date
+                    const dateCell = row.insertCell();
+                    dateCell.textContent = change.startDateFormatted;
+                });
+            }
+            
+            // Hide main content, show review
+            hideElement('officer-content');
+            showElement('officer-review');
+            resizeIframe();
+        }
+
+        function backToOfficers() {
+            hideElement('officer-review');
+            showElement('officer-content');
+            resizeIframe();
         }
         
         async function getContactInfo() {
