@@ -205,26 +205,35 @@ export default async function handler(req, res) {
       console.log('Status response:', JSON.stringify(statusData, null, 2));
       res.json(statusData);
       
-    } else if (action === 'query-results' && req.query.url) {
-      // Get the URL - it might be double-encoded
-      let resultsUrl = req.query.url;
+    } else if (action === 'query-results') {
+      // Handle both POST and GET methods
+      let resultsUrl;
       
-      console.log('Raw URL from query:', resultsUrl.substring(0, 100));
-      
-      // Decode until we get a stable URL (handles double-encoding)
-      let previousUrl = '';
-      while (resultsUrl !== previousUrl) {
-        previousUrl = resultsUrl;
-        try {
-          resultsUrl = decodeURIComponent(resultsUrl);
-        } catch (e) {
-          // If decoding fails, we've decoded as much as we can
-          break;
+      if (req.method === 'POST' && req.body && req.body.url) {
+        // POST method - URL comes in body, no encoding issues
+        resultsUrl = req.body.url;
+        console.log('Received SAS URI via POST');
+      } else if (req.query.url) {
+        // GET method fallback - decode properly
+        resultsUrl = req.query.url;
+        console.log('Received SAS URI via GET');
+        
+        // Decode until stable (handles multiple encoding)
+        let previousUrl = '';
+        while (resultsUrl !== previousUrl) {
+          previousUrl = resultsUrl;
+          try {
+            resultsUrl = decodeURIComponent(resultsUrl);
+          } catch (e) {
+            break;
+          }
         }
+      } else {
+        throw new Error('No SAS URI provided');
       }
       
       console.log('Fetching results from SAS URI');
-      console.log('Decoded URL length:', resultsUrl.length);
+      console.log('URL length:', resultsUrl.length);
       console.log('First 100 chars:', resultsUrl.substring(0, 100));
       
       // SAS URIs are pre-signed, they don't need authentication headers
@@ -240,7 +249,7 @@ export default async function handler(req, res) {
         console.error('Failed to fetch from SAS URI');
         console.error('Status:', resultsResponse.status);
         console.error('Response:', errorText);
-        console.error('SAS URI (first 100 chars):', resultsUrl.substring(0, 100) + '...');
+        console.error('Full SAS URI:', resultsUrl);
         throw new Error(`Failed to fetch query results: ${resultsResponse.status} - ${errorText}`);
       }
       
