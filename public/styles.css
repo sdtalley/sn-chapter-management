@@ -419,6 +419,34 @@ input[type="text"]:focus, input[type="password"]:focus, select:focus {
     box-shadow: 0 0 0 2px #667eea;
 }
 
+/* Contact form styles */
+.contact-form {
+    margin-top: 20px;
+    max-width: 600px;
+}
+
+.contact-form h3 {
+    color: #333;
+    margin-top: 30px;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.contact-form .form-group {
+    margin-bottom: 15px;
+}
+
+.contact-form input[type="text"],
+.contact-form input[type="tel"],
+.contact-form input[type="email"] {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    font-size: 15px;
+}
+
 /* Ensure table cells have enough space and don't clip */
 .candidates-table td {
     padding: 14px 12px;

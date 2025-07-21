@@ -208,8 +208,82 @@
         <div id="contact-info" class="page">
             <button class="back-btn" onclick="showMainMenu()">← Back to Main Menu</button>
             <h2>Chapter Contact Information</h2>
-            <button class="btn" onclick="getContactInfo()">Get Chapter Contact Information</button>
-            <div id="contactResult" class="response-area" style="display: none;"></div>
+            
+            <div class="loading-message" id="contact-loading" style="display: none;">
+                <div class="spinner"></div>
+                <p>Loading chapter contact information...</p>
+            </div>
+            
+            <div id="contact-content" style="display: none;">
+                <div class="candidates-info">
+                    <p><strong>Chapter:</strong> <span id="contact-chapter">-</span></p>
+                </div>
+                
+                <div class="contact-form">
+                    <h3>Postal Address</h3>
+                    <div class="form-group">
+                        <label for="postal-address-1">Address Line 1:</label>
+                        <input type="text" id="postal-address-1" placeholder="Enter address line 1">
+                    </div>
+                    <div class="form-group">
+                        <label for="postal-address-2">Address Line 2:</label>
+                        <input type="text" id="postal-address-2" placeholder="Enter address line 2">
+                    </div>
+                    <div class="form-group">
+                        <label for="postal-city">City:</label>
+                        <input type="text" id="postal-city" placeholder="Enter city">
+                    </div>
+                    <div class="form-group">
+                        <label for="postal-state">State:</label>
+                        <input type="text" id="postal-state" placeholder="Enter state">
+                    </div>
+                    <div class="form-group">
+                        <label for="postal-zip">Zip:</label>
+                        <input type="text" id="postal-zip" placeholder="Enter zip code">
+                    </div>
+                    
+                    <h3>Shipping Address</h3>
+                    <div class="form-group">
+                        <label for="shipping-address-1">Address Line 1:</label>
+                        <input type="text" id="shipping-address-1" placeholder="Enter address line 1">
+                    </div>
+                    <div class="form-group">
+                        <label for="shipping-address-2">Address Line 2:</label>
+                        <input type="text" id="shipping-address-2" placeholder="Enter address line 2">
+                    </div>
+                    <div class="form-group">
+                        <label for="shipping-city">City:</label>
+                        <input type="text" id="shipping-city" placeholder="Enter city">
+                    </div>
+                    <div class="form-group">
+                        <label for="shipping-state">State:</label>
+                        <input type="text" id="shipping-state" placeholder="Enter state">
+                    </div>
+                    <div class="form-group">
+                        <label for="shipping-zip">Zip:</label>
+                        <input type="text" id="shipping-zip" placeholder="Enter zip code">
+                    </div>
+                    
+                    <h3>Chapter Phone/Email</h3>
+                    <div class="form-group">
+                        <label for="chapter-phone">Chapter Phone:</label>
+                        <input type="tel" id="chapter-phone" placeholder="(123) 456-7890">
+                    </div>
+                    <div class="form-group">
+                        <label for="chapter-email">Chapter Email:</label>
+                        <input type="email" id="chapter-email" placeholder="chapter@example.com">
+                    </div>
+                </div>
+                
+                <div class="submit-section">
+                    <button class="btn" onclick="submitContactChanges()">Update Contact Information</button>
+                </div>
+            </div>
+            
+            <div id="contact-error" class="error-message" style="display: none;">
+                <p>Error loading contact information. Please try again or check your authentication.</p>
+                <button class="btn" onclick="loadContactInfo()">Retry</button>
+            </div>
         </div>
 
         <!-- FEE STATUS PAGE -->
@@ -827,6 +901,114 @@
             };
         }
 
+        function buildChapterContactQuery(chapterName) {
+            return {
+                "query": {
+                    "advanced_processing_options": {},
+                    "constituent_filters": {
+                        "include_deceased": true,
+                        "include_inactive": true,
+                        "include_no_valid_addresses": true
+                    },
+                    "filter_fields": [
+                        {
+                            "compare_type": "None",
+                            "filter_values": [chapterName],
+                            "operator": "Equals",
+                            "query_field_id": 14300
+                        }
+                    ],
+                    "gift_processing_options": {
+                        "matching_gift_credit_option": "MatchingGiftCompany",
+                        "soft_credit_option": "Donor"
+                    },
+                    "select_fields": [
+                        {
+                            "query_field_id": 349,
+                            "user_alias": "ID"
+                        },
+                        {
+                            "query_field_id": 14300,
+                            "user_alias": "Name"
+                        },
+                        {
+                            "query_field_id": 863,
+                            "unique_id": "2829",
+                            "user_alias": "Postal_Address_Line_1"
+                        },
+                        {
+                            "query_field_id": 864,
+                            "unique_id": "2829",
+                            "user_alias": "Postal_Address_Line_2"
+                        },
+                        {
+                            "query_field_id": 706,
+                            "unique_id": "2829",
+                            "user_alias": "Postal_City"
+                        },
+                        {
+                            "query_field_id": 790,
+                            "unique_id": "2829",
+                            "user_alias": "Postal_State"
+                        },
+                        {
+                            "query_field_id": 708,
+                            "unique_id": "2829",
+                            "user_alias": "Postal_ZIP"
+                        },
+                        {
+                            "query_field_id": 95453,
+                            "unique_id": "2829",
+                            "user_alias": "Postal_ImpID"
+                        },
+                        {
+                            "query_field_id": 863,
+                            "unique_id": "2830",
+                            "user_alias": "Shipping_Address_Line_1"
+                        },
+                        {
+                            "query_field_id": 864,
+                            "unique_id": "2830",
+                            "user_alias": "Shipping_Address_Line_2"
+                        },
+                        {
+                            "query_field_id": 706,
+                            "unique_id": "2830",
+                            "user_alias": "Shipping_City"
+                        },
+                        {
+                            "query_field_id": 790,
+                            "unique_id": "2830",
+                            "user_alias": "Shipping_State"
+                        },
+                        {
+                            "query_field_id": 708,
+                            "unique_id": "2830",
+                            "user_alias": "Shipping_ZIP"
+                        },
+                        {
+                            "query_field_id": 95453,
+                            "unique_id": "2830",
+                            "user_alias": "Shipping_ImpID"
+                        },
+                        {
+                            "query_field_id": 131226,
+                            "unique_id": "1697",
+                            "user_alias": "Phone"
+                        },
+                        {
+                            "query_field_id": 131226,
+                            "unique_id": "1698",
+                            "user_alias": "Email"
+                        }
+                    ],
+                    "sort_fields": [],
+                    "type_id": 36,
+                    "sql_generation_mode": "Query"
+                }
+            };
+        }
+
         // CANDIDATES FUNCTIONALITY
         async function loadCandidates() {
             console.log('=== loadCandidates() started ===');
@@ -1250,6 +1432,8 @@
                 loadRoster();
             } else if (pageId === 'officer-info') {
                 loadOfficers();
+            } else if (pageId === 'contact-info') {
+                loadContactInfo();
             }
             
             // Notify parent of height change
@@ -2610,6 +2794,223 @@
             }
             
             await makeApiCall(endpoint, 'contactResult');
+        }
+        
+        // CONTACT INFORMATION FUNCTIONALITY
+        async function loadContactInfo() {
+            console.log('=== loadContactInfo() started ===');
+            console.log('Chapter:', appState.chapter);
+            
+            if (!appState.chapter) {
+                showContactError('No chapter specified. Please access this page with a chapter parameter.');
+                console.error('No chapter parameter found');
+                return;
+            }
+
+            // Show loading state
+            console.log('Showing loading state...');
+            showLoading('contact-loading');
+            hideElement('contact-content');
+            hideElement('contact-error');
+
+            try {
+                // Build and execute query (doesn't need QUID, just chapter name)
+                const queryRequest = buildChapterContactQuery(appState.chapter);
+                const resultsData = await executeQuery(queryRequest, 'chapter_contact');
+                
+                // Process results
+                const contactInfo = processContactResults(resultsData);
+                console.log('Processed contact info:', contactInfo);
+                
+                // Display contact info
+                displayContactInfo(contactInfo);
+                
+            } catch (error) {
+                console.error('Error loading contact info:', error);
+                showContactError(`Failed to load contact information: ${error.message}`);
+            }
+        }
+
+        function processContactResults(results) {
+            console.log('=== processContactResults() started ===');
+            console.log('Raw results:', results);
+            
+            let contactInfo = {
+                id: '',
+                name: '',
+                postalAddress1: '',
+                postalAddress2: '',
+                postalCity: '',
+                postalState: '',
+                postalZip: '',
+                postalImpId: '',
+                shippingAddress1: '',
+                shippingAddress2: '',
+                shippingCity: '',
+                shippingState: '',
+                shippingZip: '',
+                shippingImpId: '',
+                phone: '',
+                email: ''
+            };
+            
+            if (Array.isArray(results) && results.length > 0) {
+                const row = results[0]; // Should only be one result
+                console.log('Contact data:', row);
+                
+                contactInfo = {
+                    id: row.ID || '',
+                    name: row.Name || '',
+                    postalAddress1: row.Postal_Address_Line_1 || '',
+                    postalAddress2: row.Postal_Address_Line_2 || '',
+                    postalCity: row.Postal_City || '',
+                    postalState: row.Postal_State || '',
+                    postalZip: row.Postal_ZIP || '',
+                    postalImpId: row.Postal_ImpID || '',
+                    shippingAddress1: row.Shipping_Address_Line_1 || '',
+                    shippingAddress2: row.Shipping_Address_Line_2 || '',
+                    shippingCity: row.Shipping_City || '',
+                    shippingState: row.Shipping_State || '',
+                    shippingZip: row.Shipping_ZIP || '',
+                    shippingImpId: row.Shipping_ImpID || '',
+                    phone: row.Phone || '',
+                    email: row.Email || ''
+                };
+            } else {
+                console.warn('No contact information found');
+            }
+
+            console.log('Processed contact info:', contactInfo);
+            return contactInfo;
+        }
+
+        function displayContactInfo(contactInfo) {
+            console.log('=== displayContactInfo() started ===');
+            console.log('Contact info to display:', contactInfo);
+            
+            const chapterSpan = document.getElementById('contact-chapter');
+            
+            if (chapterSpan) chapterSpan.textContent = appState.chapter || 'Unknown';
+            
+            // Store IDs for later use
+            appState.contactId = contactInfo.id;
+            appState.postalImpId = contactInfo.postalImpId;
+            appState.shippingImpId = contactInfo.shippingImpId;
+            
+            // Populate form fields
+            document.getElementById('postal-address-1').value = contactInfo.postalAddress1;
+            document.getElementById('postal-address-2').value = contactInfo.postalAddress2;
+            document.getElementById('postal-city').value = contactInfo.postalCity;
+            document.getElementById('postal-state').value = contactInfo.postalState;
+            document.getElementById('postal-zip').value = contactInfo.postalZip;
+            
+            document.getElementById('shipping-address-1').value = contactInfo.shippingAddress1;
+            document.getElementById('shipping-address-2').value = contactInfo.shippingAddress2;
+            document.getElementById('shipping-city').value = contactInfo.shippingCity;
+            document.getElementById('shipping-state').value = contactInfo.shippingState;
+            document.getElementById('shipping-zip').value = contactInfo.shippingZip;
+            
+            const phoneInput = document.getElementById('chapter-phone');
+            const emailInput = document.getElementById('chapter-email');
+            
+            phoneInput.value = contactInfo.phone;
+            emailInput.value = contactInfo.email;
+            
+            // Add phone formatting on input
+            phoneInput.addEventListener('input', function(e) {
+                let value = e.target.value.replace(/\D/g, '');
+                let formattedValue = '';
+                
+                if (value.length > 0) {
+                    if (value.length <= 3) {
+                        formattedValue = `(${value}`;
+                    } else if (value.length <= 6) {
+                        formattedValue = `(${value.slice(0, 3)}) ${value.slice(3)}`;
+                    } else {
+                        formattedValue = `(${value.slice(0, 3)}) ${value.slice(3, 6)}-${value.slice(6, 10)}`;
+                    }
+                }
+                
+                e.target.value = formattedValue;
+            });
+            
+            // Add email validation
+            emailInput.addEventListener('blur', function(e) {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (e.target.value && !emailRegex.test(e.target.value)) {
+                    e.target.setCustomValidity('Please enter a valid email address');
+                    e.target.reportValidity();
+                } else {
+                    e.target.setCustomValidity('');
+                }
+            });
+            
+            // Show content
+            console.log('Hiding loading state and showing content...');
+            hideElement('contact-loading');
+            showElement('contact-content');
+            
+            // Trigger resize
+            resizeIframe();
+            console.log('=== displayContactInfo() completed ===');
+        }
+
+        function showContactError(message) {
+            hideElement('contact-loading');
+            hideElement('contact-content');
+            const errorElement = document.getElementById('contact-error');
+            if (errorElement) {
+                const errorText = errorElement.querySelector('p');
+                if (errorText) errorText.textContent = message;
+                errorElement.style.display = 'block';
+            }
+        }
+
+        function submitContactChanges() {
+            // Validate email
+            const emailInput = document.getElementById('chapter-email');
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (emailInput.value && !emailRegex.test(emailInput.value)) {
+                showStatus('Please enter a valid email address.', 'error');
+                emailInput.focus();
+                return;
+            }
+            
+            // Validate phone format
+            const phoneInput = document.getElementById('chapter-phone');
+            const phoneRegex = /^\(\d{3}\) \d{3}-\d{4}$/;
+            if (phoneInput.value && !phoneRegex.test(phoneInput.value)) {
+                showStatus('Please enter phone in format: (123) 456-7890', 'error');
+                phoneInput.focus();
+                return;
+            }
+            
+            // Collect all contact data
+            const contactData = {
+                id: appState.contactId,
+                postalAddress: {
+                    impId: appState.postalImpId,
+                    address1: document.getElementById('postal-address-1').value,
+                    address2: document.getElementById('postal-address-2').value,
+                    city: document.getElementById('postal-city').value,
+                    state: document.getElementById('postal-state').value,
+                    zip: document.getElementById('postal-zip').value
+                },
+                shippingAddress: {
+                    impId: appState.shippingImpId,
+                    address1: document.getElementById('shipping-address-1').value,
+                    address2: document.getElementById('shipping-address-2').value,
+                    city: document.getElementById('shipping-city').value,
+                    state: document.getElementById('shipping-state').value,
+                    zip: document.getElementById('shipping-zip').value
+                },
+                phone: document.getElementById('chapter-phone').value,
+                email: document.getElementById('chapter-email').value
+            };
+            
+            // For now, just show what would be submitted
+            console.log('Contact information to submit:', contactData);
+            showStatus('Ready to submit contact information updates. (Submit functionality coming soon)', 'info');
         }
         
         async function getFeeStatus() {
