@@ -337,42 +337,41 @@ input[type="text"]:focus, input[type="password"]:focus, select:focus {
     cursor: not-allowed;
 }
 
-/* Select wrapper with border */
+/* Select wrapper */
 .select-wrapper {
     position: relative;
     width: 100%;
     display: block;
-    border: 2px solid #ddd;
-    border-radius: 4px;
-    background: white;
-}
-
-.select-wrapper:focus-within {
-    border-color: #667eea;
+    padding: 2px; /* Space for outline */
 }
 
 .approval-select {
     width: 100%;
     padding: 8px;
     border: none;
+    outline: 2px solid #ddd;
+    outline-offset: -2px;
     border-radius: 4px;
     font-size: 14px;
-    background: transparent;
+    background: white;
     box-sizing: border-box;
     display: block;
     cursor: pointer;
 }
 
 .approval-select:focus {
-    outline: none;
+    outline-color: #667eea;
+    outline-offset: -2px;
 }
 
-/* Ensure table cells don't clip content */
+/* Ensure table cells have enough space */
 .candidates-table td {
     padding: 12px;
     border-bottom: 1px solid #dee2e6;
     vertical-align: middle;
     overflow: visible;
+    height: auto;
+    min-height: 50px; /* Ensure minimum height */
 }
 
 .candidates-table tbody tr:hover {
