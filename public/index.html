@@ -399,7 +399,10 @@
                 throw new Error('Query execution timeout or no results URL provided');
             }
 
-            // Step 3: Fetch the actual results
+            // Step 3: Wait a bit for the file to be ready, then fetch the actual results
+            console.log('Waiting 3 seconds for results file to be ready...');
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            
             console.log('Fetching query results from URL...');
             const resultsResponse = await fetch(`/api/blackbaud?action=query-results&url=${encodeURIComponent(resultsUrl)}`, {
                 method: 'GET'
