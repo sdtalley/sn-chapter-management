@@ -3502,6 +3502,386 @@
             }
         }
 
+        // CANDIDATES REVIEW FUNCTIONS
+        function reviewCandidateChanges() {
+            // Get all candidate changes
+            const changes = [];
+            const tbody = document.getElementById('candidates-tbody');
+            
+            if (tbody) {
+                const rows = tbody.querySelectorAll('tr');
+                
+                rows.forEach((row, index) => {
+                    const candidateId = row.dataset.candidateId;
+                    if (candidateId) {
+                        const approvalSelect = document.getElementById(`approval-${index}`);
+                        const dateInput = document.getElementById(`ceremony-date-${index}`);
+                        const nameCell = row.cells[0];
+                        
+                        if (approvalSelect && dateInput && approvalSelect.value !== '') {
+                            changes.push({
+                                id: candidateId,
+                                name: nameCell.textContent,
+                                approval: approvalSelect.value,
+                                ceremonyDate: dateInput.value,
+                                ceremonyDateFormatted: dateInput.value ? formatDateForDisplay(dateInput.value) : ''
+                            });
+                        }
+                    }
+                });
+            }
+            
+            if (changes.length === 0) {
+                showStatus('No changes have been made. Please select approval status for at least one candidate.', 'error');
+                return;
+            }
+            
+            // Validate that all changed candidates have ceremony dates
+            const incomplete = changes.filter(c => !c.ceremonyDate);
+            
+            if (incomplete.length > 0) {
+                showStatus(`Please ensure all candidates have ceremony dates. ${incomplete.length} candidate(s) missing ceremony date.`, 'error');
+                return;
+            }
+            
+            // Display review table
+            displayCandidateReview(changes);
+        }
+
+        function displayCandidateReview(changes) {
+            const chapterSpan = document.getElementById('candidates-review-chapter');
+            const countSpan = document.getElementById('candidates-review-count');
+            const tbody = document.getElementById('candidates-review-tbody');
+            
+            if (chapterSpan) chapterSpan.textContent = appState.chapter || 'Unknown';
+            if (countSpan) countSpan.textContent = changes.length;
+            
+            if (tbody) {
+                tbody.innerHTML = '';
+                
+                changes.forEach(change => {
+                    const row = tbody.insertRow();
+                    
+                    // Name
+                    const nameCell = row.insertCell();
+                    nameCell.textContent = change.name;
+                    
+                    // Approval Status
+                    const statusCell = row.insertCell();
+                    let statusText = change.approval;
+                    if (statusText === 'approve') statusText = 'Approve';
+                    else if (statusText === 'disapprove') statusText = 'Disapprove';
+                    else if (statusText === 'unknown') statusText = 'Unknown (Remove)';
+                    statusCell.textContent = statusText;
+                    
+                    // Date
+                    const dateCell = row.insertCell();
+                    dateCell.textContent = change.ceremonyDateFormatted;
+                });
+            }
+            
+            // Hide main content, show review
+            hideElement('candidates-content');
+            showElement('candidates-review');
+            resizeIframe();
+        }
+
+        function backToCandidates() {
+            hideElement('candidates-review');
+            showElement('candidates-content');
+            resizeIframe();
+        }
+
+        // INITIATES REVIEW FUNCTIONS
+        function reviewInitiateChanges() {
+            // Get all initiate changes
+            const changes = [];
+            const tbody = document.getElementById('initiates-tbody');
+            
+            if (tbody) {
+                const rows = tbody.querySelectorAll('tr');
+                
+                rows.forEach((row, index) => {
+                    const initiateId = row.dataset.initiateId;
+                    if (initiateId) {
+                        const checkbox = document.getElementById(`initiated-${index}`);
+                        const dateInput = document.getElementById(`initiate-ceremony-date-${index}`);
+                        const badgeInput = document.getElementById(`badge-number-${index}`);
+                        const nameCell = row.cells[1]; // Name is in second column
+                        
+                        if (checkbox && checkbox.checked && dateInput && badgeInput) {
+                            changes.push({
+                                id: initiateId,
+                                name: nameCell.textContent,
+                                initiated: true,
+                                ceremonyDate: dateInput.value,
+                                ceremonyDateFormatted: dateInput.value ? formatDateForDisplay(dateInput.value) : '',
+                                badgeNumber: badgeInput.value
+                            });
+                        }
+                    }
+                });
+            }
+            
+            if (changes.length === 0) {
+                showStatus('No initiates have been selected. Please check at least one initiate.', 'error');
+                return;
+            }
+            
+            // Validate that all selected initiates have ceremony dates and badge numbers
+            const incomplete = changes.filter(i => !i.ceremonyDate || !i.badgeNumber);
+            
+            if (incomplete.length > 0) {
+                showStatus(`Please ensure all selected initiates have ceremony dates and badge numbers. ${incomplete.length} initiate(s) missing required information.`, 'error');
+                return;
+            }
+            
+            // Validate badge numbers are greater than last badge
+            if (appState.lastBadgeNumber !== null) {
+                const invalidBadges = changes.filter(i => {
+                    const badgeNum = parseInt(i.badgeNumber, 10);
+                    return badgeNum <= appState.lastBadgeNumber;
+                });
+                
+                if (invalidBadges.length > 0) {
+                    showStatus(`Badge numbers must be greater than ${appState.lastBadgeNumber}. ${invalidBadges.length} initiate(s) have invalid badge numbers.`, 'error');
+                    return;
+                }
+            }
+            
+            // Display review table
+            displayInitiateReview(changes);
+        }
+
+        function displayInitiateReview(changes) {
+            const chapterSpan = document.getElementById('initiates-review-chapter');
+            const countSpan = document.getElementById('initiates-review-count');
+            const tbody = document.getElementById('initiates-review-tbody');
+            
+            if (chapterSpan) chapterSpan.textContent = appState.chapter || 'Unknown';
+            if (countSpan) countSpan.textContent = changes.length;
+            
+            if (tbody) {
+                tbody.innerHTML = '';
+                
+                changes.forEach(change => {
+                    const row = tbody.insertRow();
+                    
+                    // Name
+                    const nameCell = row.insertCell();
+                    nameCell.textContent = change.name;
+                    
+                    // Ceremony Date
+                    const dateCell = row.insertCell();
+                    dateCell.textContent = change.ceremonyDateFormatted;
+                    
+                    // Badge Number
+                    const badgeCell = row.insertCell();
+                    badgeCell.textContent = change.badgeNumber;
+                });
+            }
+            
+            // Hide main content, show review
+            hideElement('initiates-content');
+            showElement('initiates-review');
+            resizeIframe();
+        }
+
+        function backToInitiates() {
+            hideElement('initiates-review');
+            showElement('initiates-content');
+            resizeIframe();
+        }
+
+        // ROSTER REVIEW FUNCTIONS
+        function reviewRosterChanges() {
+            // Get all roster changes
+            const changes = [];
+            const tbody = document.getElementById('roster-tbody');
+            
+            if (tbody) {
+                const rows = tbody.querySelectorAll('tr');
+                
+                rows.forEach((row, index) => {
+                    const memberId = row.dataset.memberId;
+                    if (memberId) {
+                        const statusSelect = document.getElementById(`status-${index}`);
+                        const dateInput = document.getElementById(`roster-date-${index}`);
+                        const nameCell = row.cells[0];
+                        const currentStatusCell = row.cells[1];
+                        
+                        if (statusSelect && statusSelect.value && statusSelect.value !== '' && dateInput) {
+                            const selectedOption = statusSelect.options[statusSelect.selectedIndex];
+                            
+                            changes.push({
+                                id: memberId,
+                                name: nameCell.textContent,
+                                currentStatus: currentStatusCell.textContent,
+                                newStatus: statusSelect.value,
+                                newStatusText: selectedOption.textContent,
+                                effectiveDate: dateInput.value,
+                                effectiveDateFormatted: dateInput.value ? formatDateForDisplay(dateInput.value) : ''
+                            });
+                        }
+                    }
+                });
+            }
+            
+            if (changes.length === 0) {
+                showStatus('No changes have been made. Please select a status for at least one member.', 'error');
+                return;
+            }
+            
+            // Validate that all changes have dates
+            const incomplete = changes.filter(c => !c.effectiveDate);
+            
+            if (incomplete.length > 0) {
+                showStatus(`Please ensure all status changes have effective dates. ${incomplete.length} member(s) missing date.`, 'error');
+                return;
+            }
+            
+            // Display review table
+            displayRosterReview(changes);
+        }
+
+        function displayRosterReview(changes) {
+            const chapterSpan = document.getElementById('roster-review-chapter');
+            const countSpan = document.getElementById('roster-review-count');
+            const tbody = document.getElementById('roster-review-tbody');
+            
+            if (chapterSpan) chapterSpan.textContent = appState.chapter || 'Unknown';
+            if (countSpan) countSpan.textContent = changes.length;
+            
+            if (tbody) {
+                tbody.innerHTML = '';
+                
+                changes.forEach(change => {
+                    const row = tbody.insertRow();
+                    
+                    // Name
+                    const nameCell = row.insertCell();
+                    nameCell.textContent = change.name;
+                    
+                    // Current Status
+                    const currentCell = row.insertCell();
+                    currentCell.textContent = change.currentStatus;
+                    
+                    // New Status
+                    const newStatusCell = row.insertCell();
+                    newStatusCell.textContent = change.newStatusText;
+                    
+                    // Effective Date
+                    const dateCell = row.insertCell();
+                    dateCell.textContent = change.effectiveDateFormatted;
+                });
+            }
+            
+            // Hide main content, show review
+            hideElement('roster-content');
+            showElement('roster-review');
+            resizeIframe();
+        }
+
+        function backToRoster() {
+            hideElement('roster-review');
+            showElement('roster-content');
+            resizeIframe();
+        }
+
+        // OFFICER REVIEW FUNCTIONS
+        function reviewOfficerChanges() {
+            // Get all officer changes
+            const changes = [];
+            const tbody = document.getElementById('officer-tbody');
+            
+            if (tbody) {
+                const rows = tbody.querySelectorAll('tr');
+                
+                rows.forEach((row, index) => {
+                    const position = row.dataset.position;
+                    if (position) {
+                        const officerSelect = document.getElementById(`new-officer-${index}`);
+                        const dateInput = document.getElementById(`officer-start-date-${index}`);
+                        const currentOfficerCell = row.cells[1];
+                        
+                        if (officerSelect && officerSelect.value && officerSelect.value !== '' && dateInput) {
+                            const selectedOption = officerSelect.options[officerSelect.selectedIndex];
+                            
+                            changes.push({
+                                position: position,
+                                currentOfficer: currentOfficerCell.textContent === '-' ? 'None' : currentOfficerCell.textContent,
+                                currentOfficerId: row.dataset.currentOfficerId || null,
+                                newOfficerId: officerSelect.value,
+                                newOfficerName: selectedOption.textContent,
+                                startDate: dateInput.value,
+                                startDateFormatted: dateInput.value ? formatDateForDisplay(dateInput.value) : ''
+                            });
+                        }
+                    }
+                });
+            }
+            
+            if (changes.length === 0) {
+                showStatus('No changes have been made. Please select a new officer for at least one position.', 'error');
+                return;
+            }
+            
+            // Validate that all changes have start dates
+            const incomplete = changes.filter(c => !c.startDate);
+            
+            if (incomplete.length > 0) {
+                showStatus(`Please ensure all officer changes have start dates. ${incomplete.length} position(s) missing date.`, 'error');
+                return;
+            }
+            
+            // Display review table
+            displayOfficerReview(changes);
+        }
+
+        function displayOfficerReview(changes) {
+            const chapterSpan = document.getElementById('officer-review-chapter');
+            const countSpan = document.getElementById('officer-review-count');
+            const tbody = document.getElementById('officer-review-tbody');
+            
+            if (chapterSpan) chapterSpan.textContent = appState.chapter || 'Unknown';
+            if (countSpan) countSpan.textContent = changes.length;
+            
+            if (tbody) {
+                tbody.innerHTML = '';
+                
+                changes.forEach(change => {
+                    const row = tbody.insertRow();
+                    
+                    // Position
+                    const positionCell = row.insertCell();
+                    positionCell.textContent = change.position;
+                    
+                    // Current Officer
+                    const currentCell = row.insertCell();
+                    currentCell.textContent = change.currentOfficer;
+                    
+                    // New Officer
+                    const newOfficerCell = row.insertCell();
+                    newOfficerCell.textContent = change.newOfficerName;
+                    
+                    // Start Date
+                    const dateCell = row.insertCell();
+                    dateCell.textContent = change.startDateFormatted;
+                });
+            }
+            
+            // Hide main content, show review
+            hideElement('officer-content');
+            showElement('officer-review');
+            resizeIframe();
+        }
+
+        function backToOfficers() {
+            hideElement('officer-review');
+            showElement('officer-content');
+            resizeIframe();
+        }
+
         // Admin/Testing function
         async function testApiCall() {
             if (!isTokenValid()) {
