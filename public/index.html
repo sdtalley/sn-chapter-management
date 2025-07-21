@@ -550,6 +550,11 @@
                         
                         // Approve dropdown
                         const approveCell = row.insertCell();
+                        
+                        // Create a wrapper div for the select
+                        const selectWrapper = document.createElement('div');
+                        selectWrapper.className = 'select-wrapper';
+                        
                         const approveSelect = document.createElement('select');
                         approveSelect.className = 'approval-select';
                         approveSelect.id = `approval-${index}`;
@@ -581,7 +586,8 @@
                             handleApprovalChange(index, this.value);
                         });
                         
-                        approveCell.appendChild(approveSelect);
+                        selectWrapper.appendChild(approveSelect);
+                        approveCell.appendChild(selectWrapper);
                         
                         // Candidate Ceremony Date
                         const dateCell = row.insertCell();
