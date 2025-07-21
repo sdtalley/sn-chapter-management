@@ -384,6 +384,21 @@ input[type="text"]:focus, input[type="password"]:focus, select:focus {
     box-shadow: 0 0 0 2px #667eea;
 }
 
+/* Ensure select wrapper inherits title for hover */
+.select-wrapper[title] {
+    position: relative;
+}
+
+/* Apply hover cursor to entire wrapper when it has a title */
+.select-wrapper[title]:hover {
+    cursor: help;
+}
+
+/* Make sure the select inside a titled wrapper also shows help cursor */
+.select-wrapper[title] .status-select {
+    cursor: help;
+}
+
 /* Ensure table cells have enough space and don't clip */
 .candidates-table td {
     padding: 14px 12px;
