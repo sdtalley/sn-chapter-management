@@ -97,6 +97,34 @@
                 <p>Error loading candidates. Please try again or check your authentication.</p>
                 <button class="btn" onclick="loadCandidates()">Retry</button>
             </div>
+            
+            <!-- CANDIDATES REVIEW SECTION -->
+            <div id="candidates-review" style="display: none;">
+                <div class="candidates-info">
+                    <p><strong>Chapter:</strong> <span id="candidates-review-chapter">-</span></p>
+                    <p><strong>Changes to Submit:</strong> <span id="candidates-review-count">0</span></p>
+                </div>
+                
+                <div class="candidates-table-container">
+                    <table class="candidates-table" id="candidates-review-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Approval Status</th>
+                                <th>Candidate Ceremony Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="candidates-review-tbody">
+                            <!-- Dynamic content will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="submit-section">
+                    <button class="btn" onclick="backToCandidates()">Back</button>
+                    <button class="btn" onclick="submitCandidateVerifications()">Submit</button>
+                </div>
+            </div>
         </div>
 
         <!-- VERIFY INITIATES PAGE -->
@@ -169,6 +197,34 @@
             <div id="initiates-error" class="error-message" style="display: none;">
                 <p>Error loading initiates. Please try again or check your authentication.</p>
                 <button class="btn" onclick="loadInitiates()">Retry</button>
+            </div>
+            
+            <!-- INITIATES REVIEW SECTION -->
+            <div id="initiates-review" style="display: none;">
+                <div class="candidates-info">
+                    <p><strong>Chapter:</strong> <span id="initiates-review-chapter">-</span></p>
+                    <p><strong>Changes to Submit:</strong> <span id="initiates-review-count">0</span></p>
+                </div>
+                
+                <div class="candidates-table-container">
+                    <table class="candidates-table" id="initiates-review-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Initiate Ceremony Date</th>
+                                <th>Badge Number</th>
+                            </tr>
+                        </thead>
+                        <tbody id="initiates-review-tbody">
+                            <!-- Dynamic content will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="submit-section">
+                    <button class="btn" onclick="backToInitiates()">Back</button>
+                    <button class="btn" onclick="submitInitiateVerifications()">Submit</button>
+                </div>
             </div>
         </div>
 
@@ -244,6 +300,35 @@
                 <p>Error loading roster. Please try again or check your authentication.</p>
                 <button class="btn" onclick="loadRoster()">Retry</button>
             </div>
+            
+            <!-- ROSTER REVIEW SECTION -->
+            <div id="roster-review" style="display: none;">
+                <div class="candidates-info">
+                    <p><strong>Chapter:</strong> <span id="roster-review-chapter">-</span></p>
+                    <p><strong>Changes to Submit:</strong> <span id="roster-review-count">0</span></p>
+                </div>
+                
+                <div class="candidates-table-container">
+                    <table class="candidates-table" id="roster-review-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Current Status</th>
+                                <th>New Status</th>
+                                <th>Effective Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="roster-review-tbody">
+                            <!-- Dynamic content will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="submit-section">
+                    <button class="btn" onclick="backToRoster()">Back</button>
+                    <button class="btn" onclick="submitRosterChanges()">Submit</button>
+                </div>
+            </div>
         </div>
 
         <!-- OFFICER INFORMATION PAGE -->
@@ -315,6 +400,35 @@
             <div id="officer-error" class="error-message" style="display: none;">
                 <p>Error loading officers. Please try again or check your authentication.</p>
                 <button class="btn" onclick="loadOfficers()">Retry</button>
+            </div>
+            
+            <!-- OFFICER REVIEW SECTION -->
+            <div id="officer-review" style="display: none;">
+                <div class="candidates-info">
+                    <p><strong>Chapter:</strong> <span id="officer-review-chapter">-</span></p>
+                    <p><strong>Changes to Submit:</strong> <span id="officer-review-count">0</span></p>
+                </div>
+                
+                <div class="candidates-table-container">
+                    <table class="candidates-table" id="officer-review-table">
+                        <thead>
+                            <tr>
+                                <th>Position</th>
+                                <th>Current Officer</th>
+                                <th>New Officer</th>
+                                <th>Start Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="officer-review-tbody">
+                            <!-- Dynamic content will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="submit-section">
+                    <button class="btn" onclick="backToOfficers()">Back</button>
+                    <button class="btn" onclick="submitOfficerChanges()">Submit</button>
+                </div>
             </div>
         </div>
 
@@ -1520,6 +1634,8 @@
         function showError(elementId, message) {
             hideElement('candidates-loading');
             hideElement('candidates-content');
+            hideElement('initiates-loading');
+            hideElement('initiates-content');
             const errorElement = document.getElementById(elementId);
             if (errorElement) {
                 const errorText = errorElement.querySelector('p');
