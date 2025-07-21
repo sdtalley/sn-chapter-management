@@ -216,52 +216,128 @@
             tokenRefreshBuffer: 300000 // 5 minutes in milliseconds
         }
 
-        // CANDIDATES FUNCTIONALITY
-        async function loadCandidates() {
-            console.log('=== loadCandidates() started ===');
-            console.log('Chapter:', appState.chapter);
+        // REUSABLE QUERY EXECUTION FUNCTIONALITY
+        async function executeQuery(queryRequest, resultsFileName = 'query_results') {
+            console.log('=== executeQuery() started ===');
+            console.log('Results file name:', resultsFileName);
+
+            // Ensure proper structure for the query request
+            const fullQueryRequest = {
+                ...queryRequest,
+                "ux_mode": "Synchronous",
+                "output_format": "Json",
+                "formatting_mode": "UI",
+                "results_file_name": resultsFileName,
+                "time_zone_offset_in_minutes": 120
+            };
+
+            console.log('Query request built:', JSON.stringify(fullQueryRequest, null, 2));
+
+            // Step 1: Execute the query
+            console.log('Executing query via API...');
+            const executeResponse = await fetch(`/api/blackbaud?action=query-execute`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(fullQueryRequest)
+            });
+
+            console.log('Execute response status:', executeResponse.status);
+
+            if (!executeResponse.ok) {
+                const errorText = await executeResponse.text();
+                console.error('Execute response error:', errorText);
+                throw new Error(`Query execution failed: ${executeResponse.status} - ${errorText}`);
+            }
+
+            const executeData = await executeResponse.json();
+            console.log('Execute response data:', executeData);
             
-            if (!appState.chapter) {
-                showError('candidates-error', 'No chapter specified. Please access this page with a chapter parameter.');
-                console.error('No chapter parameter found');
-                return;
+            // Get the job ID from the response
+            const jobId = executeData.id;
+            if (!jobId) {
+                console.error('No job ID found in response:', executeData);
+                throw new Error('No job ID returned from query execution');
             }
 
-            // Show loading state
-            console.log('Showing loading state...');
-            showLoading('candidates-loading');
-            hideElement('candidates-content');
-            hideElement('candidates-error');
+            console.log('Query job ID:', jobId);
+            console.log('Initial status:', executeData.status);
 
-            try {
-                // Execute ad-hoc query to get candidates
-                console.log('Executing candidates query...');
-                const candidates = await executeCandidatesQuery();
-                console.log('Candidates received:', candidates);
-                
-                // Display candidates
-                displayCandidates(candidates);
-                
-            } catch (error) {
-                console.error('Error loading candidates:', error);
-                showError('candidates-error', `Failed to load candidates: ${error.message}`);
+            // Step 2: Poll for job completion
+            const statusData = await pollJobStatus(jobId);
+            
+            if (!statusData.sas_uri) {
+                throw new Error('Query completed but no results URL provided');
             }
+
+            // Step 3: Fetch the actual results
+            console.log('Fetching query results from URL...');
+            console.log('SAS URI to fetch:', statusData.sas_uri);
+            
+            const resultsResponse = await fetch('/api/blackbaud?action=query-results', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ url: statusData.sas_uri })
+            });
+
+            if (!resultsResponse.ok) {
+                const errorText = await resultsResponse.text();
+                console.error('Failed to fetch query results:', resultsResponse.status, errorText);
+                throw new Error(`Failed to fetch query results: ${resultsResponse.status} - ${errorText}`);
+            }
+
+            const resultsData = await resultsResponse.json();
+            console.log('Query results received:', resultsData);
+            console.log('Row count:', resultsData.length);
+            
+            return resultsData;
         }
 
-        async function executeCandidatesQuery() {
-            console.log('=== executeCandidatesQuery() started ===');
+        async function pollJobStatus(jobId, maxAttempts = 60) {
+            console.log('=== pollJobStatus() started ===');
+            console.log('Job ID:', jobId);
             
-            // Get chapter QUID from chapter lookup
-            console.log('Getting chapter QUID for:', appState.chapter);
-            const chapterQuid = await getChapterQuid(appState.chapter);
-            console.log('Chapter QUID retrieved:', chapterQuid);
+            let attempts = 0;
             
-            if (!chapterQuid) {
-                throw new Error(`Chapter QUID not found for ${appState.chapter}`);
+            while (attempts < maxAttempts) {
+                console.log(`Polling attempt ${attempts + 1}/${maxAttempts}...`);
+                
+                const statusResponse = await fetch(`/api/blackbaud?action=query-status&jobId=${jobId}`, {
+                    method: 'GET'
+                });
+
+                if (!statusResponse.ok) {
+                    const errorText = await statusResponse.text();
+                    console.error('Status check error:', errorText);
+                    throw new Error(`Query status check failed: ${statusResponse.status}`);
+                }
+
+                const statusData = await statusResponse.json();
+                console.log('Status data:', statusData);
+
+                // Check for completion
+                if (statusData.status === 'Completed') {
+                    console.log('Query completed successfully');
+                    console.log('Row count:', statusData.row_count);
+                    return statusData;
+                } else if (statusData.status === 'Failed' || statusData.status === 'failed') {
+                    throw new Error('Query execution failed: ' + (statusData.message || statusData.error || 'Unknown error'));
+                }
+
+                // Wait 1 second before next attempt
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                attempts++;
             }
 
-            // Build query request with QUID
-            const queryRequest = {
+            throw new Error('Query execution timeout after ' + maxAttempts + ' seconds');
+        }
+
+        // QUERY BUILDERS FOR EACH SUBPAGE
+        function buildCandidatesQuery(chapterQuid) {
+            return {
                 "query": {
                     "advanced_processing_options": {
                         "use_alternate_sql_code_table_fields": false,
@@ -283,7 +359,7 @@
                         },
                         {
                             "compare_type": "And",
-                            "filter_values": [String(chapterQuid)], // Convert QUID to string
+                            "filter_values": [String(chapterQuid)],
                             "operator": "Equals",
                             "query_field_id": 656,
                             "unique_id": "120"
@@ -312,116 +388,80 @@
                     "suppress_duplicates": true,
                     "type_id": 18,
                     "sql_generation_mode": "Query"
-                },
-                "ux_mode": "Synchronous",
-                "output_format": "Json",
-                "formatting_mode": "UI",
-                "results_file_name": "prospective_candidates",
-                "time_zone_offset_in_minutes": 120
+                }
             };
+        }
 
-            console.log('Query request built:', JSON.stringify(queryRequest, null, 2));
-
-            // Step 1: Execute the query (no token needed - server handles it)
-            console.log('Executing query via API...');
-            const executeResponse = await fetch(`/api/blackbaud?action=query-execute`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(queryRequest)
-            });
-
-            console.log('Execute response status:', executeResponse.status);
-
-            if (!executeResponse.ok) {
-                const errorText = await executeResponse.text();
-                console.error('Execute response error:', errorText);
-                throw new Error(`Query execution failed: ${executeResponse.status} - ${errorText}`);
+        // CANDIDATES FUNCTIONALITY
+        async function loadCandidates() {
+            console.log('=== loadCandidates() started ===');
+            console.log('Chapter:', appState.chapter);
+            
+            if (!appState.chapter) {
+                showError('candidates-error', 'No chapter specified. Please access this page with a chapter parameter.');
+                console.error('No chapter parameter found');
+                return;
             }
 
-            const executeData = await executeResponse.json();
-            console.log('Execute response data:', executeData);
-            
-            // Get the job ID from the response - it's in the "id" field
-            const jobId = executeData.id;
-            if (!jobId) {
-                console.error('No job ID found in response:', executeData);
-                throw new Error('No job ID returned from query execution');
-            }
+            // Show loading state
+            console.log('Showing loading state...');
+            showLoading('candidates-loading');
+            hideElement('candidates-content');
+            hideElement('candidates-error');
 
-            console.log('Query job ID:', jobId);
-            console.log('Initial status:', executeData.status);
-
-            // Step 2: Poll for job completion
-            let attempts = 0;
-            const maxAttempts = 60; // 60 seconds timeout
-            let resultsUrl = null;
-            
-            while (attempts < maxAttempts) {
-                console.log(`Polling attempt ${attempts + 1}/${maxAttempts}...`);
+            try {
+                // Get chapter QUID
+                console.log('Getting chapter QUID for:', appState.chapter);
+                const chapterQuid = await getChapterQuid(appState.chapter);
+                console.log('Chapter QUID retrieved:', chapterQuid);
                 
-                const statusResponse = await fetch(`/api/blackbaud?action=query-status&jobId=${jobId}`, {
-                    method: 'GET'
-                });
-
-                if (!statusResponse.ok) {
-                    const errorText = await statusResponse.text();
-                    console.error('Status check error:', errorText);
-                    throw new Error(`Query status check failed: ${statusResponse.status}`);
+                if (!chapterQuid) {
+                    throw new Error(`Chapter QUID not found for ${appState.chapter}`);
                 }
 
-                const statusData = await statusResponse.json();
-                console.log('Status data:', statusData);
+                // Build and execute query
+                const queryRequest = buildCandidatesQuery(chapterQuid);
+                const resultsData = await executeQuery(queryRequest, 'prospective_candidates');
+                
+                // Process results
+                const candidates = processCandidatesResults(resultsData);
+                console.log('Processed candidates:', candidates);
+                
+                // Display candidates
+                displayCandidates(candidates);
+                
+            } catch (error) {
+                console.error('Error loading candidates:', error);
+                showError('candidates-error', `Failed to load candidates: ${error.message}`);
+            }
+        }
 
-                // Check for completion - looking for "Completed" status
-                if (statusData.status === 'Completed') {
-                    // Get the results URL from sas_uri field
-                    resultsUrl = statusData.sas_uri;
+        function processCandidatesResults(results) {
+            console.log('=== processCandidatesResults() started ===');
+            console.log('Raw results:', results);
+            
+            const candidates = [];
+            
+            if (Array.isArray(results)) {
+                console.log(`Processing ${results.length} candidates`);
+                
+                results.forEach((row, index) => {
+                    console.log(`Row ${index}:`, row);
                     
-                    if (resultsUrl) {
-                        console.log('Query completed - results URL:', resultsUrl);
-                        console.log('Row count:', statusData.row_count);
-                        break;
-                    } else {
-                        console.warn('Job completed but no sas_uri found:', statusData);
-                    }
-                } else if (statusData.status === 'Failed' || statusData.status === 'failed') {
-                    throw new Error('Query execution failed: ' + (statusData.message || statusData.error || 'Unknown error'));
-                }
-
-                // Wait 1 second before next attempt
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                attempts++;
+                    const candidate = {
+                        id: row.ID || row.QRECID || row.id,
+                        name: row.Name || row.name || 'N/A'
+                    };
+                    
+                    console.log(`Candidate ${index}:`, candidate);
+                    candidates.push(candidate);
+                });
+            } else {
+                console.warn('Unexpected results format:', results);
             }
 
-            if (!resultsUrl) {
-                throw new Error('Query execution timeout or no results URL provided');
-            }
-
-            // Step 3: Fetch the actual results
-            console.log('Fetching query results from URL...');
-            console.log('SAS URI to fetch:', resultsUrl);
-            
-            // Use POST to avoid URL encoding issues with SAS URIs
-            const resultsResponse = await fetch('/api/blackbaud?action=query-results', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ url: resultsUrl })
-            });
-
-            if (!resultsResponse.ok) {
-                const errorText = await resultsResponse.text();
-                console.error('Failed to fetch query results:', resultsResponse.status, errorText);
-                throw new Error(`Failed to fetch query results: ${resultsResponse.status} - ${errorText}`);
-            }
-
-            const resultsData = await resultsResponse.json();
-            console.log('Query results received:', resultsData);
-            
-            return processQueryResults(resultsData);
+            console.log(`Total candidates processed: ${candidates.length}`);
+            return candidates;
         }
 
         function processQueryResults(results) {
