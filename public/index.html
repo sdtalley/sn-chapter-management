@@ -399,46 +399,20 @@
                 throw new Error('Query execution timeout or no results URL provided');
             }
 
-            // Step 3: Wait a bit for the file to be ready, then fetch the actual results
-            console.log('Waiting 3 seconds for results file to be ready...');
-            await new Promise(resolve => setTimeout(resolve, 3000));
-            
-            // Try to fetch results with retries
-            let resultsData = null;
-            let fetchAttempts = 0;
-            const maxFetchAttempts = 3;
-            
-            while (fetchAttempts < maxFetchAttempts) {
-                try {
-                    console.log(`Fetching query results from URL (attempt ${fetchAttempts + 1}/${maxFetchAttempts})...`);
-                    const resultsResponse = await fetch(`/api/blackbaud?action=query-results&url=${encodeURIComponent(resultsUrl)}`, {
-                        method: 'GET'
-                    });
+            // Step 3: Fetch the actual results
+            console.log('Fetching query results from URL...');
+            const resultsResponse = await fetch(`/api/blackbaud?action=query-results&url=${encodeURIComponent(resultsUrl)}`, {
+                method: 'GET'
+            });
 
-                    if (!resultsResponse.ok) {
-                        throw new Error(`Failed to fetch query results: ${resultsResponse.status}`);
-                    }
+            if (!resultsResponse.ok) {
+                const errorText = await resultsResponse.text();
+                console.error('Failed to fetch query results:', resultsResponse.status, errorText);
+                throw new Error(`Failed to fetch query results: ${resultsResponse.status} - ${errorText}`);
+            }
 
-                    resultsData = await resultsResponse.json();
-                    console.log('Query results received:', resultsData);
-                    break; // Success, exit the retry loop
-                    
-                } catch (error) {
-                    fetchAttempts++;
-                    console.error(`Fetch attempt ${fetchAttempts} failed:`, error.message);
-                    
-                    if (fetchAttempts < maxFetchAttempts) {
-                        console.log('Waiting 3 seconds before retry...');
-                        await new Promise(resolve => setTimeout(resolve, 3000));
-                    } else {
-                        throw error; // Re-throw on final attempt
-                    }
-                }
-            }
-            
-            if (!resultsData) {
-                throw new Error('Failed to fetch query results after all retries');
-            }
+            const resultsData = await resultsResponse.json();
+            console.log('Query results received:', resultsData);
             
             return processQueryResults(resultsData);
         }

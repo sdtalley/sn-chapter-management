@@ -209,18 +209,21 @@ export default async function handler(req, res) {
       // Fetch query results from provided URL
       const resultsUrl = decodeURIComponent(req.query.url);
       
-      const resultsResponse = await fetch(resultsUrl, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Bb-Api-Subscription-Key': process.env.BLACKBAUD_SUBSCRIPTION_KEY
-        }
-      });
+      console.log('Fetching results from SAS URI:', resultsUrl);
+      
+      // SAS URIs are pre-signed, they don't need authentication headers
+      const resultsResponse = await fetch(resultsUrl);
       
       if (!resultsResponse.ok) {
-        throw new Error(`Failed to fetch query results: ${resultsResponse.status}`);
+        const errorText = await resultsResponse.text();
+        console.error('Failed to fetch from SAS URI');
+        console.error('Status:', resultsResponse.status);
+        console.error('Response:', errorText);
+        throw new Error(`Failed to fetch query results: ${resultsResponse.status} - ${errorText}`);
       }
       
       const resultsData = await resultsResponse.json();
+      console.log('Successfully fetched results, row count:', resultsData.length);
       res.json(resultsData);
       
     } else if (action === 'api' && endpoint) {
