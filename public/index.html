@@ -1238,7 +1238,7 @@
 
                 // Build and execute query
                 const queryRequest = buildInitiatesQuery(chapterQuid);
-                const resultsData = await executeQuery(queryRequest, 'prospective_initiates');
+                const resultsData = await executeQuery(queryRequest, 'candidates');
                 
                 // Process results
                 const initiates = processInitiatesResults(resultsData);
