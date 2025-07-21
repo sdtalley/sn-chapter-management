@@ -342,36 +342,40 @@ input[type="text"]:focus, input[type="password"]:focus, select:focus {
     position: relative;
     width: 100%;
     display: block;
-    padding: 2px; /* Space for outline */
+    margin: 2px;
 }
 
 .approval-select {
     width: 100%;
     padding: 8px;
     border: none;
-    outline: 2px solid #ddd;
-    outline-offset: -2px;
+    box-shadow: 0 0 0 2px #ddd;
     border-radius: 4px;
     font-size: 14px;
     background: white;
     box-sizing: border-box;
     display: block;
     cursor: pointer;
+    position: relative;
 }
 
 .approval-select:focus {
-    outline-color: #667eea;
-    outline-offset: -2px;
+    outline: none;
+    box-shadow: 0 0 0 2px #667eea;
 }
 
-/* Ensure table cells have enough space */
+/* Ensure table cells have enough space and don't clip */
 .candidates-table td {
-    padding: 12px;
+    padding: 14px 12px;
     border-bottom: 1px solid #dee2e6;
     vertical-align: middle;
     overflow: visible;
-    height: auto;
-    min-height: 50px; /* Ensure minimum height */
+    position: relative;
+}
+
+/* Add extra padding to cells containing selects */
+.candidates-table td:nth-child(2) {
+    padding: 16px 12px;
 }
 
 .candidates-table tbody tr:hover {
