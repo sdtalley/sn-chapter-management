@@ -129,7 +129,8 @@
             <div id="roster-content" style="display: none;">
                 <div class="candidates-info">
                     <p><strong>Chapter:</strong> <span id="roster-chapter">-</span></p>
-                    <p><strong>Total Members:</strong> <span id="roster-count">0</span></p>
+                    <p><strong>Total Candidates:</strong> <span id="roster-candidates-count">0</span></p>
+                    <p><strong>Total Initiates:</strong> <span id="roster-initiates-count">0</span></p>
                 </div>
                 
                 <div class="candidates-table-container">
@@ -1899,11 +1900,24 @@
             console.log('Number of members to display:', roster.length);
             
             const chapterSpan = document.getElementById('roster-chapter');
-            const countSpan = document.getElementById('roster-count');
+            const candidatesCountSpan = document.getElementById('roster-candidates-count');
+            const initiatesCountSpan = document.getElementById('roster-initiates-count');
             const tbody = document.getElementById('roster-tbody');
             
+            // Count candidates and initiates
+            let candidatesCount = 0;
+            let initiatesCount = 0;
+            roster.forEach(member => {
+                if (member.status === '5707' || member.status === 'Candidate') {
+                    candidatesCount++;
+                } else if (member.status === '5708' || member.status === 'Initiate') {
+                    initiatesCount++;
+                }
+            });
+            
             if (chapterSpan) chapterSpan.textContent = appState.chapter || 'Unknown';
-            if (countSpan) countSpan.textContent = roster.length;
+            if (candidatesCountSpan) candidatesCountSpan.textContent = candidatesCount;
+            if (initiatesCountSpan) initiatesCountSpan.textContent = initiatesCount;
             
             // Clear existing rows
             if (tbody) {
