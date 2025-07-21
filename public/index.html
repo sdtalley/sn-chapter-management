@@ -120,17 +120,44 @@
         <div id="roster-info" class="page">
             <button class="back-btn" onclick="showMainMenu()">← Back to Main Menu</button>
             <h2>Roster Information</h2>
-            <div class="form-group">
-                <label for="rosterType">Roster Type:</label>
-                <select id="rosterType">
-                    <option value="active">Active Members</option>
-                    <option value="alumni">Alumni</option>
-                    <option value="officers">Officers</option>
-                    <option value="all">All Members</option>
-                </select>
+            
+            <div class="loading-message" id="roster-loading" style="display: none;">
+                <div class="spinner"></div>
+                <p>Loading roster information...</p>
             </div>
-            <button class="btn" onclick="getRosterInfo()">Get Roster Information</button>
-            <div id="rosterResult" class="response-area" style="display: none;"></div>
+            
+            <div id="roster-content" style="display: none;">
+                <div class="candidates-info">
+                    <p><strong>Chapter:</strong> <span id="roster-chapter">-</span></p>
+                    <p><strong>Total Members:</strong> <span id="roster-count">0</span></p>
+                </div>
+                
+                <div class="candidates-table-container">
+                    <table class="candidates-table" id="roster-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Current</th>
+                                <th>From Date</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="roster-tbody">
+                            <!-- Dynamic content will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="submit-section">
+                    <button class="btn" onclick="submitRosterChanges()">Submit Status Changes</button>
+                </div>
+            </div>
+            
+            <div id="roster-error" class="error-message" style="display: none;">
+                <p>Error loading roster. Please try again or check your authentication.</p>
+                <button class="btn" onclick="loadRoster()">Retry</button>
+            </div>
         </div>
 
         <!-- OFFICER INFORMATION PAGE -->
@@ -521,6 +548,156 @@
                             "sort_order": "Descending"
                         }
                     ],
+                    "type_id": 18,
+                    "sql_generation_mode": "Query"
+                }
+            };
+        }
+
+        function buildRosterQuery(chapterQuid, chapterName) {
+            return {
+                "query": {
+                    "advanced_processing_options": {
+                        "use_alternate_sql_code_table_fields": false,
+                        "use_alternate_sql_multiple_attributes": false
+                    },
+                    "constituent_filters": {
+                        "include_deceased": false,
+                        "include_inactive": true,
+                        "include_no_valid_addresses": true
+                    },
+                    "filter_fields": [
+                        {
+                            "compare_type": "None",
+                            "filter_values": ["5707"],
+                            "left_parenthesis": true,
+                            "operator": "Equals",
+                            "query_field_id": 2217,
+                            "right_parenthesis": false
+                        },
+                        {
+                            "compare_type": "And",
+                            "filter_values": [String(chapterQuid)],
+                            "left_parenthesis": false,
+                            "operator": "Equals",
+                            "query_field_id": 656,
+                            "right_parenthesis": false,
+                            "unique_id": "120"
+                        },
+                        {
+                            "compare_type": "And",
+                            "filter_values": [chapterName],
+                            "operator": "Equals",
+                            "query_field_id": 4123
+                        },
+                        {
+                            "compare_type": "And",
+                            "filter_values": ["1694"],
+                            "operator": "Equals",
+                            "query_field_id": 4151
+                        },
+                        {
+                            "compare_type": "And",
+                            "filter_values": [],
+                            "operator": "Blank",
+                            "query_field_id": 4148
+                        },
+                        {
+                            "compare_type": "And",
+                            "filter_values": [],
+                            "operator": "Blank",
+                            "query_field_id": 14682,
+                            "right_parenthesis": true,
+                            "unique_id": "594"
+                        },
+                        {
+                            "compare_type": "Or",
+                            "filter_values": ["5708"],
+                            "left_parenthesis": true,
+                            "operator": "Equals",
+                            "query_field_id": 2217
+                        },
+                        {
+                            "compare_type": "And",
+                            "filter_values": [String(chapterQuid)],
+                            "operator": "Equals",
+                            "query_field_id": 656,
+                            "unique_id": "120"
+                        },
+                        {
+                            "compare_type": "And",
+                            "filter_values": [chapterName],
+                            "operator": "Equals",
+                            "query_field_id": 4123
+                        },
+                        {
+                            "compare_type": "And",
+                            "filter_values": ["1700"],
+                            "operator": "Equals",
+                            "query_field_id": 4151
+                        },
+                        {
+                            "compare_type": "And",
+                            "filter_values": [],
+                            "operator": "Blank",
+                            "query_field_id": 4148
+                        },
+                        {
+                            "compare_type": "And",
+                            "filter_values": [],
+                            "operator": "Blank",
+                            "query_field_id": 14682,
+                            "right_parenthesis": true,
+                            "unique_id": "594"
+                        }
+                    ],
+                    "gift_processing_options": {
+                        "matching_gift_credit_option": "MatchingGiftCompany",
+                        "soft_credit_option": "Donor",
+                        "use_gross_amount_for_covenants": false
+                    },
+                    "select_fields": [
+                        {
+                            "query_field_id": 349,
+                            "user_alias": "ID"
+                        },
+                        {
+                            "query_field_id": 597
+                        },
+                        {
+                            "query_field_id": 2217,
+                            "user_alias": "Status"
+                        },
+                        {
+                            "query_field_id": 4125,
+                            "user_alias": "From_Date"
+                        },
+                        {
+                            "query_field_id": 4127,
+                            "user_alias": "Relation_ID"
+                        },
+                        {
+                            "query_field_id": 656,
+                            "unique_id": "37",
+                            "user_alias": "Candidate_Fee_Paid"
+                        },
+                        {
+                            "query_field_id": 656,
+                            "unique_id": "42",
+                            "user_alias": "Initiate_Fee_Paid"
+                        }
+                    ],
+                    "sort_fields": [
+                        {
+                            "query_field_id": 2217,
+                            "sort_order": "Ascending"
+                        },
+                        {
+                            "query_field_id": 597,
+                            "sort_order": "Ascending"
+                        }
+                    ],
+                    "suppress_duplicates": true,
                     "type_id": 18,
                     "sql_generation_mode": "Query"
                 }
@@ -946,6 +1123,8 @@
                 loadCandidates();
             } else if (pageId === 'verify-initiates') {
                 loadInitiates();
+            } else if (pageId === 'roster-info') {
+                loadRoster();
             }
             
             // Notify parent of height change
@@ -1636,6 +1815,327 @@
             }
             
             await makeApiCall(endpoint, 'rosterResult');
+        }
+        
+        // ROSTER FUNCTIONALITY
+        async function loadRoster() {
+            console.log('=== loadRoster() started ===');
+            console.log('Chapter:', appState.chapter);
+            
+            if (!appState.chapter) {
+                showRosterError('No chapter specified. Please access this page with a chapter parameter.');
+                console.error('No chapter parameter found');
+                return;
+            }
+
+            // Show loading state
+            console.log('Showing loading state...');
+            showLoading('roster-loading');
+            hideElement('roster-content');
+            hideElement('roster-error');
+
+            try {
+                // Get chapter QUID
+                console.log('Getting chapter QUID for:', appState.chapter);
+                const chapterQuid = await getChapterQuid(appState.chapter);
+                console.log('Chapter QUID retrieved:', chapterQuid);
+                
+                if (!chapterQuid) {
+                    throw new Error(`Chapter QUID not found for ${appState.chapter}`);
+                }
+
+                // Build and execute query
+                const queryRequest = buildRosterQuery(chapterQuid, appState.chapter);
+                const resultsData = await executeQuery(queryRequest, 'roster');
+                
+                // Process results
+                const roster = processRosterResults(resultsData);
+                console.log('Processed roster:', roster);
+                
+                // Display roster
+                displayRoster(roster);
+                
+            } catch (error) {
+                console.error('Error loading roster:', error);
+                showRosterError(`Failed to load roster: ${error.message}`);
+            }
+        }
+
+        function processRosterResults(results) {
+            console.log('=== processRosterResults() started ===');
+            console.log('Raw results:', results);
+            
+            const roster = [];
+            
+            if (Array.isArray(results)) {
+                console.log(`Processing ${results.length} roster members`);
+                
+                results.forEach((row, index) => {
+                    console.log(`Row ${index}:`, row);
+                    
+                    const member = {
+                        id: row.ID || row.QRECID || row.id,
+                        name: row.Name || row.name || 'N/A',
+                        status: row.Status || 'Unknown',
+                        fromDate: row.From_Date || '',
+                        relationId: row.Relation_ID || '',
+                        candidateFeePaid: row.Candidate_Fee_Paid || 'No',
+                        initiateFeePaid: row.Initiate_Fee_Paid || 'No'
+                    };
+                    
+                    console.log(`Member ${index}:`, member);
+                    roster.push(member);
+                });
+            } else {
+                console.warn('Unexpected results format:', results);
+            }
+
+            console.log(`Total roster members processed: ${roster.length}`);
+            return roster;
+        }
+
+        function displayRoster(roster) {
+            console.log('=== displayRoster() started ===');
+            console.log('Number of members to display:', roster.length);
+            
+            const chapterSpan = document.getElementById('roster-chapter');
+            const countSpan = document.getElementById('roster-count');
+            const tbody = document.getElementById('roster-tbody');
+            
+            if (chapterSpan) chapterSpan.textContent = appState.chapter || 'Unknown';
+            if (countSpan) countSpan.textContent = roster.length;
+            
+            // Clear existing rows
+            if (tbody) {
+                tbody.innerHTML = '';
+                
+                if (roster.length === 0) {
+                    console.log('No members found - showing empty state');
+                    const row = tbody.insertRow();
+                    const cell = row.insertCell();
+                    cell.colSpan = 5;
+                    cell.className = 'empty-state-cell';
+                    cell.textContent = 'No members found for this chapter.';
+                } else {
+                    console.log('Creating table rows for roster...');
+                    roster.forEach((member, index) => {
+                        console.log(`Creating row ${index} for:`, member);
+                        
+                        const row = tbody.insertRow();
+                        
+                        // Store member data as attributes
+                        row.dataset.memberId = member.id;
+                        row.dataset.memberStatus = member.status;
+                        row.dataset.candidateFeePaid = member.candidateFeePaid;
+                        row.dataset.initiateFeePaid = member.initiateFeePaid;
+                        
+                        // Name
+                        const nameCell = row.insertCell();
+                        nameCell.textContent = member.name || 'N/A';
+                        
+                        // Current Status
+                        const currentCell = row.insertCell();
+                        currentCell.textContent = member.status === '5707' ? 'Candidate' : 
+                                                member.status === '5708' ? 'Initiate' : 
+                                                member.status;
+                        
+                        // From Date
+                        const fromDateCell = row.insertCell();
+                        fromDateCell.textContent = formatDateForDisplay(member.fromDate);
+                        
+                        // Status dropdown
+                        const statusCell = row.insertCell();
+                        
+                        // Determine if dropdown should be shown
+                        const isCandidate = member.status === '5707' || member.status === 'Candidate';
+                        const isInitiate = member.status === '5708' || member.status === 'Initiate';
+                        const candidateFeeUnpaid = isCandidate && member.candidateFeePaid !== 'Yes';
+                        const feesUnpaid = isInitiate && (member.candidateFeePaid !== 'Yes' || member.initiateFeePaid !== 'Yes');
+                        
+                        if (candidateFeeUnpaid) {
+                            statusCell.textContent = '-';
+                            statusCell.title = 'Candidate Fee Unpaid';
+                            statusCell.style.cursor = 'help';
+                        } else {
+                            const selectWrapper = document.createElement('div');
+                            selectWrapper.className = 'select-wrapper';
+                            
+                            const statusSelect = document.createElement('select');
+                            statusSelect.className = 'status-select';
+                            statusSelect.id = `status-${index}`;
+                            
+                            // Default option
+                            const defaultOption = document.createElement('option');
+                            defaultOption.value = '';
+                            defaultOption.textContent = 'No Change';
+                            defaultOption.selected = true;
+                            statusSelect.appendChild(defaultOption);
+                            
+                            if (isCandidate) {
+                                // Candidate options
+                                const depledgeOption = document.createElement('option');
+                                depledgeOption.value = 'de-pledge';
+                                depledgeOption.textContent = 'De-pledge';
+                                statusSelect.appendChild(depledgeOption);
+                            } else if (isInitiate) {
+                                if (feesUnpaid) {
+                                    // Limited options for unpaid fees
+                                    statusCell.title = 'Fee(s) Unpaid';
+                                    
+                                    const suspendedOption = document.createElement('option');
+                                    suspendedOption.value = 'proposed-suspended';
+                                    suspendedOption.textContent = 'Proposed Suspended';
+                                    statusSelect.appendChild(suspendedOption);
+                                    
+                                    const expelledOption = document.createElement('option');
+                                    expelledOption.value = 'proposed-expelled';
+                                    expelledOption.textContent = 'Proposed Expelled';
+                                    statusSelect.appendChild(expelledOption);
+                                } else {
+                                    // Full options for paid fees
+                                    const alumniLeftOption = document.createElement('option');
+                                    alumniLeftOption.value = 'alumni-left-school';
+                                    alumniLeftOption.textContent = 'Alumni (Left-School)';
+                                    statusSelect.appendChild(alumniLeftOption);
+                                    
+                                    const alumniGradOption = document.createElement('option');
+                                    alumniGradOption.value = 'alumni-graduated';
+                                    alumniGradOption.textContent = 'Alumni (Graduated)';
+                                    statusSelect.appendChild(alumniGradOption);
+                                    
+                                    const suspendedOption = document.createElement('option');
+                                    suspendedOption.value = 'proposed-suspended';
+                                    suspendedOption.textContent = 'Proposed Suspended';
+                                    statusSelect.appendChild(suspendedOption);
+                                    
+                                    const expelledOption = document.createElement('option');
+                                    expelledOption.value = 'proposed-expelled';
+                                    expelledOption.textContent = 'Proposed Expelled';
+                                    statusSelect.appendChild(expelledOption);
+                                }
+                            }
+                            
+                            // Add change event listener
+                            statusSelect.addEventListener('change', function() {
+                                handleRosterStatusChange(index, this.value);
+                            });
+                            
+                            selectWrapper.appendChild(statusSelect);
+                            statusCell.appendChild(selectWrapper);
+                        }
+                        
+                        // Date picker
+                        const dateCell = row.insertCell();
+                        const dateInput = document.createElement('input');
+                        dateInput.type = 'date';
+                        dateInput.className = 'date-input';
+                        dateInput.id = `roster-date-${index}`;
+                        dateInput.disabled = true; // Initially disabled
+                        
+                        // Set max date to today
+                        const today = new Date();
+                        dateInput.max = today.toISOString().split('T')[0];
+                        
+                        // Set min date to day after from date if it exists
+                        if (member.fromDate) {
+                            const fromDate = parseDate(member.fromDate);
+                            if (fromDate) {
+                                fromDate.setDate(fromDate.getDate() + 1);
+                                dateInput.min = fromDate.toISOString().split('T')[0];
+                            }
+                        }
+                        
+                        dateCell.appendChild(dateInput);
+                    });
+                }
+            }
+            
+            // Show content
+            console.log('Hiding loading state and showing content...');
+            hideElement('roster-loading');
+            showElement('roster-content');
+            
+            // Trigger resize
+            resizeIframe();
+            console.log('=== displayRoster() completed ===');
+        }
+
+        function handleRosterStatusChange(index, statusValue) {
+            const dateInput = document.getElementById(`roster-date-${index}`);
+            if (!dateInput) return;
+
+            if (statusValue && statusValue !== '') {
+                // Enable date picker when status is selected
+                dateInput.disabled = false;
+                dateInput.value = ''; // Clear any default value
+            } else {
+                // Disable and clear date when "No Change" is selected
+                dateInput.disabled = true;
+                dateInput.value = '';
+            }
+        }
+
+        function showRosterError(message) {
+            hideElement('roster-loading');
+            hideElement('roster-content');
+            const errorElement = document.getElementById('roster-error');
+            if (errorElement) {
+                const errorText = errorElement.querySelector('p');
+                if (errorText) errorText.textContent = message;
+                errorElement.style.display = 'block';
+            }
+        }
+
+        function submitRosterChanges() {
+            // Get all roster changes
+            const changes = [];
+            const tbody = document.getElementById('roster-tbody');
+            
+            if (tbody) {
+                const rows = tbody.querySelectorAll('tr');
+                
+                rows.forEach((row, index) => {
+                    const memberId = row.dataset.memberId;
+                    if (memberId) {
+                        const statusSelect = document.getElementById(`status-${index}`);
+                        const dateInput = document.getElementById(`roster-date-${index}`);
+                        
+                        if (statusSelect && statusSelect.value && statusSelect.value !== '' && dateInput) {
+                            // Format date as mm/dd/yyyy for display
+                            let formattedDate = '';
+                            if (dateInput.value) {
+                                const [year, month, day] = dateInput.value.split('-');
+                                formattedDate = `${month}/${day}/${year}`;
+                            }
+                            
+                            changes.push({
+                                id: memberId,
+                                currentStatus: row.dataset.memberStatus,
+                                newStatus: statusSelect.value,
+                                effectiveDate: dateInput.value,
+                                effectiveDateFormatted: formattedDate
+                            });
+                        }
+                    }
+                });
+            }
+            
+            if (changes.length === 0) {
+                showStatus('No changes have been made. Please select a status for at least one member.', 'error');
+                return;
+            }
+            
+            // Validate that all changes have dates
+            const incomplete = changes.filter(c => !c.effectiveDate);
+            
+            if (incomplete.length > 0) {
+                showStatus(`Please ensure all status changes have effective dates. ${incomplete.length} member(s) missing date.`, 'error');
+                return;
+            }
+            
+            // For now, just show what would be submitted
+            console.log('Roster changes to submit:', changes);
+            showStatus(`Ready to submit ${changes.length} status change(s). (Submit functionality coming soon)`, 'info');
         }
         
         async function getOfficerInfo() {
