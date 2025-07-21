@@ -918,7 +918,8 @@
             sid: null,
             chapter: null,
             sts: null,
-            currentPage: 'main'
+            currentPage: 'main',
+            lastBadgeNumber: null
         };
 
         // SIMPLE NAVIGATION FUNCTIONS
@@ -1313,14 +1314,20 @@
                 console.log('Processed initiates:', initiates);
                 
                 // Process top badge if available
-                let topBadge = null;
+                let topBadgeNumber = null;
                 if (topBadgeResults && Array.isArray(topBadgeResults) && topBadgeResults.length > 0) {
-                    topBadge = topBadgeResults[0].Badge;
-                    console.log('Top badge found:', topBadge);
+                    const fullBadge = topBadgeResults[0].Badge;
+                    // Extract last 4 characters and convert to number to remove leading zeros
+                    const last4 = fullBadge.slice(-4);
+                    topBadgeNumber = parseInt(last4, 10);
+                    console.log('Top badge found:', fullBadge, '-> processed to:', topBadgeNumber);
                 }
                 
+                // Store in app state for validation
+                appState.lastBadgeNumber = topBadgeNumber;
+                
                 // Display initiates with top badge info
-                displayInitiates(initiates, topBadge);
+                displayInitiates(initiates, topBadgeNumber);
                 
             } catch (error) {
                 console.error('Error loading initiates:', error);
@@ -1357,10 +1364,10 @@
             return initiates;
         }
 
-        function displayInitiates(initiates, topBadge = null) {
+        function displayInitiates(initiates, topBadgeNumber = null) {
             console.log('=== displayInitiates() started ===');
             console.log('Number of initiates to display:', initiates.length);
-            console.log('Top badge:', topBadge);
+            console.log('Top badge number:', topBadgeNumber);
             
             const chapterSpan = document.getElementById('initiates-chapter');
             const countSpan = document.getElementById('initiates-count');
@@ -1372,8 +1379,8 @@
             if (countSpan) countSpan.textContent = initiates.length;
             
             // Display top badge if available
-            if (topBadge && lastBadgeInfo && lastBadgeNumber) {
-                lastBadgeNumber.textContent = topBadge;
+            if (topBadgeNumber !== null && lastBadgeInfo && lastBadgeNumber) {
+                lastBadgeNumber.textContent = topBadgeNumber.toString();
                 lastBadgeInfo.style.display = 'block';
             }
             
@@ -1452,14 +1459,32 @@
                         badgeInput.className = 'badge-input';
                         badgeInput.id = `badge-number-${index}`;
                         badgeInput.disabled = true; // Initially disabled
-                        badgeInput.min = '0';
+                        
+                        // Set min based on last badge number
+                        if (topBadgeNumber !== null) {
+                            badgeInput.min = (topBadgeNumber + 1).toString();
+                        } else {
+                            badgeInput.min = '1';
+                        }
                         badgeInput.max = '9999';
                         badgeInput.placeholder = '0000';
                         
-                        // Restrict to 4 digits
+                        // Add validation for badge number
                         badgeInput.addEventListener('input', function() {
+                            // Restrict to 4 digits
                             if (this.value.length > 4) {
                                 this.value = this.value.slice(0, 4);
+                            }
+                            
+                            // Validate against last badge number
+                            if (appState.lastBadgeNumber !== null && this.value) {
+                                const enteredNumber = parseInt(this.value, 10);
+                                if (enteredNumber <= appState.lastBadgeNumber) {
+                                    this.setCustomValidity(`Badge number must be greater than ${appState.lastBadgeNumber}`);
+                                    this.reportValidity();
+                                } else {
+                                    this.setCustomValidity('');
+                                }
                             }
                         });
                         
@@ -1579,6 +1604,19 @@
             if (incomplete.length > 0) {
                 showStatus(`Please ensure all selected initiates have ceremony dates and badge numbers. ${incomplete.length} initiate(s) missing required information.`, 'error');
                 return;
+            }
+            
+            // Validate badge numbers are greater than last badge
+            if (appState.lastBadgeNumber !== null) {
+                const invalidBadges = initiates.filter(i => {
+                    const badgeNum = parseInt(i.badgeNumber, 10);
+                    return badgeNum <= appState.lastBadgeNumber;
+                });
+                
+                if (invalidBadges.length > 0) {
+                    showStatus(`Badge numbers must be greater than ${appState.lastBadgeNumber}. ${invalidBadges.length} initiate(s) have invalid badge numbers.`, 'error');
+                    return;
+                }
             }
             
             // For now, just show what would be submitted
