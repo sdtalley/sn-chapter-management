@@ -290,12 +290,38 @@
         <div id="fee-status" class="page">
             <button class="back-btn" onclick="showMainMenu()">← Back to Main Menu</button>
             <h2>Fee Status</h2>
-            <div class="form-group">
-                <label for="memberId">Member ID (optional):</label>
-                <input type="text" id="memberId" placeholder="Enter member ID or leave blank for all">
+            
+            <div class="loading-message" id="fee-loading" style="display: none;">
+                <div class="spinner"></div>
+                <p>Loading fee status information...</p>
             </div>
-            <button class="btn" onclick="getFeeStatus()">Get Fee Status</button>
-            <div id="feeResult" class="response-area" style="display: none;"></div>
+            
+            <div id="fee-content" style="display: none;">
+                <div class="candidates-info">
+                    <p><strong>Chapter:</strong> <span id="fee-chapter">-</span></p>
+                </div>
+                
+                <div class="candidates-table-container">
+                    <table class="candidates-table" id="fee-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Status</th>
+                                <th>Candidate Fee Paid</th>
+                                <th>Initiate Fee Paid</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fee-tbody">
+                            <!-- Dynamic content will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div id="fee-error" class="error-message" style="display: none;">
+                <p>Error loading fee status. Please try again or check your authentication.</p>
+                <button class="btn" onclick="loadFeeStatus()">Retry</button>
+            </div>
         </div>
 
         <!-- ADMIN PAGE -->
@@ -1434,6 +1460,8 @@
                 loadOfficers();
             } else if (pageId === 'contact-info') {
                 loadContactInfo();
+            } else if (pageId === 'fee-status') {
+                loadFeeStatus();
             }
             
             // Notify parent of height change
@@ -3024,6 +3052,131 @@
             }
             
             await makeApiCall(endpoint, 'feeResult');
+        }
+        
+        // FEE STATUS FUNCTIONALITY
+        async function loadFeeStatus() {
+            console.log('=== loadFeeStatus() started ===');
+            console.log('Chapter:', appState.chapter);
+            
+            if (!appState.chapter) {
+                showFeeError('No chapter specified. Please access this page with a chapter parameter.');
+                console.error('No chapter parameter found');
+                return;
+            }
+
+            // Show loading state
+            console.log('Showing loading state...');
+            showLoading('fee-loading');
+            hideElement('fee-content');
+            hideElement('fee-error');
+
+            try {
+                // Get chapter QUID
+                console.log('Getting chapter QUID for:', appState.chapter);
+                const chapterQuid = await getChapterQuid(appState.chapter);
+                console.log('Chapter QUID retrieved:', chapterQuid);
+                
+                if (!chapterQuid) {
+                    throw new Error(`Chapter QUID not found for ${appState.chapter}`);
+                }
+
+                // Reuse roster query
+                const queryRequest = buildRosterQuery(chapterQuid, appState.chapter);
+                const resultsData = await executeQuery(queryRequest, 'fee_status');
+                
+                // Process results (same as roster)
+                const feeData = processRosterResults(resultsData);
+                console.log('Processed fee data:', feeData);
+                
+                // Display fee status
+                displayFeeStatus(feeData);
+                
+            } catch (error) {
+                console.error('Error loading fee status:', error);
+                showFeeError(`Failed to load fee status: ${error.message}`);
+            }
+        }
+
+        function displayFeeStatus(feeData) {
+            console.log('=== displayFeeStatus() started ===');
+            console.log('Number of members to display:', feeData.length);
+            
+            const chapterSpan = document.getElementById('fee-chapter');
+            const tbody = document.getElementById('fee-tbody');
+            
+            if (chapterSpan) chapterSpan.textContent = appState.chapter || 'Unknown';
+            
+            // Clear existing rows
+            if (tbody) {
+                tbody.innerHTML = '';
+                
+                if (feeData.length === 0) {
+                    console.log('No members found - showing empty state');
+                    const row = tbody.insertRow();
+                    const cell = row.insertCell();
+                    cell.colSpan = 4;
+                    cell.className = 'empty-state-cell';
+                    cell.textContent = 'No members found for this chapter.';
+                } else {
+                    console.log('Creating table rows for fee status...');
+                    feeData.forEach((member, index) => {
+                        console.log(`Creating row ${index} for:`, member);
+                        
+                        const row = tbody.insertRow();
+                        
+                        // Name
+                        const nameCell = row.insertCell();
+                        nameCell.textContent = member.name || 'N/A';
+                        
+                        // Status
+                        const statusCell = row.insertCell();
+                        statusCell.textContent = member.status === '5707' ? 'Candidate' : 
+                                               member.status === '5708' ? 'Initiate' : 
+                                               member.status;
+                        
+                        // Candidate Fee Paid
+                        const candidateFeeCell = row.insertCell();
+                        candidateFeeCell.textContent = member.candidateFeePaid || 'No';
+                        if (member.candidateFeePaid === 'Yes') {
+                            candidateFeeCell.style.color = '#28a745';
+                            candidateFeeCell.style.fontWeight = 'bold';
+                        } else {
+                            candidateFeeCell.style.color = '#dc3545';
+                        }
+                        
+                        // Initiate Fee Paid
+                        const initiateFeeCell = row.insertCell();
+                        initiateFeeCell.textContent = member.initiateFeePaid || 'No';
+                        if (member.initiateFeePaid === 'Yes') {
+                            initiateFeeCell.style.color = '#28a745';
+                            initiateFeeCell.style.fontWeight = 'bold';
+                        } else {
+                            initiateFeeCell.style.color = '#dc3545';
+                        }
+                    });
+                }
+            }
+            
+            // Show content
+            console.log('Hiding loading state and showing content...');
+            hideElement('fee-loading');
+            showElement('fee-content');
+            
+            // Trigger resize
+            resizeIframe();
+            console.log('=== displayFeeStatus() completed ===');
+        }
+
+        function showFeeError(message) {
+            hideElement('fee-loading');
+            hideElement('fee-content');
+            const errorElement = document.getElementById('fee-error');
+            if (errorElement) {
+                const errorText = errorElement.querySelector('p');
+                if (errorText) errorText.textContent = message;
+                errorElement.style.display = 'block';
+            }
         }
 
         // Admin/Testing function
