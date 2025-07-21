@@ -399,6 +399,26 @@ input[type="text"]:focus, input[type="password"]:focus, select:focus {
     cursor: help;
 }
 
+/* Officer select styles */
+.officer-select {
+    width: 100%;
+    padding: 8px;
+    border: none;
+    box-shadow: 0 0 0 2px #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    background: white;
+    box-sizing: border-box;
+    display: block;
+    cursor: pointer;
+    position: relative;
+}
+
+.officer-select:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px #667eea;
+}
+
 /* Ensure table cells have enough space and don't clip */
 .candidates-table td {
     padding: 14px 12px;

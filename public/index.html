@@ -165,18 +165,44 @@
         <div id="officer-info" class="page">
             <button class="back-btn" onclick="showMainMenu()">← Back to Main Menu</button>
             <h2>Officer Information</h2>
-            <div class="form-group">
-                <label for="officerPosition">Officer Position:</label>
-                <select id="officerPosition">
-                    <option value="all">All Officers</option>
-                    <option value="president">President</option>
-                    <option value="vice-president">Vice President</option>
-                    <option value="secretary">Secretary</option>
-                    <option value="treasurer">Treasurer</option>
-                </select>
+            
+            <div class="loading-message" id="officer-loading" style="display: none;">
+                <div class="spinner"></div>
+                <p>Loading officer information...</p>
             </div>
-            <button class="btn" onclick="getOfficerInfo()">Get Officer Information</button>
-            <div id="officerResult" class="response-area" style="display: none;"></div>
+            
+            <div id="officer-content" style="display: none;">
+                <div class="candidates-info">
+                    <p><strong>Chapter:</strong> <span id="officer-chapter">-</span></p>
+                    <p><strong>Current Officers:</strong> <span id="officer-count">0</span></p>
+                </div>
+                
+                <div class="candidates-table-container">
+                    <table class="candidates-table" id="officer-table">
+                        <thead>
+                            <tr>
+                                <th>Position</th>
+                                <th>Current Officer</th>
+                                <th>From Date</th>
+                                <th>New Officer</th>
+                                <th>Start Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="officer-tbody">
+                            <!-- Dynamic content will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="submit-section">
+                    <button class="btn" onclick="submitOfficerChanges()">Submit Officer Changes</button>
+                </div>
+            </div>
+            
+            <div id="officer-error" class="error-message" style="display: none;">
+                <p>Error loading officers. Please try again or check your authentication.</p>
+                <button class="btn" onclick="loadOfficers()">Retry</button>
+            </div>
         </div>
 
         <!-- CHAPTER CONTACT INFORMATION PAGE -->
@@ -705,6 +731,103 @@
             };
         }
 
+        function buildOfficerQuery(chapterQuid, chapterName) {
+            return {
+                "query": {
+                    "advanced_processing_options": {
+                        "use_alternate_sql_code_table_fields": false,
+                        "use_alternate_sql_multiple_attributes": false
+                    },
+                    "constituent_filters": {
+                        "include_deceased": true,
+                        "include_inactive": true,
+                        "include_no_valid_addresses": true
+                    },
+                    "filter_fields": [
+                        {
+                            "compare_type": "None",
+                            "filter_values": ["5707", "5708"],
+                            "left_parenthesis": false,
+                            "operator": "OneOf",
+                            "query_field_id": 41225,
+                            "right_parenthesis": false
+                        },
+                        {
+                            "compare_type": "And",
+                            "filter_values": [String(chapterQuid)],
+                            "left_parenthesis": false,
+                            "operator": "Equals",
+                            "query_field_id": 41217,
+                            "right_parenthesis": false,
+                            "unique_id": "120"
+                        },
+                        {
+                            "compare_type": "And",
+                            "filter_values": [chapterName],
+                            "left_parenthesis": false,
+                            "operator": "Equals",
+                            "query_field_id": 40918,
+                            "right_parenthesis": false
+                        },
+                        {
+                            "compare_type": "And",
+                            "filter_values": [
+                                "2422", "2425", "2408", "2429", "2442", "2423", 
+                                "2426", "2510", "2412", "2490", "2432", "2431", 
+                                "2427", "2428", "2430", "2424"
+                            ],
+                            "left_parenthesis": false,
+                            "operator": "OneOf",
+                            "query_field_id": 40924,
+                            "right_parenthesis": false
+                        },
+                        {
+                            "compare_type": "And",
+                            "filter_values": [],
+                            "left_parenthesis": false,
+                            "operator": "Blank",
+                            "query_field_id": 40927,
+                            "right_parenthesis": false
+                        }
+                    ],
+                    "gift_processing_options": {
+                        "matching_gift_credit_option": "MatchingGiftCompany",
+                        "soft_credit_option": "Donor",
+                        "use_gross_amount_for_covenants": false
+                    },
+                    "select_fields": [
+                        {
+                            "query_field_id": 40924,
+                            "user_alias": "Position"
+                        },
+                        {
+                            "query_field_id": 40961,
+                            "user_alias": "ID"
+                        },
+                        {
+                            "query_field_id": 40967
+                        },
+                        {
+                            "query_field_id": 40906,
+                            "user_alias": "From_Date"
+                        },
+                        {
+                            "query_field_id": 40907,
+                            "user_alias": "Relation_ID"
+                        },
+                        {
+                            "query_field_id": 104952,
+                            "user_alias": "Org_ImpID"
+                        }
+                    ],
+                    "sort_fields": [],
+                    "suppress_duplicates": true,
+                    "type_id": 40,
+                    "sql_generation_mode": "Query"
+                }
+            };
+        }
+
         // CANDIDATES FUNCTIONALITY
         async function loadCandidates() {
             console.log('=== loadCandidates() started ===');
@@ -1126,6 +1249,8 @@
                 loadInitiates();
             } else if (pageId === 'roster-info') {
                 loadRoster();
+            } else if (pageId === 'officer-info') {
+                loadOfficers();
             }
             
             // Notify parent of height change
@@ -2164,6 +2289,321 @@
             }
             
             await makeApiCall(endpoint, 'officerResult');
+        }
+        
+        // OFFICER FUNCTIONALITY
+        async function loadOfficers() {
+            console.log('=== loadOfficers() started ===');
+            console.log('Chapter:', appState.chapter);
+            
+            if (!appState.chapter) {
+                showOfficerError('No chapter specified. Please access this page with a chapter parameter.');
+                console.error('No chapter parameter found');
+                return;
+            }
+
+            // Show loading state
+            console.log('Showing loading state...');
+            showLoading('officer-loading');
+            hideElement('officer-content');
+            hideElement('officer-error');
+
+            try {
+                // Get chapter QUID
+                console.log('Getting chapter QUID for:', appState.chapter);
+                const chapterQuid = await getChapterQuid(appState.chapter);
+                console.log('Chapter QUID retrieved:', chapterQuid);
+                
+                if (!chapterQuid) {
+                    throw new Error(`Chapter QUID not found for ${appState.chapter}`);
+                }
+
+                // Execute both queries in parallel
+                const [rosterResults, officerResults] = await Promise.all([
+                    // Query 1: Get roster for member list
+                    executeQuery(buildRosterQuery(chapterQuid, appState.chapter), 'roster_for_officers'),
+                    // Query 2: Get current officers
+                    executeQuery(buildOfficerQuery(chapterQuid, appState.chapter), 'officers')
+                ]);
+                
+                // Process results
+                const roster = processRosterResults(rosterResults);
+                const officers = processOfficerResults(officerResults);
+                
+                console.log('Processed roster:', roster);
+                console.log('Processed officers:', officers);
+                
+                // Display officers
+                displayOfficers(officers, roster);
+                
+            } catch (error) {
+                console.error('Error loading officers:', error);
+                showOfficerError(`Failed to load officers: ${error.message}`);
+            }
+        }
+
+        function processOfficerResults(results) {
+            console.log('=== processOfficerResults() started ===');
+            console.log('Raw results:', results);
+            
+            const officers = [];
+            
+            if (Array.isArray(results)) {
+                console.log(`Processing ${results.length} officers`);
+                
+                results.forEach((row, index) => {
+                    console.log(`Row ${index}:`, row);
+                    
+                    const officer = {
+                        position: row.Position || 'Unknown',
+                        id: row.ID || row.QRECID || row.id,
+                        name: row.Name || row.name || 'N/A',
+                        fromDate: row.From_Date || '',
+                        relationId: row.Relation_ID || '',
+                        orgImpId: row.Org_ImpID || ''
+                    };
+                    
+                    console.log(`Officer ${index}:`, officer);
+                    officers.push(officer);
+                });
+            } else {
+                console.warn('Unexpected results format:', results);
+            }
+
+            console.log(`Total officers processed: ${officers.length}`);
+            return officers;
+        }
+
+        // Define all 16 officer positions in order
+        const OFFICER_POSITIONS = [
+            'Commander',
+            'Lt. Commander',
+            'Recorder',
+            'Treasurer',
+            'Herald',
+            'Alumni Relations',
+            'Chaplain',
+            'Historian',
+            'Marshal',
+            'Philanthropy',
+            'Risk Management',
+            'Rush',
+            'Scholarship',
+            'Social',
+            'Web Master',
+            'LEAD'
+        ];
+
+        function displayOfficers(officers, roster) {
+            console.log('=== displayOfficers() started ===');
+            console.log('Number of officers:', officers.length);
+            console.log('Number of roster members:', roster.length);
+            
+            const chapterSpan = document.getElementById('officer-chapter');
+            const countSpan = document.getElementById('officer-count');
+            const tbody = document.getElementById('officer-tbody');
+            
+            // Process officers to handle duplicates - keep only the latest
+            const officerMap = {};
+            officers.forEach(officer => {
+                const existingOfficer = officerMap[officer.position];
+                if (!existingOfficer || compareFromDates(officer.fromDate, existingOfficer.fromDate) > 0) {
+                    officerMap[officer.position] = officer;
+                }
+            });
+            
+            const uniqueOfficersCount = Object.keys(officerMap).length;
+            
+            if (chapterSpan) chapterSpan.textContent = appState.chapter || 'Unknown';
+            if (countSpan) countSpan.textContent = uniqueOfficersCount;
+            
+            // Clear existing rows
+            if (tbody) {
+                tbody.innerHTML = '';
+                
+                // Create rows for all 16 positions
+                OFFICER_POSITIONS.forEach((position, index) => {
+                    console.log(`Creating row for position: ${position}`);
+                    
+                    const row = tbody.insertRow();
+                    const currentOfficer = officerMap[position];
+                    
+                    // Store position data
+                    row.dataset.position = position;
+                    if (currentOfficer) {
+                        row.dataset.currentOfficerId = currentOfficer.id;
+                        row.dataset.currentOfficerName = currentOfficer.name;
+                        row.dataset.fromDate = currentOfficer.fromDate;
+                    }
+                    
+                    // Position
+                    const positionCell = row.insertCell();
+                    positionCell.textContent = position;
+                    
+                    // Current Officer
+                    const currentCell = row.insertCell();
+                    currentCell.textContent = currentOfficer ? currentOfficer.name : '-';
+                    
+                    // From Date
+                    const fromDateCell = row.insertCell();
+                    fromDateCell.textContent = currentOfficer ? formatDateForDisplay(currentOfficer.fromDate) : '-';
+                    
+                    // New Officer dropdown
+                    const newOfficerCell = row.insertCell();
+                    const selectWrapper = document.createElement('div');
+                    selectWrapper.className = 'select-wrapper';
+                    
+                    const officerSelect = document.createElement('select');
+                    officerSelect.className = 'officer-select';
+                    officerSelect.id = `new-officer-${index}`;
+                    
+                    // Default option
+                    const defaultOption = document.createElement('option');
+                    defaultOption.value = '';
+                    defaultOption.textContent = 'No Change';
+                    defaultOption.selected = true;
+                    officerSelect.appendChild(defaultOption);
+                    
+                    // Add all roster members as options
+                    roster.forEach(member => {
+                        const option = document.createElement('option');
+                        option.value = member.id;
+                        option.textContent = member.name;
+                        option.dataset.memberId = member.id;
+                        officerSelect.appendChild(option);
+                    });
+                    
+                    // Add change event listener
+                    officerSelect.addEventListener('change', function() {
+                        handleOfficerChange(index, this.value);
+                    });
+                    
+                    selectWrapper.appendChild(officerSelect);
+                    newOfficerCell.appendChild(selectWrapper);
+                    
+                    // Start Date picker
+                    const startDateCell = row.insertCell();
+                    const dateInput = document.createElement('input');
+                    dateInput.type = 'date';
+                    dateInput.className = 'date-input';
+                    dateInput.id = `officer-start-date-${index}`;
+                    dateInput.disabled = true; // Initially disabled
+                    
+                    // Set max date to today
+                    const today = new Date();
+                    dateInput.max = today.toISOString().split('T')[0];
+                    
+                    // Set min date to day after current officer's from date if exists
+                    if (currentOfficer && currentOfficer.fromDate) {
+                        const fromDate = parseDate(currentOfficer.fromDate);
+                        if (fromDate) {
+                            fromDate.setDate(fromDate.getDate() + 1);
+                            dateInput.min = fromDate.toISOString().split('T')[0];
+                        }
+                    }
+                    
+                    startDateCell.appendChild(dateInput);
+                });
+            }
+            
+            // Show content
+            console.log('Hiding loading state and showing content...');
+            hideElement('officer-loading');
+            showElement('officer-content');
+            
+            // Trigger resize
+            resizeIframe();
+            console.log('=== displayOfficers() completed ===');
+        }
+
+        function compareFromDates(date1, date2) {
+            const d1 = parseDate(date1);
+            const d2 = parseDate(date2);
+            if (!d1) return -1;
+            if (!d2) return 1;
+            return d1.getTime() - d2.getTime();
+        }
+
+        function handleOfficerChange(index, newOfficerId) {
+            const dateInput = document.getElementById(`officer-start-date-${index}`);
+            if (!dateInput) return;
+
+            if (newOfficerId && newOfficerId !== '') {
+                // Enable date picker when officer is selected
+                dateInput.disabled = false;
+                dateInput.value = ''; // Clear any default value
+            } else {
+                // Disable and clear date when "No Change" is selected
+                dateInput.disabled = true;
+                dateInput.value = '';
+            }
+        }
+
+        function showOfficerError(message) {
+            hideElement('officer-loading');
+            hideElement('officer-content');
+            const errorElement = document.getElementById('officer-error');
+            if (errorElement) {
+                const errorText = errorElement.querySelector('p');
+                if (errorText) errorText.textContent = message;
+                errorElement.style.display = 'block';
+            }
+        }
+
+        function submitOfficerChanges() {
+            // Get all officer changes
+            const changes = [];
+            const tbody = document.getElementById('officer-tbody');
+            
+            if (tbody) {
+                const rows = tbody.querySelectorAll('tr');
+                
+                rows.forEach((row, index) => {
+                    const position = row.dataset.position;
+                    if (position) {
+                        const officerSelect = document.getElementById(`new-officer-${index}`);
+                        const dateInput = document.getElementById(`officer-start-date-${index}`);
+                        
+                        if (officerSelect && officerSelect.value && officerSelect.value !== '' && dateInput) {
+                            const selectedOption = officerSelect.options[officerSelect.selectedIndex];
+                            
+                            // Format date as mm/dd/yyyy for display
+                            let formattedDate = '';
+                            if (dateInput.value) {
+                                const [year, month, day] = dateInput.value.split('-');
+                                formattedDate = `${month}/${day}/${year}`;
+                            }
+                            
+                            changes.push({
+                                position: position,
+                                currentOfficerId: row.dataset.currentOfficerId || null,
+                                currentOfficerName: row.dataset.currentOfficerName || 'None',
+                                newOfficerId: officerSelect.value,
+                                newOfficerName: selectedOption.textContent,
+                                startDate: dateInput.value,
+                                startDateFormatted: formattedDate
+                            });
+                        }
+                    }
+                });
+            }
+            
+            if (changes.length === 0) {
+                showStatus('No changes have been made. Please select a new officer for at least one position.', 'error');
+                return;
+            }
+            
+            // Validate that all changes have start dates
+            const incomplete = changes.filter(c => !c.startDate);
+            
+            if (incomplete.length > 0) {
+                showStatus(`Please ensure all officer changes have start dates. ${incomplete.length} position(s) missing date.`, 'error');
+                return;
+            }
+            
+            // For now, just show what would be submitted
+            console.log('Officer changes to submit:', changes);
+            showStatus(`Ready to submit ${changes.length} officer change(s). (Submit functionality coming soon)`, 'info');
         }
         
         async function getContactInfo() {
