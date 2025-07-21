@@ -220,10 +220,20 @@ export default async function handler(req, res) {
         throw new Error('No SAS URI provided');
       }
       
-      // Validate the URL looks like a proper SAS URI
-      if (!resultsUrl.includes('blob.core.windows.net') || !resultsUrl.includes('sig=')) {
-        console.error('Invalid SAS URI format:', resultsUrl);
-        throw new Error('Invalid SAS URI format');
+      // Log the URL for debugging (first 200 chars to avoid exposing full signature)
+      console.log('SAS URI format check - first 200 chars:', resultsUrl.substring(0, 200));
+      
+      // Validate the URL looks like a proper Azure blob URL
+      // Note: The URL might be encoded, so check for both encoded and decoded versions
+      const isValidSasUri = (
+        (resultsUrl.includes('blob.core.windows.net') || resultsUrl.includes('blob.core.usgovcloudapi.net')) && 
+        (resultsUrl.includes('sig=') || resultsUrl.includes('sig%3D'))
+      );
+      
+      if (!isValidSasUri) {
+        console.error('Invalid SAS URI format. Expected Azure blob URL with signature.');
+        console.error('URL start:', resultsUrl.substring(0, 100));
+        throw new Error('Invalid SAS URI format - expected Azure blob URL with signature parameter');
       }
       
       // SAS URIs are pre-signed, they don't need authentication headers
