@@ -8,7 +8,7 @@
 </head>
 <body>
     <div class="container">
-        <!-- UNAUTHORIZED ACCESS MESSAGE  -->
+        <!-- UNAUTHORIZED ACCESS MESSAGE -->
         <div id="unauthorized" class="unauthorized" style="display: none;">
             <h2>Unauthorized Access</h2>
             <p>You do not have permission to access this application.</p>
@@ -49,10 +49,9 @@
                     <table class="candidates-table" id="candidates-table">
                         <thead>
                             <tr>
-                                <th>First Name</th>
-                                <th>Last Name</th>
-                                <th>Candidate Ceremony Date</th>
+                                <th>Name</th>
                                 <th>Approve</th>
+                                <th>Candidate Ceremony Date</th>
                             </tr>
                         </thead>
                         <tbody id="candidates-tbody">
@@ -483,30 +482,6 @@
             // Fallback - this would need to be populated from your chapter-records.js
             console.error('Chapter QUID not found');
             return null;
-        }
-
-        function filterCandidatesByChapter(constituents) {
-            if (!Array.isArray(constituents)) {
-                console.warn('Expected array of constituents, got:', constituents);
-                return [];
-            }
-
-            return constituents.filter(constituent => {
-                // Look for "Preferred Chapter Name" custom field
-                if (constituent.custom_fields && Array.isArray(constituent.custom_fields)) {
-                    const preferredChapterField = constituent.custom_fields.find(field => 
-                        field.name === 'Preferred Chapter Name' || 
-                        field.category === 'Preferred Chapter Name'
-                    );
-                    
-                    if (preferredChapterField) {
-                        const fieldValue = preferredChapterField.text_value || preferredChapterField.value || '';
-                        return fieldValue.toLowerCase() === appState.chapter.toLowerCase();
-                    }
-                }
-                
-                return false; // Only include constituents with matching Preferred Chapter Name field
-            });
         }
 
         function displayCandidates(candidates) {
