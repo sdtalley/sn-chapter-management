@@ -205,36 +205,27 @@ export default async function handler(req, res) {
       console.log('Status response:', JSON.stringify(statusData, null, 2));
       res.json(statusData);
       
-    } else if (action === 'query-results') {
-      // For POST requests, get URL from body to avoid URL encoding issues
-      let resultsUrl;
+    } else if (action === 'query-results' && req.query.url) {
+      // Get the URL - it might be double-encoded
+      let resultsUrl = req.query.url;
       
-      if (req.method === 'POST' && req.body && req.body.url) {
-        resultsUrl = req.body.url;
-        console.log('Fetching results from SAS URI (POST):', resultsUrl);
-      } else if (req.query.url) {
-        // Fallback to GET with careful decoding
-        resultsUrl = decodeURIComponent(req.query.url);
-        console.log('Fetching results from SAS URI (GET):', resultsUrl);
-      } else {
-        throw new Error('No SAS URI provided');
+      console.log('Raw URL from query:', resultsUrl.substring(0, 100));
+      
+      // Decode until we get a stable URL (handles double-encoding)
+      let previousUrl = '';
+      while (resultsUrl !== previousUrl) {
+        previousUrl = resultsUrl;
+        try {
+          resultsUrl = decodeURIComponent(resultsUrl);
+        } catch (e) {
+          // If decoding fails, we've decoded as much as we can
+          break;
+        }
       }
       
-      // Log the URL for debugging (first 200 chars to avoid exposing full signature)
-      console.log('SAS URI format check - first 200 chars:', resultsUrl.substring(0, 200));
-      
-      // Validate the URL looks like a proper Azure blob URL
-      // Note: The URL might be encoded, so check for both encoded and decoded versions
-      const isValidSasUri = (
-        (resultsUrl.includes('blob.core.windows.net') || resultsUrl.includes('blob.core.usgovcloudapi.net')) && 
-        (resultsUrl.includes('sig=') || resultsUrl.includes('sig%3D'))
-      );
-      
-      if (!isValidSasUri) {
-        console.error('Invalid SAS URI format. Expected Azure blob URL with signature.');
-        console.error('URL start:', resultsUrl.substring(0, 100));
-        throw new Error('Invalid SAS URI format - expected Azure blob URL with signature parameter');
-      }
+      console.log('Fetching results from SAS URI');
+      console.log('Decoded URL length:', resultsUrl.length);
+      console.log('First 100 chars:', resultsUrl.substring(0, 100));
       
       // SAS URIs are pre-signed, they don't need authentication headers
       const resultsResponse = await fetch(resultsUrl, {
