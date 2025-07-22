@@ -1686,6 +1686,7 @@
             sid: null,
             chapter: null,
             sts: null,
+            offname: null,
             currentPage: 'main',
             lastBadgeNumber: null
         };
@@ -1853,11 +1854,13 @@
             const sid = urlParams.get('sid') || urlParams.get('SID') || 'Not provided';
             const chapter = urlParams.get('chapter') || urlParams.get('Chapter') || 'Not provided';
             const sts = urlParams.get('sts') || urlParams.get('STS');
+            const offname = urlParams.get('offname') || urlParams.get('OFFNAME') || 'Not provided';
             
             // Store in application state
             appState.sid = sid !== 'Not provided' ? sid : null;
             appState.chapter = chapter !== 'Not provided' ? chapter : null;
             appState.sts = sts;
+            appState.offname = offname !== 'Not provided' ? offname : null;
             
             const sidElement = document.getElementById('sid');
             const chapterElement = document.getElementById('chapter');
