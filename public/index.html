@@ -562,6 +562,7 @@
                 <h3>Chapter Information</h3>
                 <p><strong>SID:</strong> <span id="sid">Not provided</span></p>
                 <p><strong>Chapter:</strong> <span id="chapter">Not provided</span></p>
+                <p><strong>Officer Name:</strong> <span id="offname">Not provided</span></p>
             </div>
             
             <!-- Configuration Form -->
@@ -1864,8 +1865,10 @@
             
             const sidElement = document.getElementById('sid');
             const chapterElement = document.getElementById('chapter');
+            const offnameElement = document.getElementById('offname');
             if (sidElement) sidElement.textContent = sid;
             if (chapterElement) chapterElement.textContent = chapter;
+            if (offnameElement) offnameElement.textContent = offname;
             
             // Apply security based on sts parameter
             applySecurityLevel();
