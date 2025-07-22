@@ -1479,8 +1479,9 @@
                         
                         const row = tbody.insertRow();
                         
-                        // Store candidate ID and codeId as data attributes
+                        // Store candidate ID, code, and codeId as data attributes
                         row.dataset.candidateId = candidate.id;
+                        row.dataset.code = candidate.code;
                         row.dataset.codeId = candidate.codeId;
                         
                         // Name (single column)
@@ -1506,17 +1507,17 @@
                         approveSelect.appendChild(noChangeOption);
                         
                         const approveOption = document.createElement('option');
-                        approveOption.value = 'approve';
+                        approveOption.value = 'Candidate';
                         approveOption.textContent = 'Approve';
                         approveSelect.appendChild(approveOption);
                         
                         const disapproveOption = document.createElement('option');
-                        disapproveOption.value = 'disapprove';
+                        disapproveOption.value = 'Disapproved';
                         disapproveOption.textContent = 'Disapprove';
                         approveSelect.appendChild(disapproveOption);
                         
                         const unknownOption = document.createElement('option');
-                        unknownOption.value = 'unknown';
+                        unknownOption.value = 'Unknown';
                         unknownOption.textContent = 'Person Unknown';
                         approveSelect.appendChild(unknownOption);
                         
@@ -1559,7 +1560,7 @@
             const dateInput = document.getElementById(`ceremony-date-${index}`);
             if (!dateInput) return;
 
-            if (approvalValue === 'approve') {
+            if (approvalValue === 'Candidate') {
                 // Enable date picker for approved candidates
                 dateInput.disabled = false;
                 dateInput.value = ''; // Clear any default value
@@ -1568,7 +1569,7 @@
                 dateInput.disabled = true;
                 dateInput.value = '';
             } else {
-                // Disapprove or Unknown - disable date picker and set to today's date in Eastern Time
+                // Disapproved or Unknown - disable date picker and set to today's date in Eastern Time
                 dateInput.disabled = true;
                 
                 // Get today's date in Eastern Time
@@ -2173,8 +2174,9 @@
                         
                         const row = tbody.insertRow();
                         
-                        // Store initiate ID and codeId as data attributes
+                        // Store initiate ID, code, and codeId as data attributes
                         row.dataset.initiateId = initiate.id;
+                        row.dataset.code = initiate.code;
                         row.dataset.codeId = initiate.codeId;
                         
                         // Initiated checkbox
@@ -2582,7 +2584,7 @@
                             if (isCandidate) {
                                 // Candidate options
                                 const depledgeOption = document.createElement('option');
-                                depledgeOption.value = 'de-pledge';
+                                depledgeOption.value = 'De-Pledge';
                                 depledgeOption.textContent = 'De-pledge';
                                 statusSelect.appendChild(depledgeOption);
                             } else if (isInitiate) {
@@ -2591,33 +2593,33 @@
                                     selectWrapper.title = 'Fee(s) Unpaid';
                                     
                                     const suspendedOption = document.createElement('option');
-                                    suspendedOption.value = 'proposed-suspended';
+                                    suspendedOption.value = 'Proposed Suspended';
                                     suspendedOption.textContent = 'Proposed Suspended';
                                     statusSelect.appendChild(suspendedOption);
                                     
                                     const expelledOption = document.createElement('option');
-                                    expelledOption.value = 'proposed-expelled';
+                                    expelledOption.value = 'Proposed Expelled';
                                     expelledOption.textContent = 'Proposed Expelled';
                                     statusSelect.appendChild(expelledOption);
                                 } else {
                                     // Full options for paid fees
                                     const alumniLeftOption = document.createElement('option');
-                                    alumniLeftOption.value = 'alumni-left-school';
+                                    alumniLeftOption.value = 'Alumni (Left School)';
                                     alumniLeftOption.textContent = 'Alumni (Left-School)';
                                     statusSelect.appendChild(alumniLeftOption);
                                     
                                     const alumniGradOption = document.createElement('option');
-                                    alumniGradOption.value = 'alumni-graduated';
+                                    alumniGradOption.value = 'Alumni';
                                     alumniGradOption.textContent = 'Alumni (Graduated)';
                                     statusSelect.appendChild(alumniGradOption);
                                     
                                     const suspendedOption = document.createElement('option');
-                                    suspendedOption.value = 'proposed-suspended';
+                                    suspendedOption.value = 'Proposed Suspended';
                                     suspendedOption.textContent = 'Proposed Suspended';
                                     statusSelect.appendChild(suspendedOption);
                                     
                                     const expelledOption = document.createElement('option');
-                                    expelledOption.value = 'proposed-expelled';
+                                    expelledOption.value = 'Proposed Expelled';
                                     expelledOption.textContent = 'Proposed Expelled';
                                     statusSelect.appendChild(expelledOption);
                                 }
@@ -3557,6 +3559,8 @@
                         if (approvalSelect && dateInput && approvalSelect.value !== '') {
                             changes.push({
                                 id: candidateId,
+                                code: row.dataset.code,
+                                codeId: row.dataset.codeId,
                                 name: nameCell.textContent,
                                 approval: approvalSelect.value,
                                 ceremonyDate: dateInput.value,
@@ -3609,9 +3613,9 @@
                     // Approval Status
                     const statusCell = row.insertCell();
                     let statusText = change.approval;
-                    if (statusText === 'approve') statusText = 'Approve';
-                    else if (statusText === 'disapprove') statusText = 'Disapprove';
-                    else if (statusText === 'unknown') statusText = 'Person Unknown';
+                    if (statusText === 'Candidate') statusText = 'Approve';
+                    else if (statusText === 'Disapproved') statusText = 'Disapprove';
+                    else if (statusText === 'Unknown') statusText = 'Person Unknown';
                     statusCell.textContent = statusText;
                     
                     // Date
@@ -3652,6 +3656,8 @@
                         if (checkbox && checkbox.checked && dateInput && badgeInput) {
                             changes.push({
                                 id: initiateId,
+                                code: row.dataset.code,
+                                codeId: row.dataset.codeId,
                                 name: nameCell.textContent,
                                 initiated: true,
                                 ceremonyDate: dateInput.value,
