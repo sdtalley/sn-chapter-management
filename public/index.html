@@ -791,6 +791,14 @@
                         },
                         {
                             "query_field_id": 597
+                        },
+                        {
+                            "query_field_id": 2217,
+                            "user_alias": "Code"
+                        },
+                        {
+                            "query_field_id": 2216,
+                            "user_alias": "CodeID"
                         }
                     ],
                     "sort_fields": [
@@ -854,6 +862,14 @@
                             "query_field_id": 656,
                             "unique_id": "38",
                             "user_alias": "Candidate_Ceremony_Date"
+                        },
+                        {
+                            "query_field_id": 2217,
+                            "user_alias": "Code"
+                        },
+                        {
+                            "query_field_id": 2216,
+                            "user_alias": "CodeID"
                         }
                     ],
                     "sort_fields": [
@@ -1020,7 +1036,7 @@
                         },
                         {
                             "query_field_id": 2217,
-                            "user_alias": "Status"
+                            "user_alias": "Code"
                         },
                         {
                             "query_field_id": 4125,
@@ -1039,6 +1055,10 @@
                             "query_field_id": 656,
                             "unique_id": "42",
                             "user_alias": "Initiate_Fee_Paid"
+                        },
+                        {
+                            "query_field_id": 2216,
+                            "user_alias": "CodeID"
                         }
                     ],
                     "sort_fields": [
@@ -1321,7 +1341,9 @@
                     
                     const candidate = {
                         id: row.ID || row.QRECID || row.id,
-                        name: row.Name || row.name || 'N/A'
+                        name: row.Name || row.name || 'N/A',
+                        code: row.Code || '',
+                        codeId: row.CodeID || ''
                     };
                     
                     console.log(`Candidate ${index}:`, candidate);
@@ -1457,8 +1479,9 @@
                         
                         const row = tbody.insertRow();
                         
-                        // Store candidate ID as data attribute
+                        // Store candidate ID and codeId as data attributes
                         row.dataset.candidateId = candidate.id;
+                        row.dataset.codeId = candidate.codeId;
                         
                         // Name (single column)
                         const nameCell = row.insertCell();
@@ -2096,7 +2119,9 @@
                     const initiate = {
                         id: row.ID || row.QRECID || row.id,
                         name: row.Name || row.name || 'N/A',
-                        candidateCeremonyDate: row.Candidate_Ceremony_Date || ''
+                        candidateCeremonyDate: row.Candidate_Ceremony_Date || '',
+                        code: row.Code || '',
+                        codeId: row.CodeID || ''
                     };
                     
                     console.log(`Initiate ${index}:`, initiate);
@@ -2148,8 +2173,9 @@
                         
                         const row = tbody.insertRow();
                         
-                        // Store initiate ID as data attribute
+                        // Store initiate ID and codeId as data attributes
                         row.dataset.initiateId = initiate.id;
+                        row.dataset.codeId = initiate.codeId;
                         
                         // Initiated checkbox
                         const initiatedCell = row.insertCell();
@@ -2443,11 +2469,12 @@
                     const member = {
                         id: row.ID || row.QRECID || row.id,
                         name: row.Name || row.name || 'N/A',
-                        status: row.Status || 'Unknown',
+                        status: row.Code || row.Status || 'Unknown',
                         fromDate: row.From_Date || '',
                         relationId: row.Relation_ID || '',
                         candidateFeePaid: row.Candidate_Fee_Paid || 'No',
-                        initiateFeePaid: row.Initiate_Fee_Paid || 'No'
+                        initiateFeePaid: row.Initiate_Fee_Paid || 'No',
+                        codeId: row.CodeID || ''
                     };
                     
                     console.log(`Member ${index}:`, member);
@@ -2508,6 +2535,7 @@
                         row.dataset.memberStatus = member.status;
                         row.dataset.candidateFeePaid = member.candidateFeePaid;
                         row.dataset.initiateFeePaid = member.initiateFeePaid;
+                        row.dataset.codeId = member.codeId;
                         
                         // Name
                         const nameCell = row.insertCell();
@@ -2515,8 +2543,8 @@
                         
                         // Current Status
                         const currentCell = row.insertCell();
-                        currentCell.textContent = member.status === '5707' ? 'Candidate' : 
-                                                member.status === '5708' ? 'Initiate' : 
+                        currentCell.textContent = member.status === '5707' || member.status === 'Candidate' ? 'Candidate' : 
+                                                member.status === '5708' || member.status === 'Initiate' ? 'Initiate' : 
                                                 member.status;
                         
                         // From Date
@@ -3460,10 +3488,10 @@
                         const nameCell = row.insertCell();
                         nameCell.textContent = member.name || 'N/A';
                         
-                        // Status
+                        // Current Status
                         const statusCell = row.insertCell();
-                        statusCell.textContent = member.status === '5707' ? 'Candidate' : 
-                                               member.status === '5708' ? 'Initiate' : 
+                        statusCell.textContent = member.status === '5707' || member.status === 'Candidate' ? 'Candidate' : 
+                                               member.status === '5708' || member.status === 'Initiate' ? 'Initiate' : 
                                                member.status;
                         
                         // Candidate Fee Paid
