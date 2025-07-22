@@ -1339,11 +1339,17 @@
                 results.forEach((row, index) => {
                     console.log(`Row ${index}:`, row);
                     
+                    // Truncate codeId to last 5 digits
+                    let truncatedCodeId = row.CodeID || '';
+                    if (truncatedCodeId && truncatedCodeId.length > 5) {
+                        truncatedCodeId = truncatedCodeId.slice(-5);
+                    }
+                    
                     const candidate = {
                         id: row.ID || row.QRECID || row.id,
                         name: row.Name || row.name || 'N/A',
                         code: row.Code || '',
-                        codeId: row.CodeID || ''
+                        codeId: truncatedCodeId
                     };
                     
                     console.log(`Candidate ${index}:`, candidate);
@@ -2117,12 +2123,18 @@
                 results.forEach((row, index) => {
                     console.log(`Row ${index}:`, row);
                     
+                    // Truncate codeId to last 5 digits
+                    let truncatedCodeId = row.CodeID || '';
+                    if (truncatedCodeId && truncatedCodeId.length > 5) {
+                        truncatedCodeId = truncatedCodeId.slice(-5);
+                    }
+                    
                     const initiate = {
                         id: row.ID || row.QRECID || row.id,
                         name: row.Name || row.name || 'N/A',
                         candidateCeremonyDate: row.Candidate_Ceremony_Date || '',
                         code: row.Code || '',
-                        codeId: row.CodeID || ''
+                        codeId: truncatedCodeId
                     };
                     
                     console.log(`Initiate ${index}:`, initiate);
@@ -2468,15 +2480,27 @@
                 results.forEach((row, index) => {
                     console.log(`Row ${index}:`, row);
                     
+                    // Truncate codeId to last 5 digits
+                    let truncatedCodeId = row.CodeID || '';
+                    if (truncatedCodeId && truncatedCodeId.length > 5) {
+                        truncatedCodeId = truncatedCodeId.slice(-5);
+                    }
+                    
+                    // Truncate relationId to last 7 digits
+                    let truncatedRelationId = row.Relation_ID || '';
+                    if (truncatedRelationId && truncatedRelationId.length > 7) {
+                        truncatedRelationId = truncatedRelationId.slice(-7);
+                    }
+                    
                     const member = {
                         id: row.ID || row.QRECID || row.id,
                         name: row.Name || row.name || 'N/A',
                         status: row.Code || row.Status || 'Unknown',
                         fromDate: row.From_Date || '',
-                        relationId: row.Relation_ID || '',
+                        relationId: truncatedRelationId,
                         candidateFeePaid: row.Candidate_Fee_Paid || 'No',
                         initiateFeePaid: row.Initiate_Fee_Paid || 'No',
-                        codeId: row.CodeID || ''
+                        codeId: truncatedCodeId
                     };
                     
                     console.log(`Member ${index}:`, member);
@@ -2538,6 +2562,7 @@
                         row.dataset.candidateFeePaid = member.candidateFeePaid;
                         row.dataset.initiateFeePaid = member.initiateFeePaid;
                         row.dataset.codeId = member.codeId;
+                        row.dataset.relationId = member.relationId;
                         
                         // Name
                         const nameCell = row.insertCell();
@@ -2729,7 +2754,9 @@
                                 newStatus: statusSelect.value,
                                 newStatusText: selectedOption.textContent,
                                 effectiveDate: dateInput.value,
-                                effectiveDateFormatted: dateInput.value ? formatDateForDisplay(dateInput.value) : ''
+                                effectiveDateFormatted: dateInput.value ? formatDateForDisplay(dateInput.value) : '',
+                                codeId: row.dataset.codeId,
+                                relationId: row.dataset.relationId
                             });
                         }
                     }
@@ -2878,12 +2905,18 @@
                 results.forEach((row, index) => {
                     console.log(`Row ${index}:`, row);
                     
+                    // Truncate relationId to last 7 digits
+                    let truncatedRelationId = row.Relation_ID || '';
+                    if (truncatedRelationId && truncatedRelationId.length > 7) {
+                        truncatedRelationId = truncatedRelationId.slice(-7);
+                    }
+                    
                     const officer = {
                         position: row.Position || 'Unknown',
                         id: row.ID || row.QRECID || row.id,
                         name: row.Name || row.name || 'N/A',
                         fromDate: row.From_Date || '',
-                        relationId: row.Relation_ID || '',
+                        relationId: truncatedRelationId,
                         orgImpId: row.Org_ImpID || ''
                     };
                     
@@ -2954,6 +2987,7 @@
                         row.dataset.currentOfficerId = currentOfficer.id;
                         row.dataset.currentOfficerName = currentOfficer.name;
                         row.dataset.fromDate = currentOfficer.fromDate;
+                        row.dataset.relationId = currentOfficer.relationId;
                     }
                     
                     // Position
@@ -3102,7 +3136,8 @@
                                 newOfficerId: officerSelect.value,
                                 newOfficerName: selectedOption.textContent,
                                 startDate: dateInput.value,
-                                startDateFormatted: dateInput.value ? formatDateForDisplay(dateInput.value) : ''
+                                startDateFormatted: dateInput.value ? formatDateForDisplay(dateInput.value) : '',
+                                relationId: row.dataset.relationId || null
                             });
                         }
                     }
