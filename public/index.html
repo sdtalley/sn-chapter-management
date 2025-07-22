@@ -568,7 +568,6 @@
             <!-- Allow Skips Configuration -->
             <div class="allow-skips-section">
                 <h3>Badge Skip Configuration</h3>
-                <p>Control which chapters are allowed to skip badge numbers during initiation.</p>
                 
                 <div class="loading-message" id="allow-skips-loading" style="display: none;">
                     <div class="spinner"></div>
@@ -576,18 +575,12 @@
                 </div>
                 
                 <div id="allow-skips-content" style="display: none;">
-                    <div class="candidates-table-container">
-                        <table class="candidates-table" id="allow-skips-table">
-                            <thead>
-                                <tr>
-                                    <th>Chapter</th>
-                                    <th>Allow Skips</th>
-                                </tr>
-                            </thead>
-                            <tbody id="allow-skips-tbody">
-                                <!-- Dynamic content will be inserted here -->
-                            </tbody>
-                        </table>
+                    <div class="allow-skips-control">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="allow-skips-checkbox" class="allow-skip-checkbox">
+                            <span>Allow badge number skips for <strong id="current-chapter-name">this chapter</strong></span>
+                        </label>
+                        <p class="help-text">When enabled, initiates can be assigned non-consecutive badge numbers.</p>
                     </div>
                 </div>
                 
@@ -4102,6 +4095,14 @@
         async function loadAllowSkipsConfig() {
             console.log('=== loadAllowSkipsConfig() started ===');
             
+            // Check if we have a chapter
+            if (!appState.chapter) {
+                hideElement('allow-skips-loading');
+                hideElement('allow-skips-content');
+                hideElement('allow-skips-error');
+                return;
+            }
+            
             // Show loading state
             showLoading('allow-skips-loading');
             hideElement('allow-skips-content');
@@ -4120,7 +4121,7 @@
                 const allowedSkips = await response.json();
                 appState.allowedSkips = allowedSkips;
                 
-                // Display the configuration table
+                // Display the configuration for current chapter
                 displayAllowSkipsConfig(allowedSkips);
                 
             } catch (error) {
@@ -4133,59 +4134,25 @@
         function displayAllowSkipsConfig(allowedSkips) {
             console.log('=== displayAllowSkipsConfig() started ===');
             
-            const tbody = document.getElementById('allow-skips-tbody');
+            const checkbox = document.getElementById('allow-skips-checkbox');
+            const chapterNameSpan = document.getElementById('current-chapter-name');
             
-            if (tbody) {
-                tbody.innerHTML = '';
+            if (checkbox && appState.chapter) {
+                // Update chapter name in label
+                if (chapterNameSpan) {
+                    chapterNameSpan.textContent = appState.chapter;
+                }
                 
-                // Get all chapters from chapter-records
-                const chapters = [
-                    "Alpha", "Beta", "Beta Alpha", "Beta Beta", "Beta Chi", "Beta Eta", "Beta Iota", 
-                    "Beta Nu", "Beta Omicron", "Beta Psi", "Beta Rho", "Beta Tau", "Beta Theta", 
-                    "Beta Upsilon", "Beta Zeta", "Delta", "Delta Alpha", "Delta Beta", "Delta Epsilon", 
-                    "Delta Eta", "Delta Gamma", "Delta Iota", "Delta Kappa", "Delta Mu", "Delta Omicron", 
-                    "Delta Phi", "Delta Rho", "Delta Sigma", "Delta Tau", "Delta Theta", "Epsilon Alpha", 
-                    "Epsilon Beta", "Epsilon Chi", "Epsilon Delta", "Epsilon Epsilon", "Epsilon Eta", 
-                    "Epsilon Kappa", "Epsilon Lambda", "Epsilon Mu", "Epsilon Nu", "Epsilon Omicron", 
-                    "Epsilon Pi", "Epsilon Rho", "Epsilon Sigma", "Epsilon Theta", "Epsilon Xi", 
-                    "Epsilon Zeta", "Eta", "Eta Beta", "Eta Chi", "Eta Delta", "Eta Epsilon", "Eta Gamma", 
-                    "Eta Iota", "Eta Kappa", "Eta Mu (A)", "Eta Nu", "Eta Omicron", "Eta Phi", "Eta Pi", 
-                    "Eta Rho", "Eta Tau", "Eta Theta", "Eta Upsilon", "Eta Zeta", "Gamma", "Gamma Alpha", 
-                    "Gamma Beta", "Gamma Chi", "Gamma Delta", "Gamma Eta", "Gamma Gamma", "Gamma Iota", 
-                    "Gamma Kappa", "Gamma Mu", "Gamma Nu", "Gamma Omicron", "Gamma Phi", "Gamma Pi", 
-                    "Gamma Sigma", "Gamma Tau", "Gamma Theta", "Gamma Upsilon", "Gamma Xi", "Gamma Zeta", 
-                    "Iota", "Iota Beta", "Iota Delta", "Iota Gamma", "Iota Lambda", "Iota Pi", "Iota Rho", 
-                    "Iota Sigma", "Iota Theta", "Kappa", "Kappa Chi", "Kappa Delta", "Kappa Epsilon", 
-                    "Kappa Gamma", "Kappa Lambda", "Kappa Pi", "Kappa Rho", "Kappa Theta", "Kappa Zeta", 
-                    "Lambda", "Lambda Chi", "Lambda Delta", "Lambda Epsilon", "Lambda Eta", "Lambda Gamma", 
-                    "Lambda Omicron", "Lambda Phi", "Lambda Upsilon", "Mu", "Mu Beta", "Mu Chi", "Mu Eta", 
-                    "Mu Iota", "Mu Kappa", "Mu Phi", "Mu Pi", "Mu Rho", "Mu Tau", "Mu Upsilon", "Mu Xi", 
-                    "Mu Zeta", "Nu", "Nu Alpha", "Nu Beta", "Nu Delta", "Nu Epsilon", "Phi", "Psi", "Rho", 
-                    "Sigma", "Test Chapter", "Theta", "Theta Alpha", "Theta Eta", "Theta Gamma", "Theta Kappa", 
-                    "Theta Lambda", "Theta Nu", "Theta Pi", "Theta Rho", "Theta Sigma", "Theta Theta", 
-                    "Theta Xi", "Theta Zeta", "Upsilon", "Upsilon Upsilon", "Zeta Chi", "Zeta Gamma", 
-                    "Zeta Iota", "Zeta Kappa", "Zeta Lambda", "Zeta Nu", "Zeta Omicron", "Zeta Phi", 
-                    "Zeta Pi", "Zeta Psi", "Zeta Sigma", "Zeta Theta", "Zeta Upsilon", "Zeta Xi"
-                ];
+                // Set checkbox state
+                checkbox.checked = allowedSkips[appState.chapter] === true;
                 
-                chapters.forEach((chapter, index) => {
-                    const row = tbody.insertRow();
-                    
-                    // Chapter name
-                    const chapterCell = row.insertCell();
-                    chapterCell.textContent = chapter;
-                    
-                    // Allow skips checkbox
-                    const allowCell = row.insertCell();
-                    const checkbox = document.createElement('input');
-                    checkbox.type = 'checkbox';
-                    checkbox.className = 'allow-skip-checkbox';
-                    checkbox.id = `allow-skip-${index}`;
-                    checkbox.checked = allowedSkips[chapter] === true;
-                    checkbox.addEventListener('change', function() {
-                        updateAllowSkips(chapter, this.checked);
-                    });
-                    allowCell.appendChild(checkbox);
+                // Remove any existing event listeners
+                const newCheckbox = checkbox.cloneNode(true);
+                checkbox.parentNode.replaceChild(newCheckbox, checkbox);
+                
+                // Add event listener
+                newCheckbox.addEventListener('change', function() {
+                    updateAllowSkips(appState.chapter, this.checked);
                 });
             }
             
@@ -4213,13 +4180,13 @@
                 // Update local state
                 appState.allowedSkips[chapter] = allowSkips;
                 
-                showStatus(`Updated ${chapter} - Skip validation ${allowSkips ? 'disabled' : 'enabled'}`, 'success');
+                showStatus(`Badge skip validation ${allowSkips ? 'disabled' : 'enabled'} for ${chapter}`, 'success');
                 
             } catch (error) {
                 console.error('Error updating allow skips:', error);
                 showStatus('Failed to update configuration', 'error');
                 // Revert checkbox
-                const checkbox = document.querySelector(`input[id*="allow-skip-"]:checked`);
+                const checkbox = document.getElementById('allow-skips-checkbox');
                 if (checkbox) checkbox.checked = !allowSkips;
             }
         }

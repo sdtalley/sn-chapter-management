@@ -549,16 +549,35 @@ input[type="text"]:focus, input[type="password"]:focus, select:focus {
 
 .allow-skips-section h3 {
     color: #333;
-    margin-bottom: 10px;
+    margin-bottom: 15px;
 }
 
-.allow-skips-section p {
-    color: #666;
-    margin-bottom: 20px;
+.allow-skips-control {
+    padding: 10px 0;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.checkbox-label strong {
+    font-weight: bold;
+    color: #343a40;
 }
 
 .allow-skip-checkbox {
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
     cursor: pointer;
+    margin-right: 10px;
+}
+
+.help-text {
+    margin-top: 10px;
+    color: #666;
+    font-size: 14px;
+    font-style: italic;
 }
