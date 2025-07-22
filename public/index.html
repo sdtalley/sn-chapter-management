@@ -3624,7 +3624,9 @@
             }
             
             if (changes.length === 0) {
-                showStatus('No initiates have been selected. Please check at least one initiate.', 'error');
+                const message = 'No initiates have been selected. Please check at least one initiate.';
+                alert(message);
+                showStatus(message, 'error');
                 return;
             }
             
@@ -3632,7 +3634,9 @@
             const incomplete = changes.filter(i => !i.ceremonyDate || !i.badgeNumber);
             
             if (incomplete.length > 0) {
-                showStatus(`Please ensure all selected initiates have ceremony dates and badge numbers. ${incomplete.length} initiate(s) missing required information.`, 'error');
+                const message = `Please ensure all selected initiates have ceremony dates and badge numbers. ${incomplete.length} initiate(s) missing required information.`;
+                alert(message);
+                showStatus(message, 'error');
                 return;
             }
             
@@ -3644,7 +3648,9 @@
                 });
                 
                 if (invalidBadges.length > 0) {
-                    showStatus(`Badge numbers must be greater than ${appState.lastBadgeNumber}. ${invalidBadges.length} initiate(s) have invalid badge numbers.`, 'error');
+                    const message = `Badge numbers must be greater than ${appState.lastBadgeNumber}. ${invalidBadges.length} initiate(s) have invalid badge numbers.`;
+                    alert(message);
+                    showStatus(message, 'error');
                     return;
                 }
             }
@@ -3654,7 +3660,12 @@
             const uniqueBadgeNumbers = [...new Set(badgeNumbers)];
             
             if (badgeNumbers.length !== uniqueBadgeNumbers.length) {
-                showStatus('Duplicate badge numbers found. Each initiate must have a unique badge number.', 'error');
+                // Find the duplicate badge numbers
+                const duplicates = badgeNumbers.filter((num, index) => badgeNumbers.indexOf(num) !== index);
+                const uniqueDuplicates = [...new Set(duplicates)];
+                const message = `Duplicate badge numbers found: ${uniqueDuplicates.join(', ')}. Each initiate must have a unique badge number.`;
+                alert(message);
+                showStatus(message, 'error');
                 return;
             }
             
@@ -3665,7 +3676,13 @@
             // Check for skipped numbers from last badge to first new badge
             if (sortedBadgeNumbers[0] > startingNumber + 1) {
                 const skippedCount = sortedBadgeNumbers[0] - startingNumber - 1;
-                showStatus(`Badge numbers must be consecutive. Skipped ${skippedCount} number(s) between ${startingNumber} and ${sortedBadgeNumbers[0]}.`, 'error');
+                const skippedNumbers = [];
+                for (let i = startingNumber + 1; i < sortedBadgeNumbers[0]; i++) {
+                    skippedNumbers.push(i);
+                }
+                const message = `Badge numbers must be consecutive. Skipped number(s): ${skippedNumbers.join(', ')} (${skippedCount} total) between ${startingNumber} and ${sortedBadgeNumbers[0]}.`;
+                alert(message);
+                showStatus(message, 'error');
                 return;
             }
             
@@ -3673,7 +3690,13 @@
             for (let i = 1; i < sortedBadgeNumbers.length; i++) {
                 if (sortedBadgeNumbers[i] > sortedBadgeNumbers[i-1] + 1) {
                     const skippedCount = sortedBadgeNumbers[i] - sortedBadgeNumbers[i-1] - 1;
-                    showStatus(`Badge numbers must be consecutive. Skipped ${skippedCount} number(s) between ${sortedBadgeNumbers[i-1]} and ${sortedBadgeNumbers[i]}.`, 'error');
+                    const skippedNumbers = [];
+                    for (let j = sortedBadgeNumbers[i-1] + 1; j < sortedBadgeNumbers[i]; j++) {
+                        skippedNumbers.push(j);
+                    }
+                    const message = `Badge numbers must be consecutive. Skipped number(s): ${skippedNumbers.join(', ')} (${skippedCount} total) between ${sortedBadgeNumbers[i-1]} and ${sortedBadgeNumbers[i]}.`;
+                    alert(message);
+                    showStatus(message, 'error');
                     return;
                 }
             }
