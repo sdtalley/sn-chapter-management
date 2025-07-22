@@ -564,6 +564,38 @@
                 <p><strong>Chapter:</strong> <span id="chapter">Not provided</span></p>
                 <p><strong>Officer Name:</strong> <span id="offname">Not provided</span></p>
             </div>
+            
+            <!-- Allow Skips Configuration -->
+            <div class="allow-skips-section">
+                <h3>Badge Skip Configuration</h3>
+                <p>Control which chapters are allowed to skip badge numbers during initiation.</p>
+                
+                <div class="loading-message" id="allow-skips-loading" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>Loading configuration...</p>
+                </div>
+                
+                <div id="allow-skips-content" style="display: none;">
+                    <div class="candidates-table-container">
+                        <table class="candidates-table" id="allow-skips-table">
+                            <thead>
+                                <tr>
+                                    <th>Chapter</th>
+                                    <th>Allow Skips</th>
+                                </tr>
+                            </thead>
+                            <tbody id="allow-skips-tbody">
+                                <!-- Dynamic content will be inserted here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div id="allow-skips-error" class="error-message" style="display: none;">
+                    <p>Error loading configuration. Please try again.</p>
+                    <button class="btn" onclick="loadAllowSkipsConfig()">Retry</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1661,7 +1693,8 @@
             sts: null,
             offname: null,
             currentPage: 'main',
-            lastBadgeNumber: null
+            lastBadgeNumber: null,
+            allowedSkips: {} // Store allowed skips configuration
         };
 
         // SIMPLE NAVIGATION FUNCTIONS
@@ -1696,6 +1729,8 @@
                 loadContactInfo();
             } else if (pageId === 'fee-status') {
                 loadFeeStatus();
+            } else if (pageId === 'admin') {
+                loadAllowSkipsConfig();
             }
             
             // Notify parent of height change
@@ -2046,6 +2081,9 @@
             hideElement('initiates-error');
 
             try {
+                // Check if skips are allowed for this chapter
+                const skipValidationDisabled = await checkAllowedSkips();
+                
                 // Get full chapter data (includes both quid and memcatid)
                 console.log('Getting chapter data for:', appState.chapter);
                 const chapterData = await getChapterData(appState.chapter);
@@ -2079,6 +2117,7 @@
                 
                 // Store in app state for validation
                 appState.lastBadgeNumber = topBadgeNumber;
+                appState.skipValidationDisabled = skipValidationDisabled;
                 
                 // Display initiates with top badge info
                 displayInitiates(initiates, topBadgeNumber);
@@ -3737,36 +3776,41 @@
                 return;
             }
             
-            // Sort badge numbers and check for skipped numbers
-            const sortedBadgeNumbers = [...badgeNumbers].sort((a, b) => a - b);
-            const startingNumber = appState.lastBadgeNumber !== null ? appState.lastBadgeNumber : 0;
-            
-            // Check for skipped numbers from last badge to first new badge
-            if (sortedBadgeNumbers[0] > startingNumber + 1) {
-                const skippedCount = sortedBadgeNumbers[0] - startingNumber - 1;
-                const skippedNumbers = [];
-                for (let i = startingNumber + 1; i < sortedBadgeNumbers[0]; i++) {
-                    skippedNumbers.push(i);
-                }
-                const message = `Badge numbers must be consecutive. Skipped number(s): ${skippedNumbers.join(', ')} (${skippedCount} total) between ${startingNumber} and ${sortedBadgeNumbers[0]}.`;
-                alert(message);
-                showStatus(message, 'error');
-                return;
-            }
-            
-            // Check for skipped numbers between new badges
-            for (let i = 1; i < sortedBadgeNumbers.length; i++) {
-                if (sortedBadgeNumbers[i] > sortedBadgeNumbers[i-1] + 1) {
-                    const skippedCount = sortedBadgeNumbers[i] - sortedBadgeNumbers[i-1] - 1;
+            // Only check for skipped numbers if validation is NOT disabled for this chapter
+            if (!appState.skipValidationDisabled) {
+                // Sort badge numbers and check for skipped numbers
+                const sortedBadgeNumbers = [...badgeNumbers].sort((a, b) => a - b);
+                const startingNumber = appState.lastBadgeNumber !== null ? appState.lastBadgeNumber : 0;
+                
+                // Check for skipped numbers from last badge to first new badge
+                if (sortedBadgeNumbers[0] > startingNumber + 1) {
+                    const skippedCount = sortedBadgeNumbers[0] - startingNumber - 1;
                     const skippedNumbers = [];
-                    for (let j = sortedBadgeNumbers[i-1] + 1; j < sortedBadgeNumbers[i]; j++) {
-                        skippedNumbers.push(j);
+                    for (let i = startingNumber + 1; i < sortedBadgeNumbers[0]; i++) {
+                        skippedNumbers.push(i);
                     }
-                    const message = `Badge numbers must be consecutive. Skipped number(s): ${skippedNumbers.join(', ')} (${skippedCount} total) between ${sortedBadgeNumbers[i-1]} and ${sortedBadgeNumbers[i]}.`;
+                    const message = `Badge numbers must be consecutive. Skipped number(s): ${skippedNumbers.join(', ')} (${skippedCount} total) between ${startingNumber} and ${sortedBadgeNumbers[0]}.`;
                     alert(message);
                     showStatus(message, 'error');
                     return;
                 }
+                
+                // Check for skipped numbers between new badges
+                for (let i = 1; i < sortedBadgeNumbers.length; i++) {
+                    if (sortedBadgeNumbers[i] > sortedBadgeNumbers[i-1] + 1) {
+                        const skippedCount = sortedBadgeNumbers[i] - sortedBadgeNumbers[i-1] - 1;
+                        const skippedNumbers = [];
+                        for (let j = sortedBadgeNumbers[i-1] + 1; j < sortedBadgeNumbers[i]; j++) {
+                            skippedNumbers.push(j);
+                        }
+                        const message = `Badge numbers must be consecutive. Skipped number(s): ${skippedNumbers.join(', ')} (${skippedCount} total) between ${sortedBadgeNumbers[i-1]} and ${sortedBadgeNumbers[i]}.`;
+                        alert(message);
+                        showStatus(message, 'error');
+                        return;
+                    }
+                }
+            } else {
+                console.log('Skip validation is disabled for this chapter');
             }
             
             // Sort changes by badge number for display
@@ -4052,6 +4096,153 @@
                 }
                 showStatus(`Test API call failed: ${error.message}`, 'error');
             }
+        }
+
+        // ALLOW SKIPS CONFIGURATION FUNCTIONS
+        async function loadAllowSkipsConfig() {
+            console.log('=== loadAllowSkipsConfig() started ===');
+            
+            // Show loading state
+            showLoading('allow-skips-loading');
+            hideElement('allow-skips-content');
+            hideElement('allow-skips-error');
+            
+            try {
+                // Get allowed skips data from server
+                const response = await fetch('/api/blackbaud?action=get-allowed-skips', {
+                    method: 'GET'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to load configuration');
+                }
+                
+                const allowedSkips = await response.json();
+                appState.allowedSkips = allowedSkips;
+                
+                // Display the configuration table
+                displayAllowSkipsConfig(allowedSkips);
+                
+            } catch (error) {
+                console.error('Error loading allow skips config:', error);
+                hideElement('allow-skips-loading');
+                showElement('allow-skips-error');
+            }
+        }
+
+        function displayAllowSkipsConfig(allowedSkips) {
+            console.log('=== displayAllowSkipsConfig() started ===');
+            
+            const tbody = document.getElementById('allow-skips-tbody');
+            
+            if (tbody) {
+                tbody.innerHTML = '';
+                
+                // Get all chapters from chapter-records
+                const chapters = [
+                    "Alpha", "Beta", "Beta Alpha", "Beta Beta", "Beta Chi", "Beta Eta", "Beta Iota", 
+                    "Beta Nu", "Beta Omicron", "Beta Psi", "Beta Rho", "Beta Tau", "Beta Theta", 
+                    "Beta Upsilon", "Beta Zeta", "Delta", "Delta Alpha", "Delta Beta", "Delta Epsilon", 
+                    "Delta Eta", "Delta Gamma", "Delta Iota", "Delta Kappa", "Delta Mu", "Delta Omicron", 
+                    "Delta Phi", "Delta Rho", "Delta Sigma", "Delta Tau", "Delta Theta", "Epsilon Alpha", 
+                    "Epsilon Beta", "Epsilon Chi", "Epsilon Delta", "Epsilon Epsilon", "Epsilon Eta", 
+                    "Epsilon Kappa", "Epsilon Lambda", "Epsilon Mu", "Epsilon Nu", "Epsilon Omicron", 
+                    "Epsilon Pi", "Epsilon Rho", "Epsilon Sigma", "Epsilon Theta", "Epsilon Xi", 
+                    "Epsilon Zeta", "Eta", "Eta Beta", "Eta Chi", "Eta Delta", "Eta Epsilon", "Eta Gamma", 
+                    "Eta Iota", "Eta Kappa", "Eta Mu (A)", "Eta Nu", "Eta Omicron", "Eta Phi", "Eta Pi", 
+                    "Eta Rho", "Eta Tau", "Eta Theta", "Eta Upsilon", "Eta Zeta", "Gamma", "Gamma Alpha", 
+                    "Gamma Beta", "Gamma Chi", "Gamma Delta", "Gamma Eta", "Gamma Gamma", "Gamma Iota", 
+                    "Gamma Kappa", "Gamma Mu", "Gamma Nu", "Gamma Omicron", "Gamma Phi", "Gamma Pi", 
+                    "Gamma Sigma", "Gamma Tau", "Gamma Theta", "Gamma Upsilon", "Gamma Xi", "Gamma Zeta", 
+                    "Iota", "Iota Beta", "Iota Delta", "Iota Gamma", "Iota Lambda", "Iota Pi", "Iota Rho", 
+                    "Iota Sigma", "Iota Theta", "Kappa", "Kappa Chi", "Kappa Delta", "Kappa Epsilon", 
+                    "Kappa Gamma", "Kappa Lambda", "Kappa Pi", "Kappa Rho", "Kappa Theta", "Kappa Zeta", 
+                    "Lambda", "Lambda Chi", "Lambda Delta", "Lambda Epsilon", "Lambda Eta", "Lambda Gamma", 
+                    "Lambda Omicron", "Lambda Phi", "Lambda Upsilon", "Mu", "Mu Beta", "Mu Chi", "Mu Eta", 
+                    "Mu Iota", "Mu Kappa", "Mu Phi", "Mu Pi", "Mu Rho", "Mu Tau", "Mu Upsilon", "Mu Xi", 
+                    "Mu Zeta", "Nu", "Nu Alpha", "Nu Beta", "Nu Delta", "Nu Epsilon", "Phi", "Psi", "Rho", 
+                    "Sigma", "Test Chapter", "Theta", "Theta Alpha", "Theta Eta", "Theta Gamma", "Theta Kappa", 
+                    "Theta Lambda", "Theta Nu", "Theta Pi", "Theta Rho", "Theta Sigma", "Theta Theta", 
+                    "Theta Xi", "Theta Zeta", "Upsilon", "Upsilon Upsilon", "Zeta Chi", "Zeta Gamma", 
+                    "Zeta Iota", "Zeta Kappa", "Zeta Lambda", "Zeta Nu", "Zeta Omicron", "Zeta Phi", 
+                    "Zeta Pi", "Zeta Psi", "Zeta Sigma", "Zeta Theta", "Zeta Upsilon", "Zeta Xi"
+                ];
+                
+                chapters.forEach((chapter, index) => {
+                    const row = tbody.insertRow();
+                    
+                    // Chapter name
+                    const chapterCell = row.insertCell();
+                    chapterCell.textContent = chapter;
+                    
+                    // Allow skips checkbox
+                    const allowCell = row.insertCell();
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.className = 'allow-skip-checkbox';
+                    checkbox.id = `allow-skip-${index}`;
+                    checkbox.checked = allowedSkips[chapter] === true;
+                    checkbox.addEventListener('change', function() {
+                        updateAllowSkips(chapter, this.checked);
+                    });
+                    allowCell.appendChild(checkbox);
+                });
+            }
+            
+            // Show content
+            hideElement('allow-skips-loading');
+            showElement('allow-skips-content');
+        }
+
+        async function updateAllowSkips(chapter, allowSkips) {
+            console.log(`Updating allow skips for ${chapter} to ${allowSkips}`);
+            
+            try {
+                const response = await fetch('/api/blackbaud?action=set-allowed-skips', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ chapter, allowSkips })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to update configuration');
+                }
+                
+                // Update local state
+                appState.allowedSkips[chapter] = allowSkips;
+                
+                showStatus(`Updated ${chapter} - Skip validation ${allowSkips ? 'disabled' : 'enabled'}`, 'success');
+                
+            } catch (error) {
+                console.error('Error updating allow skips:', error);
+                showStatus('Failed to update configuration', 'error');
+                // Revert checkbox
+                const checkbox = document.querySelector(`input[id*="allow-skip-"]:checked`);
+                if (checkbox) checkbox.checked = !allowSkips;
+            }
+        }
+
+        // Get allowed skips for current chapter
+        async function checkAllowedSkips() {
+            if (!appState.chapter) return false;
+            
+            try {
+                const response = await fetch('/api/blackbaud?action=get-allowed-skips', {
+                    method: 'GET'
+                });
+                
+                if (response.ok) {
+                    const allowedSkips = await response.json();
+                    appState.allowedSkips = allowedSkips;
+                    return allowedSkips[appState.chapter] === true;
+                }
+            } catch (error) {
+                console.error('Error checking allowed skips:', error);
+            }
+            
+            return false;
         }
     </script>
 </body>

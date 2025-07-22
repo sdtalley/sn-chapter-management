@@ -120,6 +120,40 @@ export default async function handler(req, res) {
       return;
     }
     
+    // Handle allowed skips actions
+    if (action === 'get-allowed-skips') {
+      try {
+        // Get all allowed skips data from Redis
+        const allowedSkips = await redis.get('allowed_skips') || {};
+        res.json(allowedSkips);
+      } catch (error) {
+        console.error('Error getting allowed skips:', error);
+        res.json({});
+      }
+      return;
+    }
+    
+    if (action === 'set-allowed-skips' && req.method === 'POST') {
+      try {
+        const { chapter, allowSkips } = req.body;
+        
+        // Get current allowed skips data
+        const allowedSkips = await redis.get('allowed_skips') || {};
+        
+        // Update the specific chapter
+        allowedSkips[chapter] = allowSkips;
+        
+        // Save back to Redis
+        await redis.set('allowed_skips', allowedSkips);
+        
+        res.json({ success: true, message: 'Allowed skips updated' });
+      } catch (error) {
+        console.error('Error setting allowed skips:', error);
+        res.status(500).json({ error: 'Failed to update allowed skips' });
+      }
+      return;
+    }
+    
     // For auth action, just return success since we're using refresh tokens
     if (action === 'auth') {
       // Get a fresh token to verify credentials work
