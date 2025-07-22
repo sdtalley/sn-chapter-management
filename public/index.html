@@ -3649,6 +3649,38 @@
                 }
             }
             
+            // Check for duplicate badge numbers
+            const badgeNumbers = changes.map(c => parseInt(c.badgeNumber, 10));
+            const uniqueBadgeNumbers = [...new Set(badgeNumbers)];
+            
+            if (badgeNumbers.length !== uniqueBadgeNumbers.length) {
+                showStatus('Duplicate badge numbers found. Each initiate must have a unique badge number.', 'error');
+                return;
+            }
+            
+            // Sort badge numbers and check for skipped numbers
+            const sortedBadgeNumbers = [...badgeNumbers].sort((a, b) => a - b);
+            const startingNumber = appState.lastBadgeNumber !== null ? appState.lastBadgeNumber : 0;
+            
+            // Check for skipped numbers from last badge to first new badge
+            if (sortedBadgeNumbers[0] > startingNumber + 1) {
+                const skippedCount = sortedBadgeNumbers[0] - startingNumber - 1;
+                showStatus(`Badge numbers must be consecutive. Skipped ${skippedCount} number(s) between ${startingNumber} and ${sortedBadgeNumbers[0]}.`, 'error');
+                return;
+            }
+            
+            // Check for skipped numbers between new badges
+            for (let i = 1; i < sortedBadgeNumbers.length; i++) {
+                if (sortedBadgeNumbers[i] > sortedBadgeNumbers[i-1] + 1) {
+                    const skippedCount = sortedBadgeNumbers[i] - sortedBadgeNumbers[i-1] - 1;
+                    showStatus(`Badge numbers must be consecutive. Skipped ${skippedCount} number(s) between ${sortedBadgeNumbers[i-1]} and ${sortedBadgeNumbers[i]}.`, 'error');
+                    return;
+                }
+            }
+            
+            // Sort changes by badge number for display
+            changes.sort((a, b) => parseInt(a.badgeNumber, 10) - parseInt(b.badgeNumber, 10));
+            
             // Display review table
             displayInitiateReview(changes);
         }
