@@ -564,62 +564,6 @@
                 <p><strong>Chapter:</strong> <span id="chapter">Not provided</span></p>
                 <p><strong>Officer Name:</strong> <span id="offname">Not provided</span></p>
             </div>
-            
-            <!-- Configuration Form -->
-            <div class="config-section">
-                <h3>API Configuration</h3>
-                
-                <div class="form-group">
-                    <label for="clientId">Client ID:</label>
-                    <input type="text" id="clientId" placeholder="Enter your Blackbaud Client ID">
-                </div>
-                
-                <div class="form-group">
-                    <label for="clientSecret">Client Secret:</label>
-                    <input type="password" id="clientSecret" placeholder="Enter your Blackbaud Client Secret">
-                </div>
-                
-                <div class="form-group">
-                    <label for="subscriptionKey">Subscription Key:</label>
-                    <input type="password" id="subscriptionKey" placeholder="Enter your SKY API Subscription Key">
-                </div>
-                
-                <button class="btn" onclick="authenticate()">Authenticate & Get Token</button>
-                
-                <div id="status" class="status"></div>
-                
-                <div id="tokenInfo" class="token-info" style="display: none;">
-                    <h3>Token Information</h3>
-                    <p><strong>Access Token:</strong> <span id="accessToken">***</span></p>
-                    <p><strong>Token Type:</strong> <span id="tokenType">Bearer</span></p>
-                    <p><strong>Expires At:</strong> <span id="expiresAt">-</span></p>
-                    <p><strong>Status:</strong> <span id="tokenStatus">Active</span></p>
-                </div>
-            </div>
-
-            <!-- API Testing Form -->
-            <div class="testing-section">
-                <h3>API Testing</h3>
-                <div class="form-group">
-                    <label for="apiEndpoint">API Endpoint:</label>
-                    <select id="apiEndpoint">
-                        <option value="/constituents">Constituents</option>
-                        <option value="/gifts">Gifts</option>
-                        <option value="/funds">Funds</option>
-                        <option value="/appeals">Appeals</option>
-                        <option value="/campaigns">Campaigns</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label for="customEndpoint">Custom Endpoint (optional):</label>
-                    <input type="text" id="customEndpoint" placeholder="e.g., /constituents/123">
-                </div>
-                
-                <button class="btn" onclick="testApiCall()">Test API Call</button>
-                
-                <div id="apiResponse" class="response-area" style="display: none;"></div>
-            </div>
         </div>
     </div>
 
