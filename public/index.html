@@ -815,7 +815,7 @@
             };
         }
 
-        function buildInitiatesQuery(chapterQuid) {
+        function buildInitiatesQuery(chapterQuid, chapterName) {
             return {
                 "query": {
                     "advanced_processing_options": {
@@ -844,6 +844,30 @@
                             "query_field_id": 656,
                             "right_parenthesis": false,
                             "unique_id": "120"
+                        },
+                        {
+                            "compare_type": "And",
+                            "filter_values": [chapterName],
+                            "left_parenthesis": false,
+                            "operator": "Equals",
+                            "query_field_id": 4123,
+                            "right_parenthesis": false
+                        },
+                        {
+                            "compare_type": "And",
+                            "filter_values": ["1694"],
+                            "left_parenthesis": false,
+                            "operator": "Equals",
+                            "query_field_id": 4151,
+                            "right_parenthesis": false
+                        },
+                        {
+                            "compare_type": "And",
+                            "filter_values": [],
+                            "left_parenthesis": false,
+                            "operator": "Blank",
+                            "query_field_id": 4148,
+                            "right_parenthesis": false
                         }
                     ],
                     "gift_processing_options": {
@@ -871,6 +895,10 @@
                         {
                             "query_field_id": 2216,
                             "user_alias": "CodeID"
+                        },
+                        {
+                            "query_field_id": 4127,
+                            "user_alias": "Relation_ID"
                         }
                     ],
                     "sort_fields": [
@@ -2086,7 +2114,7 @@
                 // Execute both queries in parallel
                 const [initiatesResults, topBadgeResults] = await Promise.all([
                     // Query 1: Get initiates
-                    executeQuery(buildInitiatesQuery(chapterData.quid), 'candidates'),
+                    executeQuery(buildInitiatesQuery(chapterData.quid, appState.chapter), 'candidates'),
                     // Query 2: Get top badge (only if memcatid exists)
                     chapterData.memcatid ? executeQuery(buildTopBadgeQuery(chapterData.memcatid), 'topbadge') : Promise.resolve(null)
                 ]);
@@ -2135,12 +2163,19 @@
                         truncatedCodeId = truncatedCodeId.slice(-5);
                     }
                     
+                    // Truncate relationId to last 7 digits
+                    let truncatedRelationId = row.Relation_ID || '';
+                    if (truncatedRelationId && truncatedRelationId.length > 7) {
+                        truncatedRelationId = truncatedRelationId.slice(-7);
+                    }
+                    
                     const initiate = {
                         id: row.ID || row.QRECID || row.id,
                         name: row.Name || row.name || 'N/A',
                         candidateCeremonyDate: row.Candidate_Ceremony_Date || '',
                         code: row.Code || '',
-                        codeId: truncatedCodeId
+                        codeId: truncatedCodeId,
+                        relationId: truncatedRelationId
                     };
                     
                     console.log(`Initiate ${index}:`, initiate);
@@ -2192,10 +2227,11 @@
                         
                         const row = tbody.insertRow();
                         
-                        // Store initiate ID, code, and codeId as data attributes
+                        // Store initiate ID, code, codeId, and relationId as data attributes
                         row.dataset.initiateId = initiate.id;
                         row.dataset.code = initiate.code;
                         row.dataset.codeId = initiate.codeId;
+                        row.dataset.relationId = initiate.relationId;
                         
                         // Initiated checkbox
                         const initiatedCell = row.insertCell();
@@ -3699,6 +3735,7 @@
                                 id: initiateId,
                                 code: row.dataset.code,
                                 codeId: row.dataset.codeId,
+                                relationId: row.dataset.relationId,
                                 name: nameCell.textContent,
                                 initiated: true,
                                 ceremonyDate: dateInput.value,
