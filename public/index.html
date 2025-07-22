@@ -134,7 +134,7 @@
             
             <div class="loading-message" id="initiates-loading" style="display: none;">
                 <div class="spinner"></div>
-                <p>Loading prospective initiates...</p>
+                <p>Loading candidates...</p>
             </div>
             
             <div id="initiates-content" style="display: none;">
@@ -1494,7 +1494,7 @@
                         
                         const unknownOption = document.createElement('option');
                         unknownOption.value = 'unknown';
-                        unknownOption.textContent = 'Unknown (Remove)';
+                        unknownOption.textContent = 'Person Unknown';
                         approveSelect.appendChild(unknownOption);
                         
                         // Add change event listener
@@ -3583,7 +3583,7 @@
                     let statusText = change.approval;
                     if (statusText === 'approve') statusText = 'Approve';
                     else if (statusText === 'disapprove') statusText = 'Disapprove';
-                    else if (statusText === 'unknown') statusText = 'Unknown (Remove)';
+                    else if (statusText === 'unknown') statusText = 'Person Unknown';
                     statusCell.textContent = statusText;
                     
                     // Date
