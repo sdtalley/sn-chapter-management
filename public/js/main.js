@@ -70,7 +70,9 @@ const Main = (function() {
         } else if (pageId === 'fee-status') {
             loadFeeStatus();
         } else if (pageId === 'admin') {
-            loadAllowSkipsConfig();
+            if (window.AdminModule) {
+                window.AdminModule.initAdmin();
+            }
         }
         
         // Notify parent of height change
