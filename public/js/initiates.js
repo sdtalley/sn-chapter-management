@@ -29,10 +29,9 @@ const InitiatesModule = (function() {
             // Check if skips are allowed for this chapter
             const skipValidationDisabled = await API.checkAllowedSkips();
             
-            // Get full chapter data (includes both quid and memcatid)
-            console.log('Getting chapter data for:', appState.chapter);
-            const chapterData = await API.getChapterData(appState.chapter);
-            console.log('Chapter data retrieved:', chapterData);
+            // Use cached chapter data
+            const chapterData = appState.chapterData;
+            console.log('Chapter data from cache:', chapterData);
             
             if (!chapterData || !chapterData.quid) {
                 throw new Error(`Chapter data not found for ${appState.chapter}`);

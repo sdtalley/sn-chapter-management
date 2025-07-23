@@ -17,7 +17,8 @@ const Main = (function() {
         offname: null,
         currentPage: 'main',
         lastBadgeNumber: null,
-        allowedSkips: {} // Store allowed skips configuration
+        allowedSkips: {}, // Store allowed skips configuration
+        chapterData: null // Cache chapter data
     };
     
     // Configuration
@@ -28,10 +29,23 @@ const Main = (function() {
     };
     
     // Initialize application
-    function init() {
+    async function init() {
         parseURLParameters();
         loadStoredCredentials();
         checkTokenStatus();
+        
+        // Cache chapter data if chapter is available
+        if (appState.chapter && appState.chapter !== 'Not provided') {
+            try {
+                const chapterData = await API.getChapterData(appState.chapter);
+                if (chapterData) {
+                    appState.chapterData = chapterData;
+                    console.log('Chapter data cached:', chapterData);
+                }
+            } catch (error) {
+                console.error('Failed to cache chapter data:', error);
+            }
+        }
         
         // Initial iframe resize
         Utils.resizeIframe();

@@ -26,10 +26,9 @@ const FeesModule = (function() {
         Utils.hideElement('fee-error');
 
         try {
-            // Get chapter QUID
-            console.log('Getting chapter QUID for:', appState.chapter);
-            const chapterQuid = await API.getChapterQuid(appState.chapter);
-            console.log('Chapter QUID retrieved:', chapterQuid);
+            // Use cached chapter data
+            const chapterQuid = appState.chapterData?.quid;
+            console.log('Chapter QUID from cache:', chapterQuid);
             
             if (!chapterQuid) {
                 throw new Error(`Chapter QUID not found for ${appState.chapter}`);

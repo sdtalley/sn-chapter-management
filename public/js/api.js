@@ -310,11 +310,18 @@ const API = (function() {
         throw new Error('Query execution timeout after ' + maxAttempts + ' seconds');
     }
     
-    // Chapter data functions
+    // Chapter data functions - OPTIMIZED to use cached data
     async function getChapterQuid(chapterName) {
         console.log('=== getChapterQuid() started ===');
         console.log('Looking up QUID for chapter:', chapterName);
         
+        // First check if we have cached data
+        if (appState.chapterData && appState.chapter === chapterName) {
+            console.log('Using cached chapter data');
+            return appState.chapterData.quid;
+        }
+        
+        // If not cached, fetch from server
         try {
             const response = await fetch(`/api/blackbaud?action=chapter-lookup&chapter=${encodeURIComponent(chapterName)}`, {
                 method: 'GET'
@@ -325,6 +332,12 @@ const API = (function() {
             if (response.ok) {
                 const data = await response.json();
                 console.log('Chapter data received:', data);
+                
+                // Cache the data if it's for the current chapter
+                if (appState.chapter === chapterName) {
+                    appState.chapterData = data;
+                }
+                
                 return data.quid;
             }
         } catch (error) {
@@ -339,6 +352,13 @@ const API = (function() {
         console.log('=== getChapterData() started ===');
         console.log('Looking up data for chapter:', chapterName);
         
+        // First check if we have cached data
+        if (appState.chapterData && appState.chapter === chapterName) {
+            console.log('Using cached chapter data');
+            return appState.chapterData;
+        }
+        
+        // If not cached, fetch from server
         try {
             const response = await fetch(`/api/blackbaud?action=chapter-lookup&chapter=${encodeURIComponent(chapterName)}`, {
                 method: 'GET'
@@ -349,6 +369,12 @@ const API = (function() {
             if (response.ok) {
                 const data = await response.json();
                 console.log('Chapter data received:', data);
+                
+                // Cache the data if it's for the current chapter
+                if (appState.chapter === chapterName) {
+                    appState.chapterData = data;
+                }
+                
                 return data;
             }
         } catch (error) {

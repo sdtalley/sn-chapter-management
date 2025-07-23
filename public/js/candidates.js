@@ -26,10 +26,9 @@ const CandidatesModule = (function() {
         Utils.hideElement('candidates-error');
 
         try {
-            // Get chapter QUID
-            console.log('Getting chapter QUID for:', appState.chapter);
-            const chapterQuid = await API.getChapterQuid(appState.chapter);
-            console.log('Chapter QUID retrieved:', chapterQuid);
+            // Use cached chapter data
+            const chapterQuid = appState.chapterData?.quid;
+            console.log('Chapter QUID from cache:', chapterQuid);
             
             if (!chapterQuid) {
                 throw new Error(`Chapter QUID not found for ${appState.chapter}`);
@@ -378,10 +377,10 @@ const CandidatesModule = (function() {
         submitSection.innerHTML = '<div class="spinner"></div>';
         
         try {
-            // Get chapter data for csid and feid
-            const chapterData = await API.getChapterData(appState.chapter);
+            // Use cached chapter data
+            const chapterData = appState.chapterData;
             if (!chapterData) {
-                throw new Error('Could not retrieve chapter data');
+                throw new Error('Chapter data not available');
             }
             
             let successCount = 0;

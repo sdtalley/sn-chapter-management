@@ -497,9 +497,10 @@
         
         // Use the global appState from main.js
         const appState = window.appState;
+
         // Initialize application when DOM is ready
-        document.addEventListener('DOMContentLoaded', function() {
-            Main.init();
+        document.addEventListener('DOMContentLoaded', async function() {
+            await Main.init();
         });
     </script>
 </body>
