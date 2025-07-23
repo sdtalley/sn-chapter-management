@@ -1682,16 +1682,22 @@
                 
                 // Show results
                 if (errorCount === 0) {
-                    // Show success message
-                    submitSection.innerHTML = `
+                    // Hide the review table before showing success message
+                    hideElement('candidates-review');
+                    
+                    // Create a temporary success message div
+                    const successDiv = document.createElement('div');
+                    successDiv.className = 'submission-success-overlay';
+                    successDiv.innerHTML = `
                         <div class="submission-success">
                             <p>Successfully processed all ${successCount} candidate(s).</p>
                         </div>
                     `;
+                    document.querySelector('.container').appendChild(successDiv);
                     
                     // Wait 2 seconds then return to main menu
                     setTimeout(() => {
-                        hideElement('candidates-review');
+                        successDiv.remove();
                         showMainMenu();
                     }, 2000);
                 } else {
