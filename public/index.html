@@ -1706,7 +1706,7 @@
         async function processCandidateSubmission(candidate, chapterData) {
             console.log(`Processing candidate: ${candidate.name}`);
             
-            // Step 1: Parse ceremony date - Fix timezone issue
+            // Step 1: Parse ceremony date
             const [year, month, day] = candidate.ceremonyDate.split('-');
             const startDate = {
                 d: parseInt(day, 10),
@@ -1714,10 +1714,10 @@
                 y: parseInt(year, 10)
             };
             
-            // Get current date in Eastern Time for the date field
+            // Get current date in Eastern Time
             const easternTime = new Date().toLocaleString("en-US", {timeZone: "America/New_York"});
             const easternDate = new Date(easternTime);
-            const currentDateISO = `${easternDate.getFullYear()}-${String(easternDate.getMonth() + 1).padStart(2, '0')}-${String(easternDate.getDate()).padStart(2, '0')}T00:00:00.000-0000`;
+            const currentDateISO = `${easternDate.getFullYear()}-${String(easternDate.getMonth() + 1).padStart(2, '0')}-${String(easternDate.getDate()).padStart(2, '0')}T00:00:00Z`;
             
             // Step 2: Delete existing constituent code
             console.log(`Deleting code: ${candidate.codeId}`);
@@ -1804,14 +1804,11 @@
                 }
                 
                 // Step 7: Create custom fields
-                // Format the ceremony date properly for custom field
-                const ceremonyDateFormatted = `${candidate.ceremonyDate}T00:00:00.000-0000`;
-                
                 const customFields = [
                     {
                         category: "Candidate - Ceremony Date",
                         date: currentDateISO,
-                        value: ceremonyDateFormatted
+                        value: `${candidate.ceremonyDate}T00:00:00Z`
                     },
                     {
                         category: "Candidate - Fee Paid",
@@ -2537,6 +2534,13 @@
             if (!dateString) return 'N/A';
             
             // Handle various date formats
+            if (dateString.includes('-')) {
+                // For YYYY-MM-DD format, parse the components directly to avoid timezone issues
+                const [year, month, day] = dateString.split('-');
+                return `${month}/${day}/${year}`;
+            }
+            
+            // For other formats, try to parse
             const date = parseDate(dateString);
             if (date && !isNaN(date)) {
                 const month = String(date.getMonth() + 1).padStart(2, '0');
