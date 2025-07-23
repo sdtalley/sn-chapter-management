@@ -1601,20 +1601,19 @@
             const candidates = [];
             
             // Collect all candidate data from review table
-            rows.forEach((row, index) => {
+            rows.forEach((row) => {
                 const nameCell = row.cells[0];
                 const statusCell = row.cells[1];
                 const dateCell = row.cells[2];
                 
-                // Get the original data from the candidates table
-                const candidatesTableBody = document.getElementById('candidates-tbody');
-                const originalRow = candidatesTableBody ? candidatesTableBody.rows[index] : null;
+                // Store the candidate data that was saved during review
+                const candidateData = row.candidateData;
                 
-                if (originalRow) {
+                if (candidateData) {
                     candidates.push({
-                        id: originalRow.dataset.candidateId,
-                        code: originalRow.dataset.code,
-                        codeId: originalRow.dataset.codeId,
+                        id: candidateData.id,
+                        code: candidateData.code,
+                        codeId: candidateData.codeId,
                         name: nameCell.textContent,
                         approval: getApprovalValueFromText(statusCell.textContent),
                         ceremonyDate: getDateFromFormattedText(dateCell.textContent)
@@ -1684,10 +1683,9 @@
                 // Show results
                 if (errorCount === 0) {
                     showStatus(`Successfully processed all ${successCount} candidate(s).`, 'success');
-                    // Wait a moment then return to main candidates page
-                    setTimeout(() => {
-                        showPage('verify-candidates');
-                    }, 2000);
+                    // Hide review section and reload candidates
+                    hideElement('candidates-review');
+                    loadCandidates();
                 } else {
                     showStatus(`Processed ${successCount} candidate(s) with ${errorCount} error(s). Check console for details.`, 'error');
                     console.error('Submission errors:', errors);
@@ -3864,6 +3862,13 @@
                 
                 changes.forEach(change => {
                     const row = tbody.insertRow();
+                    
+                    // Store the candidate data on the row for later retrieval
+                    row.candidateData = {
+                        id: change.id,
+                        code: change.code,
+                        codeId: change.codeId
+                    };
                     
                     // Name
                     const nameCell = row.insertCell();
