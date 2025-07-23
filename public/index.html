@@ -481,6 +481,8 @@
     <!-- Load JavaScript modules -->
     <script src="js/utils.js"></script>
     <script src="js/main.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/queries.js"></script>
     
     <script>
         // Configuration
@@ -488,687 +490,6 @@
         
         // Use the global appState from main.js
         const appState = window.appState;
-
-        // REUSABLE QUERY EXECUTION FUNCTIONALITY
-        async function executeQuery(queryRequest, resultsFileName = 'query_results') {
-            console.log('=== executeQuery() started ===');
-            console.log('Results file name:', resultsFileName);
-
-            // Ensure proper structure for the query request
-            const fullQueryRequest = {
-                ...queryRequest,
-                "ux_mode": "Synchronous",
-                "output_format": "Json",
-                "formatting_mode": "UI",
-                "results_file_name": resultsFileName,
-                "time_zone_offset_in_minutes": 120
-            };
-
-            console.log('Query request built:', JSON.stringify(fullQueryRequest, null, 2));
-
-            // Step 1: Execute the query
-            console.log('Executing query via API...');
-            const executeResponse = await fetch(`/api/blackbaud?action=query-execute`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(fullQueryRequest)
-            });
-
-            console.log('Execute response status:', executeResponse.status);
-
-            if (!executeResponse.ok) {
-                const errorText = await executeResponse.text();
-                console.error('Execute response error:', errorText);
-                throw new Error(`Query execution failed: ${executeResponse.status} - ${errorText}`);
-            }
-
-            const executeData = await executeResponse.json();
-            console.log('Execute response data:', executeData);
-            
-            // Get the job ID from the response
-            const jobId = executeData.id;
-            if (!jobId) {
-                console.error('No job ID found in response:', executeData);
-                throw new Error('No job ID returned from query execution');
-            }
-
-            console.log('Query job ID:', jobId);
-            console.log('Initial status:', executeData.status);
-
-            // Step 2: Poll for job completion
-            const statusData = await pollJobStatus(jobId);
-            
-            if (!statusData.sas_uri) {
-                throw new Error('Query completed but no results URL provided');
-            }
-
-            // Step 3: Fetch the actual results
-            console.log('Fetching query results from URL...');
-            console.log('SAS URI to fetch:', statusData.sas_uri);
-            
-            const resultsResponse = await fetch('/api/blackbaud?action=query-results', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ url: statusData.sas_uri })
-            });
-
-            if (!resultsResponse.ok) {
-                const errorText = await resultsResponse.text();
-                console.error('Failed to fetch query results:', resultsResponse.status, errorText);
-                throw new Error(`Failed to fetch query results: ${resultsResponse.status} - ${errorText}`);
-            }
-
-            const resultsData = await resultsResponse.json();
-            console.log('Query results received:', resultsData);
-            console.log('Row count:', resultsData.length);
-            
-            return resultsData;
-        }
-
-        async function pollJobStatus(jobId, maxAttempts = 60) {
-            console.log('=== pollJobStatus() started ===');
-            console.log('Job ID:', jobId);
-            
-            let attempts = 0;
-            
-            while (attempts < maxAttempts) {
-                console.log(`Polling attempt ${attempts + 1}/${maxAttempts}...`);
-                
-                const statusResponse = await fetch(`/api/blackbaud?action=query-status&jobId=${jobId}`, {
-                    method: 'GET'
-                });
-
-                if (!statusResponse.ok) {
-                    const errorText = await statusResponse.text();
-                    console.error('Status check error:', errorText);
-                    throw new Error(`Query status check failed: ${statusResponse.status}`);
-                }
-
-                const statusData = await statusResponse.json();
-                console.log('Status data:', statusData);
-
-                // Check for completion
-                if (statusData.status === 'Completed') {
-                    console.log('Query completed successfully');
-                    console.log('Row count:', statusData.row_count);
-                    return statusData;
-                } else if (statusData.status === 'Failed' || statusData.status === 'failed') {
-                    throw new Error('Query execution failed: ' + (statusData.message || statusData.error || 'Unknown error'));
-                }
-
-                // Wait 1 second before next attempt
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                attempts++;
-            }
-
-            throw new Error('Query execution timeout after ' + maxAttempts + ' seconds');
-        }
-
-        // QUERY BUILDERS FOR EACH SUBPAGE
-        function buildCandidatesQuery(chapterQuid) {
-            return {
-                "query": {
-                    "advanced_processing_options": {
-                        "use_alternate_sql_code_table_fields": false,
-                        "use_alternate_sql_multiple_attributes": false
-                    },
-                    "constituent_filters": {
-                        "include_deceased": false,
-                        "include_inactive": true,
-                        "include_no_valid_addresses": true
-                    },
-                    "filter_fields": [
-                        {
-                            "compare_type": "None",
-                            "filter_values": ["6985"],
-                            "left_parenthesis": false,
-                            "operator": "Equals",
-                            "query_field_id": 2217,
-                            "right_parenthesis": false
-                        },
-                        {
-                            "compare_type": "And",
-                            "filter_values": [String(chapterQuid)],
-                            "operator": "Equals",
-                            "query_field_id": 656,
-                            "unique_id": "120"
-                        }
-                    ],
-                    "gift_processing_options": {
-                        "matching_gift_credit_option": "MatchingGiftCompany",
-                        "soft_credit_option": "Donor",
-                        "use_gross_amount_for_covenants": false
-                    },
-                    "select_fields": [
-                        {
-                            "query_field_id": 349,
-                            "user_alias": "ID"
-                        },
-                        {
-                            "query_field_id": 597
-                        },
-                        {
-                            "query_field_id": 2217,
-                            "user_alias": "Code"
-                        },
-                        {
-                            "query_field_id": 2216,
-                            "user_alias": "CodeID"
-                        }
-                    ],
-                    "sort_fields": [
-                        {
-                            "query_field_id": 597,
-                            "sort_order": "Ascending"
-                        }
-                    ],
-                    "suppress_duplicates": true,
-                    "type_id": 18,
-                    "sql_generation_mode": "Query"
-                }
-            };
-        }
-
-        function buildInitiatesQuery(chapterQuid, chapterName) {
-            return {
-                "query": {
-                    "advanced_processing_options": {
-                        "use_alternate_sql_code_table_fields": false,
-                        "use_alternate_sql_multiple_attributes": false
-                    },
-                    "constituent_filters": {
-                        "include_deceased": false,
-                        "include_inactive": true,
-                        "include_no_valid_addresses": true
-                    },
-                    "filter_fields": [
-                        {
-                            "compare_type": "None",
-                            "filter_values": ["5707"],
-                            "left_parenthesis": false,
-                            "operator": "Equals",
-                            "query_field_id": 2217,
-                            "right_parenthesis": false
-                        },
-                        {
-                            "compare_type": "And",
-                            "filter_values": [String(chapterQuid)],
-                            "left_parenthesis": false,
-                            "operator": "Equals",
-                            "query_field_id": 656,
-                            "right_parenthesis": false,
-                            "unique_id": "120"
-                        },
-                        {
-                            "compare_type": "And",
-                            "filter_values": [chapterName],
-                            "left_parenthesis": false,
-                            "operator": "Equals",
-                            "query_field_id": 4123,
-                            "right_parenthesis": false
-                        },
-                        {
-                            "compare_type": "And",
-                            "filter_values": ["1694"],
-                            "left_parenthesis": false,
-                            "operator": "Equals",
-                            "query_field_id": 4151,
-                            "right_parenthesis": false
-                        },
-                        {
-                            "compare_type": "And",
-                            "filter_values": [],
-                            "left_parenthesis": false,
-                            "operator": "Blank",
-                            "query_field_id": 4148,
-                            "right_parenthesis": false
-                        }
-                    ],
-                    "gift_processing_options": {
-                        "matching_gift_credit_option": "MatchingGiftCompany",
-                        "soft_credit_option": "Donor",
-                        "use_gross_amount_for_covenants": false
-                    },
-                    "select_fields": [
-                        {
-                            "query_field_id": 349,
-                            "user_alias": "ID"
-                        },
-                        {
-                            "query_field_id": 597
-                        },
-                        {
-                            "query_field_id": 656,
-                            "unique_id": "38",
-                            "user_alias": "Candidate_Ceremony_Date"
-                        },
-                        {
-                            "query_field_id": 2217,
-                            "user_alias": "Code"
-                        },
-                        {
-                            "query_field_id": 2216,
-                            "user_alias": "CodeID"
-                        },
-                        {
-                            "query_field_id": 4127,
-                            "user_alias": "Relation_ID"
-                        }
-                    ],
-                    "sort_fields": [
-                        {
-                            "query_field_id": 597,
-                            "sort_order": "Ascending"
-                        }
-                    ],
-                    "suppress_duplicates": true,
-                    "type_id": 18,
-                    "sql_generation_mode": "Query"
-                }
-            };
-        }
-
-        function buildTopBadgeQuery(chapterMemcatid) {
-            return {
-                "query": {
-                    "advanced_processing_options": {},
-                    "constituent_filters": {
-                        "include_deceased": true,
-                        "include_inactive": true,
-                        "include_no_valid_addresses": true
-                    },
-                    "filter_fields": [
-                        {
-                            "compare_type": "None",
-                            "filter_values": [String(chapterMemcatid)],
-                            "operator": "Equals",
-                            "query_field_id": 21792
-                        }
-                    ],
-                    "gift_processing_options": {
-                        "matching_gift_credit_option": "MatchingGiftCompany",
-                        "soft_credit_option": "Donor"
-                    },
-                    "select_fields": [
-                        {
-                            "query_field_id": 21801,
-                            "user_alias": "Badge"
-                        }
-                    ],
-                    "sort_fields": [
-                        {
-                            "query_field_id": 21801,
-                            "sort_order": "Descending"
-                        }
-                    ],
-                    "type_id": 18,
-                    "sql_generation_mode": "Query"
-                }
-            };
-        }
-
-        function buildRosterQuery(chapterQuid, chapterName) {
-            return {
-                "query": {
-                    "advanced_processing_options": {
-                        "use_alternate_sql_code_table_fields": false,
-                        "use_alternate_sql_multiple_attributes": false
-                    },
-                    "constituent_filters": {
-                        "include_deceased": false,
-                        "include_inactive": true,
-                        "include_no_valid_addresses": true
-                    },
-                    "filter_fields": [
-                        {
-                            "compare_type": "None",
-                            "filter_values": ["5707"],
-                            "left_parenthesis": true,
-                            "operator": "Equals",
-                            "query_field_id": 2217,
-                            "right_parenthesis": false
-                        },
-                        {
-                            "compare_type": "And",
-                            "filter_values": [String(chapterQuid)],
-                            "left_parenthesis": false,
-                            "operator": "Equals",
-                            "query_field_id": 656,
-                            "right_parenthesis": false,
-                            "unique_id": "120"
-                        },
-                        {
-                            "compare_type": "And",
-                            "filter_values": [chapterName],
-                            "operator": "Equals",
-                            "query_field_id": 4123
-                        },
-                        {
-                            "compare_type": "And",
-                            "filter_values": ["1694"],
-                            "operator": "Equals",
-                            "query_field_id": 4151
-                        },
-                        {
-                            "compare_type": "And",
-                            "filter_values": [],
-                            "operator": "Blank",
-                            "query_field_id": 4148
-                        },
-                        {
-                            "compare_type": "And",
-                            "filter_values": [],
-                            "operator": "Blank",
-                            "query_field_id": 14682,
-                            "right_parenthesis": true,
-                            "unique_id": "594"
-                        },
-                        {
-                            "compare_type": "Or",
-                            "filter_values": ["5708"],
-                            "left_parenthesis": true,
-                            "operator": "Equals",
-                            "query_field_id": 2217
-                        },
-                        {
-                            "compare_type": "And",
-                            "filter_values": [String(chapterQuid)],
-                            "operator": "Equals",
-                            "query_field_id": 656,
-                            "unique_id": "120"
-                        },
-                        {
-                            "compare_type": "And",
-                            "filter_values": [chapterName],
-                            "operator": "Equals",
-                            "query_field_id": 4123
-                        },
-                        {
-                            "compare_type": "And",
-                            "filter_values": ["1700"],
-                            "operator": "Equals",
-                            "query_field_id": 4151
-                        },
-                        {
-                            "compare_type": "And",
-                            "filter_values": [],
-                            "operator": "Blank",
-                            "query_field_id": 4148
-                        },
-                        {
-                            "compare_type": "And",
-                            "filter_values": [],
-                            "operator": "Blank",
-                            "query_field_id": 14682,
-                            "right_parenthesis": true,
-                            "unique_id": "594"
-                        }
-                    ],
-                    "gift_processing_options": {
-                        "matching_gift_credit_option": "MatchingGiftCompany",
-                        "soft_credit_option": "Donor",
-                        "use_gross_amount_for_covenants": false
-                    },
-                    "select_fields": [
-                        {
-                            "query_field_id": 349,
-                            "user_alias": "ID"
-                        },
-                        {
-                            "query_field_id": 597
-                        },
-                        {
-                            "query_field_id": 2217,
-                            "user_alias": "Code"
-                        },
-                        {
-                            "query_field_id": 4125,
-                            "user_alias": "From_Date"
-                        },
-                        {
-                            "query_field_id": 4127,
-                            "user_alias": "Relation_ID"
-                        },
-                        {
-                            "query_field_id": 656,
-                            "unique_id": "37",
-                            "user_alias": "Candidate_Fee_Paid"
-                        },
-                        {
-                            "query_field_id": 656,
-                            "unique_id": "42",
-                            "user_alias": "Initiate_Fee_Paid"
-                        },
-                        {
-                            "query_field_id": 2216,
-                            "user_alias": "CodeID"
-                        }
-                    ],
-                    "sort_fields": [
-                        {
-                            "query_field_id": 2217,
-                            "sort_order": "Ascending"
-                        },
-                        {
-                            "query_field_id": 597,
-                            "sort_order": "Ascending"
-                        }
-                    ],
-                    "suppress_duplicates": true,
-                    "type_id": 18,
-                    "sql_generation_mode": "Query"
-                }
-            };
-        }
-
-        function buildOfficerQuery(chapterQuid, chapterName) {
-            return {
-                "query": {
-                    "advanced_processing_options": {
-                        "use_alternate_sql_code_table_fields": false,
-                        "use_alternate_sql_multiple_attributes": false
-                    },
-                    "constituent_filters": {
-                        "include_deceased": true,
-                        "include_inactive": true,
-                        "include_no_valid_addresses": true
-                    },
-                    "filter_fields": [
-                        {
-                            "compare_type": "None",
-                            "filter_values": ["5707", "5708"],
-                            "left_parenthesis": false,
-                            "operator": "OneOf",
-                            "query_field_id": 41225,
-                            "right_parenthesis": false
-                        },
-                        {
-                            "compare_type": "And",
-                            "filter_values": [String(chapterQuid)],
-                            "left_parenthesis": false,
-                            "operator": "Equals",
-                            "query_field_id": 41217,
-                            "right_parenthesis": false,
-                            "unique_id": "120"
-                        },
-                        {
-                            "compare_type": "And",
-                            "filter_values": [chapterName],
-                            "left_parenthesis": false,
-                            "operator": "Equals",
-                            "query_field_id": 40918,
-                            "right_parenthesis": false
-                        },
-                        {
-                            "compare_type": "And",
-                            "filter_values": [
-                                "2422", "2425", "2408", "2429", "2442", "2423", 
-                                "2426", "2510", "2412", "2490", "2432", "2431", 
-                                "2427", "2428", "2430", "2424"
-                            ],
-                            "left_parenthesis": false,
-                            "operator": "OneOf",
-                            "query_field_id": 40924,
-                            "right_parenthesis": false
-                        },
-                        {
-                            "compare_type": "And",
-                            "filter_values": [],
-                            "left_parenthesis": false,
-                            "operator": "Blank",
-                            "query_field_id": 40927,
-                            "right_parenthesis": false
-                        }
-                    ],
-                    "gift_processing_options": {
-                        "matching_gift_credit_option": "MatchingGiftCompany",
-                        "soft_credit_option": "Donor",
-                        "use_gross_amount_for_covenants": false
-                    },
-                    "select_fields": [
-                        {
-                            "query_field_id": 40924,
-                            "user_alias": "Position"
-                        },
-                        {
-                            "query_field_id": 40961,
-                            "user_alias": "ID"
-                        },
-                        {
-                            "query_field_id": 40967
-                        },
-                        {
-                            "query_field_id": 40906,
-                            "user_alias": "From_Date"
-                        },
-                        {
-                            "query_field_id": 40907,
-                            "user_alias": "Relation_ID"
-                        },
-                        {
-                            "query_field_id": 104952,
-                            "user_alias": "Org_ImpID"
-                        }
-                    ],
-                    "sort_fields": [],
-                    "suppress_duplicates": true,
-                    "type_id": 40,
-                    "sql_generation_mode": "Query"
-                }
-            };
-        }
-
-        function buildChapterContactQuery(chapterName) {
-            return {
-                "query": {
-                    "advanced_processing_options": {},
-                    "constituent_filters": {
-                        "include_deceased": true,
-                        "include_inactive": true,
-                        "include_no_valid_addresses": true
-                    },
-                    "filter_fields": [
-                        {
-                            "compare_type": "None",
-                            "filter_values": [chapterName],
-                            "operator": "Equals",
-                            "query_field_id": 14300
-                        }
-                    ],
-                    "gift_processing_options": {
-                        "matching_gift_credit_option": "MatchingGiftCompany",
-                        "soft_credit_option": "Donor"
-                    },
-                    "select_fields": [
-                        {
-                            "query_field_id": 349,
-                            "user_alias": "ID"
-                        },
-                        {
-                            "query_field_id": 14300,
-                            "user_alias": "Name"
-                        },
-                        {
-                            "query_field_id": 863,
-                            "unique_id": "2829",
-                            "user_alias": "Postal_Address_Line_1"
-                        },
-                        {
-                            "query_field_id": 864,
-                            "unique_id": "2829",
-                            "user_alias": "Postal_Address_Line_2"
-                        },
-                        {
-                            "query_field_id": 706,
-                            "unique_id": "2829",
-                            "user_alias": "Postal_City"
-                        },
-                        {
-                            "query_field_id": 790,
-                            "unique_id": "2829",
-                            "user_alias": "Postal_State"
-                        },
-                        {
-                            "query_field_id": 708,
-                            "unique_id": "2829",
-                            "user_alias": "Postal_ZIP"
-                        },
-                        {
-                            "query_field_id": 95453,
-                            "unique_id": "2829",
-                            "user_alias": "Postal_ImpID"
-                        },
-                        {
-                            "query_field_id": 863,
-                            "unique_id": "2830",
-                            "user_alias": "Shipping_Address_Line_1"
-                        },
-                        {
-                            "query_field_id": 864,
-                            "unique_id": "2830",
-                            "user_alias": "Shipping_Address_Line_2"
-                        },
-                        {
-                            "query_field_id": 706,
-                            "unique_id": "2830",
-                            "user_alias": "Shipping_City"
-                        },
-                        {
-                            "query_field_id": 790,
-                            "unique_id": "2830",
-                            "user_alias": "Shipping_State"
-                        },
-                        {
-                            "query_field_id": 708,
-                            "unique_id": "2830",
-                            "user_alias": "Shipping_ZIP"
-                        },
-                        {
-                            "query_field_id": 95453,
-                            "unique_id": "2830",
-                            "user_alias": "Shipping_ImpID"
-                        },
-                        {
-                            "query_field_id": 131226,
-                            "unique_id": "1697",
-                            "user_alias": "Phone"
-                        },
-                        {
-                            "query_field_id": 131226,
-                            "unique_id": "1698",
-                            "user_alias": "Email"
-                        }
-                    ],
-                    "sort_fields": [],
-                    "type_id": 36,
-                    "sql_generation_mode": "Query"
-                }
-            };
-        }
 
         // CANDIDATES FUNCTIONALITY
         async function loadCandidates() {
@@ -1190,7 +511,7 @@
             try {
                 // Get chapter QUID
                 console.log('Getting chapter QUID for:', appState.chapter);
-                const chapterQuid = await getChapterQuid(appState.chapter);
+                const chapterQuid = await API.getChapterQuid(appState.chapter);
                 console.log('Chapter QUID retrieved:', chapterQuid);
                 
                 if (!chapterQuid) {
@@ -1198,8 +519,8 @@
                 }
 
                 // Build and execute query
-                const queryRequest = buildCandidatesQuery(chapterQuid);
-                const resultsData = await executeQuery(queryRequest, 'prospective_candidates');
+                const queryRequest = Queries.buildCandidatesQuery(chapterQuid);
+                const resultsData = await API.executeQuery(queryRequest, 'prospective_candidates');
                 
                 // Process results
                 const candidates = processCandidatesResults(resultsData);
@@ -1248,99 +569,6 @@
 
             console.log(`Total candidates processed: ${candidates.length}`);
             return candidates;
-        }
-
-        function processQueryResults(results) {
-            console.log('=== processQueryResults() started ===');
-            console.log('Raw results:', results);
-            
-            const candidates = [];
-            
-            // Handle the JSON format from the query results file
-            if (Array.isArray(results)) {
-                console.log(`Processing ${results.length} candidates`);
-                
-                results.forEach((row, index) => {
-                    console.log(`Row ${index}:`, row);
-                    
-                    const candidate = {
-                        id: row.ID || row.QRECID || row.id,
-                        name: row.Name || row.name || 'N/A'
-                    };
-                    
-                    console.log(`Candidate ${index}:`, candidate);
-                    candidates.push(candidate);
-                });
-            } else if (results && results.rows && Array.isArray(results.rows)) {
-                // Handle alternative format if the API returns it differently
-                console.log(`Processing ${results.rows.length} rows (alternative format)`);
-                
-                results.rows.forEach((row, index) => {
-                    if (row.values && row.values.length >= 2) {
-                        const candidate = {
-                            id: row.values[0],
-                            name: row.values[1] || 'N/A'
-                        };
-                        console.log(`Candidate ${index}:`, candidate);
-                        candidates.push(candidate);
-                    }
-                });
-            } else {
-                console.warn('Unexpected results format:', results);
-            }
-
-            console.log(`Total candidates processed: ${candidates.length}`);
-            return candidates;
-        }
-
-        async function getChapterQuid(chapterName) {
-            console.log('=== getChapterQuid() started ===');
-            console.log('Looking up QUID for chapter:', chapterName);
-            
-            // First, try to get from server-side lookup
-            try {
-                const response = await fetch(`/api/blackbaud?action=chapter-lookup&chapter=${encodeURIComponent(chapterName)}`, {
-                    method: 'GET'
-                });
-                
-                console.log('Chapter lookup response status:', response.status);
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    console.log('Chapter data received:', data);
-                    return data.quid;
-                }
-            } catch (error) {
-                console.warn('Server-side chapter lookup failed:', error);
-            }
-
-            // Fallback - this would need to be populated from your chapter-records.js
-            console.error('Chapter QUID not found');
-            return null;
-        }
-
-        async function getChapterData(chapterName) {
-            console.log('=== getChapterData() started ===');
-            console.log('Looking up data for chapter:', chapterName);
-            
-            try {
-                const response = await fetch(`/api/blackbaud?action=chapter-lookup&chapter=${encodeURIComponent(chapterName)}`, {
-                    method: 'GET'
-                });
-                
-                console.log('Chapter lookup response status:', response.status);
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    console.log('Chapter data received:', data);
-                    return data;
-                }
-            } catch (error) {
-                console.warn('Server-side chapter lookup failed:', error);
-            }
-
-            console.error('Chapter data not found');
-            return null;
         }
 
         function displayCandidates(candidates) {
@@ -1532,7 +760,7 @@
             
             try {
                 // Get chapter data for csid and feid
-                const chapterData = await getChapterData(appState.chapter);
+                const chapterData = await API.getChapterData(appState.chapter);
                 if (!chapterData) {
                     throw new Error('Could not retrieve chapter data');
                 }
@@ -1765,11 +993,11 @@
 
             try {
                 // Check if skips are allowed for this chapter
-                const skipValidationDisabled = await checkAllowedSkips();
+                const skipValidationDisabled = await API.checkAllowedSkips();
                 
                 // Get full chapter data (includes both quid and memcatid)
                 console.log('Getting chapter data for:', appState.chapter);
-                const chapterData = await getChapterData(appState.chapter);
+                const chapterData = await API.getChapterData(appState.chapter);
                 console.log('Chapter data retrieved:', chapterData);
                 
                 if (!chapterData || !chapterData.quid) {
@@ -1779,9 +1007,9 @@
                 // Execute both queries in parallel
                 const [initiatesResults, topBadgeResults] = await Promise.all([
                     // Query 1: Get initiates
-                    executeQuery(buildInitiatesQuery(chapterData.quid, appState.chapter), 'candidates'),
+                    API.executeQuery(Queries.buildInitiatesQuery(chapterData.quid, appState.chapter), 'candidates'),
                     // Query 2: Get top badge (only if memcatid exists)
-                    chapterData.memcatid ? executeQuery(buildTopBadgeQuery(chapterData.memcatid), 'topbadge') : Promise.resolve(null)
+                    chapterData.memcatid ? API.executeQuery(Queries.buildTopBadgeQuery(chapterData.memcatid), 'topbadge') : Promise.resolve(null)
                 ]);
                 
                 // Process initiates results
@@ -2093,7 +1321,7 @@
                 endpoint += `?chapter=${appState.chapter}`;
             }
             
-            await makeApiCall(endpoint, 'rosterResult');
+            await API.makeApiCall(endpoint, 'rosterResult');
         }
         
         // ROSTER FUNCTIONALITY
@@ -2116,7 +1344,7 @@
             try {
                 // Get chapter QUID
                 console.log('Getting chapter QUID for:', appState.chapter);
-                const chapterQuid = await getChapterQuid(appState.chapter);
+                const chapterQuid = await API.getChapterQuid(appState.chapter);
                 console.log('Chapter QUID retrieved:', chapterQuid);
                 
                 if (!chapterQuid) {
@@ -2124,8 +1352,8 @@
                 }
 
                 // Build and execute query
-                const queryRequest = buildRosterQuery(chapterQuid, appState.chapter);
-                const resultsData = await executeQuery(queryRequest, 'roster');
+                const queryRequest = Queries.buildRosterQuery(chapterQuid, appState.chapter);
+                const resultsData = await API.executeQuery(queryRequest, 'roster');
                 
                 // Process results
                 const roster = processRosterResults(resultsData);
@@ -2500,7 +1728,7 @@
                 endpoint += `?chapter=${appState.chapter}&role=officer`;
             }
             
-            await makeApiCall(endpoint, 'officerResult');
+            await API.makeApiCall(endpoint, 'officerResult');
         }
         
         // OFFICER FUNCTIONALITY
@@ -2523,7 +1751,7 @@
             try {
                 // Get chapter QUID
                 console.log('Getting chapter QUID for:', appState.chapter);
-                const chapterQuid = await getChapterQuid(appState.chapter);
+                const chapterQuid = await API.getChapterQuid(appState.chapter);
                 console.log('Chapter QUID retrieved:', chapterQuid);
                 
                 if (!chapterQuid) {
@@ -2533,9 +1761,9 @@
                 // Execute both queries in parallel
                 const [rosterResults, officerResults] = await Promise.all([
                     // Query 1: Get roster for member list
-                    executeQuery(buildRosterQuery(chapterQuid, appState.chapter), 'roster_for_officers'),
+                    API.executeQuery(Queries.buildRosterQuery(chapterQuid, appState.chapter), 'roster_for_officers'),
                     // Query 2: Get current officers
-                    executeQuery(buildOfficerQuery(chapterQuid, appState.chapter), 'officers')
+                    API.executeQuery(Queries.buildOfficerQuery(chapterQuid, appState.chapter), 'officers')
                 ]);
                 
                 // Process results
@@ -2859,7 +2087,7 @@
                 endpoint += `?chapter=${appState.chapter}&contact_info=true`;
             }
             
-            await makeApiCall(endpoint, 'contactResult');
+            await API.makeApiCall(endpoint, 'contactResult');
         }
         
         // CONTACT INFORMATION FUNCTIONALITY
@@ -2881,8 +2109,8 @@
 
             try {
                 // Build and execute query (doesn't need QUID, just chapter name)
-                const queryRequest = buildChapterContactQuery(appState.chapter);
-                const resultsData = await executeQuery(queryRequest, 'chapter_contact');
+                const queryRequest = Queries.buildChapterContactQuery(appState.chapter);
+                const resultsData = await API.executeQuery(queryRequest, 'chapter_contact');
                 
                 // Process results
                 const contactInfo = processContactResults(resultsData);
@@ -3078,7 +2306,7 @@
                 endpoint += `?chapter=${appState.chapter}`;
             }
             
-            await makeApiCall(endpoint, 'feeResult');
+            await API.makeApiCall(endpoint, 'feeResult');
         }
         
         // FEE STATUS FUNCTIONALITY
@@ -3101,7 +2329,7 @@
             try {
                 // Get chapter QUID
                 console.log('Getting chapter QUID for:', appState.chapter);
-                const chapterQuid = await getChapterQuid(appState.chapter);
+                const chapterQuid = await API.getChapterQuid(appState.chapter);
                 console.log('Chapter QUID retrieved:', chapterQuid);
                 
                 if (!chapterQuid) {
@@ -3109,8 +2337,8 @@
                 }
 
                 // Reuse roster query
-                const queryRequest = buildRosterQuery(chapterQuid, appState.chapter);
-                const resultsData = await executeQuery(queryRequest, 'fee_status');
+                const queryRequest = Queries.buildRosterQuery(chapterQuid, appState.chapter);
+                const resultsData = await API.executeQuery(queryRequest, 'fee_status');
                 
                 // Process results (same as roster)
                 const feeData = processRosterResults(resultsData);
@@ -3468,303 +2696,6 @@
             Utils.hideElement('initiates-review');
             Utils.showElement('initiates-content');
             Utils.resizeIframe();
-        }
-
-        // Admin/Testing function
-        async function testApiCall() {
-            if (!isTokenValid()) {
-                Utils.showStatus('No valid token. Please authenticate first.', 'error');
-                return;
-            }
-            
-            const endpoint = document.getElementById('customEndpoint').value || 
-                           document.getElementById('apiEndpoint').value;
-            
-            const responseArea = document.getElementById('apiResponse');
-            if (responseArea) {
-                responseArea.style.display = 'block';
-                responseArea.textContent = 'Making API call...';
-            }
-            
-            try {
-                // Add SID and Chapter to endpoint if available
-                let fullEndpoint = endpoint;
-                if (appState.sid && endpoint.includes('{sid}')) {
-                    fullEndpoint = fullEndpoint.replace('{sid}', appState.sid);
-                }
-                if (appState.chapter && endpoint.includes('{chapter}')) {
-                    fullEndpoint = fullEndpoint.replace('{chapter}', appState.chapter);
-                }
-                
-                const response = await fetch(`/api/blackbaud?action=api&endpoint=${encodeURIComponent(fullEndpoint)}&token=${appState.accessToken}`, {
-                    method: 'GET'
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`API call failed: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                if (responseArea) {
-                    responseArea.textContent = JSON.stringify(data, null, 2);
-                }
-                Utils.showStatus('Test API call successful!', 'success');
-                
-            } catch (error) {
-                console.error('API call error:', error);
-                if (responseArea) {
-                    responseArea.textContent = `Error: ${error.message}`;
-                }
-                Utils.showStatus(`Test API call failed: ${error.message}`, 'error');
-            }
-        }
-
-        // ALLOW SKIPS CONFIGURATION FUNCTIONS
-        async function loadAllowSkipsConfig() {
-            console.log('=== loadAllowSkipsConfig() started ===');
-            
-            // Check if we have a chapter
-            if (!appState.chapter) {
-                Utils.hideElement('allow-skips-loading');
-                Utils.hideElement('allow-skips-content');
-                Utils.hideElement('allow-skips-error');
-                return;
-            }
-            
-            // Show loading state
-            Utils.showLoading('allow-skips-loading');
-            Utils.hideElement('allow-skips-content');
-            Utils.hideElement('allow-skips-error');
-            
-            try {
-                // Get allowed skips data from server
-                const response = await fetch('/api/blackbaud?action=get-allowed-skips', {
-                    method: 'GET'
-                });
-                
-                if (!response.ok) {
-                    throw new Error('Failed to load configuration');
-                }
-                
-                const allowedSkips = await response.json();
-                appState.allowedSkips = allowedSkips;
-                
-                // Display the configuration for current chapter
-                displayAllowSkipsConfig(allowedSkips);
-                
-            } catch (error) {
-                console.error('Error loading allow skips config:', error);
-                Utils.hideElement('allow-skips-loading');
-                Utils.showElement('allow-skips-error');
-            }
-        }
-
-        function displayAllowSkipsConfig(allowedSkips) {
-            console.log('=== displayAllowSkipsConfig() started ===');
-            
-            const checkbox = document.getElementById('allow-skips-checkbox');
-            const chapterNameSpan = document.getElementById('current-chapter-name');
-            
-            if (checkbox && appState.chapter) {
-                // Update chapter name in label
-                if (chapterNameSpan) {
-                    chapterNameSpan.textContent = appState.chapter;
-                }
-                
-                // Set checkbox state
-                checkbox.checked = allowedSkips[appState.chapter] === true;
-                
-                // Remove any existing event listeners
-                const newCheckbox = checkbox.cloneNode(true);
-                checkbox.parentNode.replaceChild(newCheckbox, checkbox);
-                
-                // Add event listener
-                newCheckbox.addEventListener('change', function() {
-                    updateAllowSkips(appState.chapter, this.checked);
-                });
-            }
-            
-            // Show content
-            Utils.hideElement('allow-skips-loading');
-            Utils.showElement('allow-skips-content');
-        }
-
-        async function updateAllowSkips(chapter, allowSkips) {
-            console.log(`Updating allow skips for ${chapter} to ${allowSkips}`);
-            
-            try {
-                const response = await fetch('/api/blackbaud?action=set-allowed-skips', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ chapter, allowSkips })
-                });
-                
-                if (!response.ok) {
-                    throw new Error('Failed to update configuration');
-                }
-                
-                // Update local state
-                appState.allowedSkips[chapter] = allowSkips;
-                
-                Utils.showStatus(`Badge skip validation ${allowSkips ? 'disabled' : 'enabled'} for ${chapter}`, 'success');
-                
-            } catch (error) {
-                console.error('Error updating allow skips:', error);
-                Utils.showStatus('Failed to update configuration', 'error');
-                // Revert checkbox
-                const checkbox = document.getElementById('allow-skips-checkbox');
-                if (checkbox) checkbox.checked = !allowSkips;
-            }
-        }
-
-        // Get allowed skips for current chapter
-        async function checkAllowedSkips() {
-            if (!appState.chapter) return false;
-            
-            try {
-                const response = await fetch('/api/blackbaud?action=get-allowed-skips', {
-                    method: 'GET'
-                });
-                
-                if (response.ok) {
-                    const allowedSkips = await response.json();
-                    appState.allowedSkips = allowedSkips;
-                    return allowedSkips[appState.chapter] === true;
-                }
-            } catch (error) {
-                console.error('Error checking allowed skips:', error);
-            }
-            
-            return false;
-        }
-
-        // Token management functions
-        async function authenticate() {
-            Utils.showStatus('Authenticating with server...', 'info');
-            
-            try {
-                const response = await fetch('/api/blackbaud?action=auth', {
-                    method: 'GET'
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`Authentication failed: ${response.status}`);
-                }
-                
-                const tokenData = await response.json();
-                
-                // Store token information
-                appState.accessToken = tokenData.access_token;
-                appState.tokenType = tokenData.token_type || 'Bearer';
-                appState.expiresAt = new Date().getTime() + (tokenData.expires_in * 1000);
-                
-                // Schedule token refresh
-                scheduleTokenRefresh(tokenData.expires_in);
-                
-                updateTokenInfo();
-                Utils.showStatus('Authentication successful!', 'success');
-                
-            } catch (error) {
-                console.error('Authentication error:', error);
-                Utils.showStatus(`Authentication failed: ${error.message}`, 'error');
-            }
-        }
-
-        function scheduleTokenRefresh(expiresInSeconds) {
-            // Clear existing timer
-            if (appState.refreshTimer) {
-                clearTimeout(appState.refreshTimer);
-            }
-            
-            // Schedule refresh 5 minutes before expiration
-            const refreshTime = (expiresInSeconds * 1000) - CONFIG.tokenRefreshBuffer;
-            
-            appState.refreshTimer = setTimeout(() => {
-                refreshToken();
-            }, refreshTime);
-        }
-
-        async function refreshToken() {
-            if (!appState.clientId || !appState.clientSecret) {
-                Utils.showStatus('Missing credentials for token refresh', 'error');
-                return;
-            }
-            
-            try {
-                const response = await fetch(CONFIG.tokenEndpoint, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                        'Authorization': `Basic ${btoa(appState.clientId + ':' + appState.clientSecret)}`
-                    },
-                    body: 'grant_type=client_credentials'
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`Token refresh failed: ${response.status}`);
-                }
-                
-                const tokenData = await response.json();
-                
-                appState.accessToken = tokenData.access_token;
-                appState.expiresAt = new Date().getTime() + (tokenData.expires_in * 1000);
-                
-                scheduleTokenRefresh(tokenData.expires_in);
-                updateTokenInfo();
-                
-                console.log('Token refreshed successfully');
-                
-            } catch (error) {
-                console.error('Token refresh error:', error);
-                Utils.showStatus('Token refresh failed. Please re-authenticate.', 'error');
-            }
-        }
-
-        async function makeApiCall(endpoint, resultElementId) {
-            if (!isTokenValid()) {
-                Utils.showStatus('No valid token. Please authenticate first.', 'error');
-                return;
-            }
-            
-            const responseArea = document.getElementById(resultElementId);
-            if (responseArea) {
-                responseArea.style.display = 'block';
-                responseArea.textContent = 'Making API call...';
-            }
-            
-            try {
-                // Add SID and Chapter to endpoint if available
-                let fullEndpoint = endpoint;
-                if (appState.sid && endpoint.includes('{sid}')) {
-                    fullEndpoint = fullEndpoint.replace('{sid}', appState.sid);
-                }
-                if (appState.chapter && endpoint.includes('{chapter}')) {
-                    fullEndpoint = fullEndpoint.replace('{chapter}', appState.chapter);
-                }
-                
-                const response = await fetch(`/api/blackbaud?action=api&endpoint=${encodeURIComponent(fullEndpoint)}&token=${appState.accessToken}`, {
-                    method: 'GET'
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`API call failed: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                if (responseArea) {
-                    responseArea.textContent = JSON.stringify(data, null, 2);
-                }
-                Utils.showStatus('API call successful!', 'success');
-                
-            } catch (error) {
-                console.error('API call error:', error);
-                if (responseArea) {
-                    responseArea.textContent = `Error: ${error.message}`;
-                }
-                Utils.showStatus(`API call failed: ${error.message}`, 'error');
-            }
         }
 
         // Initialize application when DOM is ready
