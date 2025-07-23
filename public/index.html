@@ -1650,12 +1650,12 @@
             console.log('=== submitCandidateChanges() started ===');
             console.log('Submitting changes for', candidates.length, 'candidates');
             
-            // Disable submit button to prevent double submission
-            const submitButton = document.querySelector('#candidates-review .submit-section button[onclick="submitCandidateVerifications()"]');
-            if (submitButton) {
-                submitButton.disabled = true;
-                submitButton.textContent = 'Processing...';
-            }
+            // Get the submit section and create spinner
+            const submitSection = document.querySelector('#candidates-review .submit-section');
+            const originalContent = submitSection.innerHTML;
+            
+            // Replace submit section content with spinner
+            submitSection.innerHTML = '<div class="spinner"></div>';
             
             try {
                 // Get chapter data for csid and feid
@@ -1682,24 +1682,44 @@
                 
                 // Show results
                 if (errorCount === 0) {
-                    showStatus(`Successfully processed all ${successCount} candidate(s).`, 'success');
-                    // Hide review section and reload candidates
-                    hideElement('candidates-review');
-                    loadCandidates();
+                    // Show success message
+                    submitSection.innerHTML = `
+                        <div class="submission-success">
+                            <p>Successfully processed all ${successCount} candidate(s).</p>
+                        </div>
+                    `;
+                    
+                    // Wait 2 seconds then return to candidates page
+                    setTimeout(() => {
+                        hideElement('candidates-review');
+                        loadCandidates();
+                    }, 2000);
                 } else {
-                    showStatus(`Processed ${successCount} candidate(s) with ${errorCount} error(s). Check console for details.`, 'error');
-                    console.error('Submission errors:', errors);
+                    // Show error message with retry instructions
+                    submitSection.innerHTML = `
+                        <div class="submission-error">
+                            <p>Processed ${successCount} candidate(s) with ${errorCount} error(s).</p>
+                            <p>Errors encountered:</p>
+                            <ul class="error-list">
+                                ${errors.map(err => `<li>${err}</li>`).join('')}
+                            </ul>
+                            <p>Please retry submission. If the problem persists, email <a href="mailto:members.area@sigmanu.org">members.area@sigmanu.org</a> with the error message above.</p>
+                            <button class="btn" onclick="backToCandidates()">Back</button>
+                        </div>
+                    `;
                 }
                 
             } catch (error) {
                 console.error('Fatal error during submission:', error);
-                showStatus(`Submission failed: ${error.message}`, 'error');
-            } finally {
-                // Re-enable submit button
-                if (submitButton) {
-                    submitButton.disabled = false;
-                    submitButton.textContent = 'Submit';
-                }
+                
+                // Show error message with email instructions
+                submitSection.innerHTML = `
+                    <div class="submission-error">
+                        <p>Submission failed: ${error.message}</p>
+                        <p>Please retry submission. If the problem persists, email <a href="mailto:members.area@sigmanu.org">members.area@sigmanu.org</a> with the error message above.</p>
+                        <button class="btn" onclick="backToCandidates()">Back</button>
+                    </div>
+                `;
             }
         }
         
