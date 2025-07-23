@@ -291,6 +291,121 @@ export default async function handler(req, res) {
       console.log('Successfully fetched results, row count:', resultsData.length);
       res.json(resultsData);
       
+    } else if (action === 'delete-constituent-code' && endpoint) {
+      // Delete constituent code
+      const deleteUrl = `https://api.sky.blackbaud.com${endpoint}`;
+      console.log('Deleting constituent code:', deleteUrl);
+      
+      const deleteResponse = await fetch(deleteUrl, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Bb-Api-Subscription-Key': process.env.BLACKBAUD_SUBSCRIPTION_KEY
+        }
+      });
+      
+      if (!deleteResponse.ok && deleteResponse.status !== 404) {
+        const errorText = await deleteResponse.text();
+        throw new Error(`Delete failed: ${deleteResponse.status} - ${errorText}`);
+      }
+      
+      res.json({ success: true, message: 'Code deleted successfully' });
+      
+    } else if (action === 'create-constituent-code' && req.method === 'POST') {
+      // Create constituent code
+      const codeData = req.body;
+      console.log('Creating constituent code:', codeData);
+      
+      const createResponse = await fetch('https://api.sky.blackbaud.com/constituent/v1/constituentcodes', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Bb-Api-Subscription-Key': process.env.BLACKBAUD_SUBSCRIPTION_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(codeData)
+      });
+      
+      if (!createResponse.ok) {
+        const errorText = await createResponse.text();
+        throw new Error(`Create code failed: ${createResponse.status} - ${errorText}`);
+      }
+      
+      const result = await createResponse.json();
+      res.json(result);
+      
+    } else if (action === 'create-constituent-note' && req.method === 'POST') {
+      // Create constituent note
+      const noteData = req.body;
+      console.log('Creating constituent note:', noteData);
+      
+      const createResponse = await fetch('https://api.sky.blackbaud.com/constituent/v1/notes', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Bb-Api-Subscription-Key': process.env.BLACKBAUD_SUBSCRIPTION_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(noteData)
+      });
+      
+      if (!createResponse.ok) {
+        const errorText = await createResponse.text();
+        throw new Error(`Create note failed: ${createResponse.status} - ${errorText}`);
+      }
+      
+      const result = await createResponse.json();
+      res.json(result);
+      
+    } else if (action === 'create-constituent-relationship' && req.method === 'POST') {
+      // Create constituent relationship
+      const relationshipData = req.body;
+      console.log('Creating constituent relationship:', relationshipData);
+      
+      const createResponse = await fetch('https://api.sky.blackbaud.com/constituent/v1/relationships', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Bb-Api-Subscription-Key': process.env.BLACKBAUD_SUBSCRIPTION_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(relationshipData)
+      });
+      
+      if (!createResponse.ok) {
+        const errorText = await createResponse.text();
+        throw new Error(`Create relationship failed: ${createResponse.status} - ${errorText}`);
+      }
+      
+      const result = await createResponse.json();
+      res.json(result);
+      
+    } else if (action === 'create-custom-fields' && req.method === 'POST') {
+      // Create custom field collection
+      const { constituentId, fields } = req.body;
+      const url = `https://api.sky.blackbaud.com/constituent/v1/constituents/${constituentId}/customfieldcollection`;
+      
+      console.log('Creating custom fields for constituent:', constituentId);
+      console.log('Fields:', fields);
+      
+      const createResponse = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Bb-Api-Subscription-Key': process.env.BLACKBAUD_SUBSCRIPTION_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(fields)
+      });
+      
+      if (!createResponse.ok) {
+        const errorText = await createResponse.text();
+        throw new Error(`Create custom fields failed: ${createResponse.status} - ${errorText}`);
+      }
+      
+      const result = await createResponse.json();
+      res.json(result);
+      
     } else if (action === 'api' && endpoint) {
       // Make API call
       const apiResponse = await fetch(`https://api.sky.blackbaud.com${endpoint}`, {

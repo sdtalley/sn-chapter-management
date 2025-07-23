@@ -1590,57 +1590,263 @@
         }
 
         function submitCandidateVerifications() {
-            // Get all candidate data
-            const candidates = [];
-            const tbody = document.getElementById('candidates-tbody');
-            
-            if (tbody) {
-                const rows = tbody.querySelectorAll('tr');
-                
-                rows.forEach((row, index) => {
-                    const candidateId = row.dataset.candidateId;
-                    if (candidateId) {
-                        const approvalSelect = document.getElementById(`approval-${index}`);
-                        const dateInput = document.getElementById(`ceremony-date-${index}`);
-                        
-                        if (approvalSelect && dateInput) {
-                            // Only include candidates where a change was made (not "No Change")
-                            if (approvalSelect.value !== '') {
-                                // Format date as mm/dd/yyyy for display
-                                let formattedDate = '';
-                                if (dateInput.value) {
-                                    const [year, month, day] = dateInput.value.split('-');
-                                    formattedDate = `${month}/${day}/${year}`;
-                                }
-                                
-                                candidates.push({
-                                    id: candidateId,
-                                    approval: approvalSelect.value,
-                                    ceremonyDate: dateInput.value,
-                                    ceremonyDateFormatted: formattedDate
-                                });
-                            }
-                        }
-                    }
-                });
+            // Get all candidate data from the review table
+            const tbody = document.getElementById('candidates-review-tbody');
+            if (!tbody) {
+                showStatus('No review data found. Please return to the main screen.', 'error');
+                return;
             }
+            
+            const rows = tbody.querySelectorAll('tr');
+            const candidates = [];
+            
+            // Collect all candidate data from review table
+            rows.forEach((row, index) => {
+                const nameCell = row.cells[0];
+                const statusCell = row.cells[1];
+                const dateCell = row.cells[2];
+                
+                // Get the original data from the candidates table
+                const candidatesTableBody = document.getElementById('candidates-tbody');
+                const originalRow = candidatesTableBody ? candidatesTableBody.rows[index] : null;
+                
+                if (originalRow) {
+                    candidates.push({
+                        id: originalRow.dataset.candidateId,
+                        code: originalRow.dataset.code,
+                        codeId: originalRow.dataset.codeId,
+                        name: nameCell.textContent,
+                        approval: getApprovalValueFromText(statusCell.textContent),
+                        ceremonyDate: getDateFromFormattedText(dateCell.textContent)
+                    });
+                }
+            });
             
             if (candidates.length === 0) {
-                showStatus('No changes have been made. Please select approval status for at least one candidate.', 'error');
+                showStatus('No candidates found for submission.', 'error');
                 return;
             }
             
-            // Validate that all changed candidates have ceremony dates
-            const incomplete = candidates.filter(c => !c.ceremonyDate);
+            // Start the submission process
+            submitCandidateChanges(candidates);
+        }
+        
+        function getApprovalValueFromText(text) {
+            if (text === 'Approve') return 'Candidate';
+            if (text === 'Disapprove') return 'Disapproved';
+            if (text === 'Person Unknown') return 'Unknown';
+            return '';
+        }
+        
+        function getDateFromFormattedText(formattedDate) {
+            // Convert mm/dd/yyyy back to yyyy-mm-dd
+            const parts = formattedDate.split('/');
+            if (parts.length === 3) {
+                return `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
+            }
+            return '';
+        }
+        
+        async function submitCandidateChanges(candidates) {
+            console.log('=== submitCandidateChanges() started ===');
+            console.log('Submitting changes for', candidates.length, 'candidates');
             
-            if (incomplete.length > 0) {
-                showStatus(`Please ensure all candidates have ceremony dates. ${incomplete.length} candidate(s) missing ceremony date.`, 'error');
-                return;
+            // Disable submit button to prevent double submission
+            const submitButton = document.querySelector('#candidates-review .submit-section button[onclick="submitCandidateVerifications()"]');
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.textContent = 'Processing...';
             }
             
-            // For now, just show what would be submitted
-            console.log('Candidate verifications to submit:', candidates);
-            showStatus(`Ready to submit ${candidates.length} candidate verification(s). (Submit functionality coming soon)`, 'info');
+            try {
+                // Get chapter data for csid and feid
+                const chapterData = await getChapterData(appState.chapter);
+                if (!chapterData) {
+                    throw new Error('Could not retrieve chapter data');
+                }
+                
+                let successCount = 0;
+                let errorCount = 0;
+                const errors = [];
+                
+                // Process each candidate
+                for (const candidate of candidates) {
+                    try {
+                        await processCandidateSubmission(candidate, chapterData);
+                        successCount++;
+                    } catch (error) {
+                        console.error(`Error processing candidate ${candidate.name}:`, error);
+                        errorCount++;
+                        errors.push(`${candidate.name}: ${error.message}`);
+                    }
+                }
+                
+                // Show results
+                if (errorCount === 0) {
+                    showStatus(`Successfully processed all ${successCount} candidate(s).`, 'success');
+                    // Wait a moment then return to main candidates page
+                    setTimeout(() => {
+                        showPage('verify-candidates');
+                    }, 2000);
+                } else {
+                    showStatus(`Processed ${successCount} candidate(s) with ${errorCount} error(s). Check console for details.`, 'error');
+                    console.error('Submission errors:', errors);
+                }
+                
+            } catch (error) {
+                console.error('Fatal error during submission:', error);
+                showStatus(`Submission failed: ${error.message}`, 'error');
+            } finally {
+                // Re-enable submit button
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Submit';
+                }
+            }
+        }
+        
+        async function processCandidateSubmission(candidate, chapterData) {
+            console.log(`Processing candidate: ${candidate.name}`);
+            
+            // Step 1: Parse ceremony date
+            const [year, month, day] = candidate.ceremonyDate.split('-');
+            const startDate = {
+                d: parseInt(day, 10),
+                m: parseInt(month, 10),
+                y: parseInt(year, 10)
+            };
+            
+            // Get current date in Eastern Time
+            const easternTime = new Date().toLocaleString("en-US", {timeZone: "America/New_York"});
+            const easternDate = new Date(easternTime);
+            const currentDateISO = `${easternDate.getFullYear()}-${String(easternDate.getMonth() + 1).padStart(2, '0')}-${String(easternDate.getDate()).padStart(2, '0')}T00:00:00Z`;
+            
+            // Step 2: Delete existing constituent code
+            console.log(`Deleting code: ${candidate.codeId}`);
+            const deleteResponse = await fetch(`/api/blackbaud?action=delete-constituent-code&endpoint=/constituent/v1/constituentcodes/${candidate.codeId}`, {
+                method: 'DELETE'
+            });
+            
+            if (!deleteResponse.ok) {
+                const error = await deleteResponse.json();
+                throw new Error(`Failed to delete code: ${error.error}`);
+            }
+            
+            // Step 3: Create new constituent code
+            console.log(`Creating new code: ${candidate.approval}`);
+            const codeData = {
+                constituent_id: candidate.id,
+                description: candidate.approval,
+                start: startDate
+            };
+            
+            const createCodeResponse = await fetch('/api/blackbaud?action=create-constituent-code', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(codeData)
+            });
+            
+            if (!createCodeResponse.ok) {
+                const error = await createCodeResponse.json();
+                throw new Error(`Failed to create code: ${error.error}`);
+            }
+            
+            // Step 4: Create constituent note
+            console.log('Creating note');
+            const noteData = {
+                constituent_id: candidate.id,
+                date: startDate,
+                text: `Changed by ${appState.offname || 'Unknown'}`,
+                type: "CodeLog"
+            };
+            
+            const createNoteResponse = await fetch('/api/blackbaud?action=create-constituent-note', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(noteData)
+            });
+            
+            if (!createNoteResponse.ok) {
+                const error = await createNoteResponse.json();
+                throw new Error(`Failed to create note: ${error.error}`);
+            }
+            
+            // Step 5: If approved (Candidate), continue with relationship and custom fields
+            if (candidate.approval === 'Candidate') {
+                console.log('Candidate approved - creating relationship and custom fields');
+                
+                // Step 6: Create constituent relationship
+                const relationshipData = {
+                    comment: `Added by ${appState.offname || 'Unknown'}`,
+                    constituent_id: candidate.id,
+                    is_organization_contact: false,
+                    is_primary_business: false,
+                    is_spouse: false,
+                    reciprocal_type: "Candidate",
+                    relation_id: chapterData.csid,
+                    start: startDate,
+                    type: "Collegiate Chapter"
+                };
+                
+                const createRelationshipResponse = await fetch('/api/blackbaud?action=create-constituent-relationship', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(relationshipData)
+                });
+                
+                if (!createRelationshipResponse.ok) {
+                    const error = await createRelationshipResponse.json();
+                    throw new Error(`Failed to create relationship: ${error.error}`);
+                }
+                
+                // Step 7: Create custom fields
+                const customFields = [
+                    {
+                        category: "Candidate - Ceremony Date",
+                        date: currentDateISO,
+                        value: `${candidate.ceremonyDate}T00:00:00Z`
+                    },
+                    {
+                        category: "Candidate - Fee Paid",
+                        comment: chapterData.feid,
+                        date: currentDateISO,
+                        value: ""
+                    },
+                    {
+                        category: "Candidate - Complete Date",
+                        date: currentDateISO,
+                        value: ""
+                    },
+                    {
+                        category: "Sigma Nu Code",
+                        value: "Candidate"
+                    }
+                ];
+                
+                const createFieldsResponse = await fetch('/api/blackbaud?action=create-custom-fields', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        constituentId: candidate.id,
+                        fields: customFields
+                    })
+                });
+                
+                if (!createFieldsResponse.ok) {
+                    const error = await createFieldsResponse.json();
+                    throw new Error(`Failed to create custom fields: ${error.error}`);
+                }
+            }
+            
+            console.log(`Successfully processed candidate: ${candidate.name}`);
         }
 
         // UTILITY FUNCTIONS
