@@ -1706,7 +1706,7 @@
         async function processCandidateSubmission(candidate, chapterData) {
             console.log(`Processing candidate: ${candidate.name}`);
             
-            // Step 1: Parse ceremony date
+            // Step 1: Parse ceremony date - Fix timezone issue
             const [year, month, day] = candidate.ceremonyDate.split('-');
             const startDate = {
                 d: parseInt(day, 10),
@@ -1714,10 +1714,10 @@
                 y: parseInt(year, 10)
             };
             
-            // Get current date in Eastern Time
+            // Get current date in Eastern Time for the date field
             const easternTime = new Date().toLocaleString("en-US", {timeZone: "America/New_York"});
             const easternDate = new Date(easternTime);
-            const currentDateISO = `${easternDate.getFullYear()}-${String(easternDate.getMonth() + 1).padStart(2, '0')}-${String(easternDate.getDate()).padStart(2, '0')}T00:00:00Z`;
+            const currentDateISO = `${easternDate.getFullYear()}-${String(easternDate.getMonth() + 1).padStart(2, '0')}-${String(easternDate.getDate()).padStart(2, '0')}T00:00:00.000-0000`;
             
             // Step 2: Delete existing constituent code
             console.log(`Deleting code: ${candidate.codeId}`);
@@ -1804,11 +1804,14 @@
                 }
                 
                 // Step 7: Create custom fields
+                // Format the ceremony date properly for custom field
+                const ceremonyDateFormatted = `${candidate.ceremonyDate}T00:00:00.000-0000`;
+                
                 const customFields = [
                     {
                         category: "Candidate - Ceremony Date",
                         date: currentDateISO,
-                        value: `${candidate.ceremonyDate}T00:00:00Z`
+                        value: ceremonyDateFormatted
                     },
                     {
                         category: "Candidate - Fee Paid",
