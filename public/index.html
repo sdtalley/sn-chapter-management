@@ -1689,10 +1689,10 @@
                         </div>
                     `;
                     
-                    // Wait 2 seconds then return to candidates page
+                    // Wait 2 seconds then return to main menu
                     setTimeout(() => {
                         hideElement('candidates-review');
-                        loadCandidates();
+                        showMainMenu();
                     }, 2000);
                 } else {
                     // Show error message with retry instructions
@@ -1776,7 +1776,7 @@
             const noteData = {
                 constituent_id: candidate.id,
                 date: startDate,
-                text: `Changed by ${appState.offname || 'Unknown'}`,
+                text: `Changed to ${candidate.approval} by ${appState.offname || 'Unknown'}`,
                 type: "CodeLog"
             };
             
