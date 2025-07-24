@@ -570,8 +570,7 @@ const InitiatesModule = (function() {
                         <ul class="error-list">
                             ${errors.map(err => `<li>${err}</li>`).join('')}
                         </ul>
-                        <p>Please retry submission. If the problem persists, email <a href="mailto:members.area@sigmanu.org">members.area@sigmanu.org</a> with the error message above.</p>
-                        <button class="btn" onclick="InitiatesModule.retrySubmission()">Retry</button>
+                        <p>Please try again. If the problem persists, email <a href="mailto:members.area@sigmanu.org">members.area@sigmanu.org</a> with the error message above.</p>
                         <button class="btn" onclick="InitiatesModule.backToInitiates()">Back</button>
                     </div>
                 `;
@@ -584,8 +583,7 @@ const InitiatesModule = (function() {
             submitSection.innerHTML = `
                 <div class="submission-error">
                     <p>Submission failed: ${error.message}</p>
-                    <p>Please retry submission. If the problem persists, email <a href="mailto:members.area@sigmanu.org">members.area@sigmanu.org</a> with the error message above.</p>
-                    <button class="btn" onclick="InitiatesModule.retrySubmission()">Retry</button>
+                    <p>Please try again. If the problem persists, email <a href="mailto:members.area@sigmanu.org">members.area@sigmanu.org</a> with the error message above.</p>
                     <button class="btn" onclick="InitiatesModule.backToInitiates()">Back</button>
                 </div>
             `;
