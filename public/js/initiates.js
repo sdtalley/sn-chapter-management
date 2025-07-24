@@ -102,8 +102,7 @@ const InitiatesModule = (function() {
                     candidateCeremonyDate: row.Candidate_Ceremony_Date || '',
                     code: row.Code || '',
                     codeId: truncatedCodeId,
-                    relationId: truncatedRelationId,
-                    sncImpId: row.SNCImpID || ''
+                    relationId: truncatedRelationId
                 };
                 
                 console.log(`Initiate ${index}:`, initiate);
@@ -155,12 +154,11 @@ const InitiatesModule = (function() {
                     
                     const row = tbody.insertRow();
                     
-                    // Store initiate ID, code, codeId, relationId, and sncImpId as data attributes
+                    // Store initiate ID, code, codeId, and relationId as data attributes
                     row.dataset.initiateId = initiate.id;
                     row.dataset.code = initiate.code;
                     row.dataset.codeId = initiate.codeId;
                     row.dataset.relationId = initiate.relationId;
-                    row.dataset.sncImpId = initiate.sncImpId;
                     row.dataset.candidateCeremonyDate = initiate.candidateCeremonyDate;
                     
                     // Initiated checkbox
@@ -302,7 +300,6 @@ const InitiatesModule = (function() {
                             code: row.dataset.code,
                             codeId: row.dataset.codeId,
                             relationId: row.dataset.relationId,
-                            sncImpId: row.dataset.sncImpId,
                             candidateCeremonyDate: row.dataset.candidateCeremonyDate,
                             name: nameCell.textContent,
                             initiated: true,
@@ -425,7 +422,6 @@ const InitiatesModule = (function() {
                     code: change.code,
                     codeId: change.codeId,
                     relationId: change.relationId,
-                    sncImpId: change.sncImpId,
                     candidateCeremonyDate: change.candidateCeremonyDate,
                     ceremonyDate: change.ceremonyDate,
                     badgeNumber: change.badgeNumber
@@ -483,7 +479,6 @@ const InitiatesModule = (function() {
                     code: initiateData.code,
                     codeId: initiateData.codeId,
                     relationId: initiateData.relationId,
-                    sncImpId: initiateData.sncImpId,
                     candidateCeremonyDate: initiateData.candidateCeremonyDate,
                     name: nameCell.textContent,
                     ceremonyDate: initiateData.ceremonyDate,
@@ -771,6 +766,29 @@ const InitiatesModule = (function() {
         
         console.log('Create custom fields response:', createFieldsResponse);
         
+        // Get custom fields to find Sigma Nu Code ID
+        console.log('Getting custom fields to find Sigma Nu Code ID');
+        const customFieldsResponse = await API.makeRateLimitedApiCall(
+            `/api/blackbaud?action=get-custom-fields&constituentId=${initiate.id}`,
+            'GET'
+        );
+        
+        console.log('Custom fields response:', customFieldsResponse);
+        
+        // Find the Sigma Nu Code attribute ID
+        let snAttId = null;
+        if (customFieldsResponse && customFieldsResponse.value) {
+            const sncField = customFieldsResponse.value.find(field => field.category === 'Sigma Nu Code');
+            if (sncField) {
+                snAttId = sncField.id;
+                console.log('Found Sigma Nu Code attribute ID:', snAttId);
+            }
+        }
+        
+        if (!snAttId) {
+            throw new Error('Could not find Sigma Nu Code attribute ID');
+        }
+        
         // Step 11: Update Sigma Nu Code custom field
         console.log('Updating Sigma Nu Code');
         const updateSNCData = {
@@ -778,7 +796,7 @@ const InitiatesModule = (function() {
         };
         
         const updateSNCResponse = await API.makeRateLimitedApiCall(
-            `/api/blackbaud?action=patch-custom-field&endpoint=/constituent/v1/constituents/customfields/${initiate.sncImpId}`,
+            `/api/blackbaud?action=patch-custom-field&endpoint=/constituent/v1/constituents/customfields/${snAttId}`,
             'PATCH',
             updateSNCData
         );

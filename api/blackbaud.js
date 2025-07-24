@@ -426,6 +426,27 @@ export default async function handler(req, res) {
       const result = await createResponse.json();
       res.json(result);
       
+    } else if (action === 'get-custom-fields' && constituentId) {
+      // Get custom fields for a constituent
+      const getUrl = `https://api.sky.blackbaud.com/constituent/v1/constituents/${constituentId}/customfields`;
+      console.log('Getting custom fields:', getUrl);
+      
+      const getResponse = await fetch(getUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Bb-Api-Subscription-Key': process.env.BLACKBAUD_SUBSCRIPTION_KEY
+        }
+      });
+      
+      if (!getResponse.ok) {
+        const errorText = await getResponse.text();
+        throw new Error(`Get custom fields failed: ${getResponse.status} - ${errorText}`);
+      }
+      
+      const result = await getResponse.json();
+      res.json(result);
+      
     } else if (action === 'patch-custom-field' && endpoint && req.method === 'PATCH') {
       // Update custom field
       const patchData = req.body;
