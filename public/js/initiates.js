@@ -750,8 +750,7 @@ const InitiatesModule = (function() {
             },
             {
                 category: "Initiate - Fee Paid",
-                comment: chapterData.feid,
-                value: "No"
+                comment: chapterData.feid
             },
             {
                 category: "Initiate - Complete Date",
