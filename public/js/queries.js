@@ -152,6 +152,11 @@ const Queries = (function() {
                     {
                         "query_field_id": 4127,
                         "user_alias": "Relation_ID"
+                    },
+                    {
+                        "query_field_id": 659,
+                        "unique_id": "119",
+                        "user_alias": "SNCImpID"
                     }
                 ],
                 "sort_fields": [

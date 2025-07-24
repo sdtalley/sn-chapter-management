@@ -102,7 +102,8 @@ const InitiatesModule = (function() {
                     candidateCeremonyDate: row.Candidate_Ceremony_Date || '',
                     code: row.Code || '',
                     codeId: truncatedCodeId,
-                    relationId: truncatedRelationId
+                    relationId: truncatedRelationId,
+                    sncImpId: row.SNCImpID || ''
                 };
                 
                 console.log(`Initiate ${index}:`, initiate);
@@ -154,11 +155,12 @@ const InitiatesModule = (function() {
                     
                     const row = tbody.insertRow();
                     
-                    // Store initiate ID, code, codeId, and relationId as data attributes
+                    // Store initiate ID, code, codeId, relationId, and sncImpId as data attributes
                     row.dataset.initiateId = initiate.id;
                     row.dataset.code = initiate.code;
                     row.dataset.codeId = initiate.codeId;
                     row.dataset.relationId = initiate.relationId;
+                    row.dataset.sncImpId = initiate.sncImpId;
                     
                     // Initiated checkbox
                     const initiatedCell = row.insertCell();
@@ -299,6 +301,7 @@ const InitiatesModule = (function() {
                             code: row.dataset.code,
                             codeId: row.dataset.codeId,
                             relationId: row.dataset.relationId,
+                            sncImpId: row.dataset.sncImpId,
                             name: nameCell.textContent,
                             initiated: true,
                             ceremonyDate: dateInput.value,
@@ -419,7 +422,8 @@ const InitiatesModule = (function() {
                     id: change.id,
                     code: change.code,
                     codeId: change.codeId,
-                    relationId: change.relationId
+                    relationId: change.relationId,
+                    sncImpId: change.sncImpId
                 };
                 
                 // Name
