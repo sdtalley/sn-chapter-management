@@ -474,8 +474,23 @@ export default async function handler(req, res) {
         throw new Error(`Patch custom field failed: ${patchResponse.status} - ${errorText}`);
       }
       
-      const result = await patchResponse.json();
-      res.json(result);
+      // Check if response has content before trying to parse JSON
+      const responseText = await patchResponse.text();
+      console.log('PATCH response text:', responseText);
+      
+      if (responseText && responseText.trim()) {
+        try {
+          const result = JSON.parse(responseText);
+          res.json(result);
+        } catch (parseError) {
+          console.log('Failed to parse response as JSON, returning success');
+          res.json({ success: true, message: 'Custom field updated successfully' });
+        }
+      } else {
+        // Empty response is OK for PATCH requests
+        console.log('Empty response from PATCH, returning success');
+        res.json({ success: true, message: 'Custom field updated successfully' });
+      }
       
     } else if (action === 'create-membership' && constituentId && req.method === 'POST') {
       // Create membership
