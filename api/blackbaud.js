@@ -447,11 +447,16 @@ export default async function handler(req, res) {
       const result = await getResponse.json();
       res.json(result);
       
-    } else if (action === 'patch-custom-field' && endpoint && req.method === 'PATCH') {
-      // Update custom field
+    } else if (action === 'patch-custom-field' && endpoint) {
+      // Update custom field (handle both PATCH and POST with method parameter)
+      const requestMethod = req.query.method || req.method;
+      console.log('PATCH custom field - Request Method:', requestMethod);
+      console.log('PATCH custom field - Body:', req.body);
+      
       const patchData = req.body;
       const patchUrl = `https://api.sky.blackbaud.com${endpoint}`;
       console.log('Patching custom field:', patchUrl);
+      console.log('Patch data to send:', JSON.stringify(patchData));
       
       const patchResponse = await fetch(patchUrl, {
         method: 'PATCH',
@@ -465,6 +470,7 @@ export default async function handler(req, res) {
       
       if (!patchResponse.ok) {
         const errorText = await patchResponse.text();
+        console.error('PATCH response error:', errorText);
         throw new Error(`Patch custom field failed: ${patchResponse.status} - ${errorText}`);
       }
       

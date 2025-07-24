@@ -796,8 +796,8 @@ const InitiatesModule = (function() {
         };
         
         const updateSNCResponse = await API.makeRateLimitedApiCall(
-            `/api/blackbaud?action=patch-custom-field&endpoint=/constituent/v1/constituents/customfields/${snAttId}`,
-            'PATCH',
+            `/api/blackbaud?action=patch-custom-field&endpoint=/constituent/v1/constituents/customfields/${snAttId}&method=PATCH`,
+            'POST',
             updateSNCData
         );
         
