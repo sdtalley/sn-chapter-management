@@ -466,14 +466,12 @@ const CandidatesModule = (function() {
         
         // Step 2: Delete existing constituent code
         console.log(`Deleting code: ${candidate.codeId}`);
-        const deleteResponse = await fetch(`/api/blackbaud?action=delete-constituent-code&endpoint=/constituent/v1/constituentcodes/${candidate.codeId}`, {
-            method: 'DELETE'
-        });
+        const deleteResponse = await API.makeRateLimitedApiCall(
+            `/api/blackbaud?action=delete-constituent-code&endpoint=/constituent/v1/constituentcodes/${candidate.codeId}`,
+            'DELETE'
+        );
         
-        if (!deleteResponse.ok) {
-            const error = await deleteResponse.json();
-            throw new Error(`Failed to delete code: ${error.error}`);
-        }
+        console.log('Delete response:', deleteResponse);
         
         // Step 3: Create new constituent code
         console.log(`Creating new code: ${candidate.approval}`);
@@ -483,18 +481,13 @@ const CandidatesModule = (function() {
             start: startDate
         };
         
-        const createCodeResponse = await fetch('/api/blackbaud?action=create-constituent-code', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(codeData)
-        });
+        const createCodeResponse = await API.makeRateLimitedApiCall(
+            '/api/blackbaud?action=create-constituent-code',
+            'POST',
+            codeData
+        );
         
-        if (!createCodeResponse.ok) {
-            const error = await createCodeResponse.json();
-            throw new Error(`Failed to create code: ${error.error}`);
-        }
+        console.log('Create code response:', createCodeResponse);
         
         // Step 4: Create constituent note
         console.log('Creating note');
@@ -505,18 +498,13 @@ const CandidatesModule = (function() {
             type: "CodeLog"
         };
         
-        const createNoteResponse = await fetch('/api/blackbaud?action=create-constituent-note', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(noteData)
-        });
+        const createNoteResponse = await API.makeRateLimitedApiCall(
+            '/api/blackbaud?action=create-constituent-note',
+            'POST',
+            noteData
+        );
         
-        if (!createNoteResponse.ok) {
-            const error = await createNoteResponse.json();
-            throw new Error(`Failed to create note: ${error.error}`);
-        }
+        console.log('Create note response:', createNoteResponse);
         
         // Step 5: If approved (Candidate), continue with relationship and custom fields
         if (candidate.approval === 'Candidate') {
@@ -535,18 +523,13 @@ const CandidatesModule = (function() {
                 type: "Collegiate Chapter"
             };
             
-            const createRelationshipResponse = await fetch('/api/blackbaud?action=create-constituent-relationship', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(relationshipData)
-            });
+            const createRelationshipResponse = await API.makeRateLimitedApiCall(
+                '/api/blackbaud?action=create-constituent-relationship',
+                'POST',
+                relationshipData
+            );
             
-            if (!createRelationshipResponse.ok) {
-                const error = await createRelationshipResponse.json();
-                throw new Error(`Failed to create relationship: ${error.error}`);
-            }
+            console.log('Create relationship response:', createRelationshipResponse);
             
             // Step 7: Create custom fields
             const customFields = [
@@ -572,21 +555,16 @@ const CandidatesModule = (function() {
                 }
             ];
             
-            const createFieldsResponse = await fetch('/api/blackbaud?action=create-custom-fields', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
+            const createFieldsResponse = await API.makeRateLimitedApiCall(
+                '/api/blackbaud?action=create-custom-fields',
+                'POST',
+                {
                     constituentId: candidate.id,
                     fields: customFields
-                })
-            });
+                }
+            );
             
-            if (!createFieldsResponse.ok) {
-                const error = await createFieldsResponse.json();
-                throw new Error(`Failed to create custom fields: ${error.error}`);
-            }
+            console.log('Create custom fields response:', createFieldsResponse);
         }
         
         console.log(`Successfully processed candidate: ${candidate.name}`);

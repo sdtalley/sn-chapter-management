@@ -6,6 +6,65 @@ const API = (function() {
     const appState = window.appState;
     const CONFIG = window.CONFIG;
     
+    // Rate limiting configuration
+    const rateLimiter = {
+        queue: [],
+        processing: false,
+        lastCallTime: 0,
+        callsInCurrentWindow: [],
+        maxCallsPerSecond: 10,
+        windowSize: 1000 // 1 second window
+    };
+    
+    // Process the rate-limited queue
+    async function processQueue() {
+        if (rateLimiter.processing || rateLimiter.queue.length === 0) {
+            return;
+        }
+        
+        rateLimiter.processing = true;
+        
+        while (rateLimiter.queue.length > 0) {
+            const now = Date.now();
+            
+            // Remove calls older than 1 second from the window
+            rateLimiter.callsInCurrentWindow = rateLimiter.callsInCurrentWindow.filter(
+                time => now - time < rateLimiter.windowSize
+            );
+            
+            // Check if we can make another call
+            if (rateLimiter.callsInCurrentWindow.length < rateLimiter.maxCallsPerSecond) {
+                // Process the next request
+                const { request, resolve, reject } = rateLimiter.queue.shift();
+                
+                // Record this call
+                rateLimiter.callsInCurrentWindow.push(now);
+                
+                try {
+                    const result = await request();
+                    resolve(result);
+                } catch (error) {
+                    reject(error);
+                }
+            } else {
+                // Wait until we can make the next call
+                const oldestCall = Math.min(...rateLimiter.callsInCurrentWindow);
+                const waitTime = rateLimiter.windowSize - (now - oldestCall) + 1;
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+            }
+        }
+        
+        rateLimiter.processing = false;
+    }
+    
+    // Wrapper to add requests to the rate-limited queue
+    function rateLimitedRequest(requestFunction) {
+        return new Promise((resolve, reject) => {
+            rateLimiter.queue.push({ request: requestFunction, resolve, reject });
+            processQueue();
+        });
+    }
+    
     // Token management functions
     async function authenticate() {
         Utils.showStatus('Authenticating with server...', 'info');
@@ -96,7 +155,7 @@ const API = (function() {
         return window.isTokenValid();
     }
     
-    // Generic API call function
+    // Generic API call function (rate-limited)
     async function makeApiCall(endpoint, resultElementId) {
         if (!isTokenValid()) {
             Utils.showStatus('No valid token. Please authenticate first.', 'error');
@@ -119,15 +178,18 @@ const API = (function() {
                 fullEndpoint = fullEndpoint.replace('{chapter}', appState.chapter);
             }
             
-            const response = await fetch(`/api/blackbaud?action=api&endpoint=${encodeURIComponent(fullEndpoint)}&token=${appState.accessToken}`, {
-                method: 'GET'
+            const data = await rateLimitedRequest(async () => {
+                const response = await fetch(`/api/blackbaud?action=api&endpoint=${encodeURIComponent(fullEndpoint)}&token=${appState.accessToken}`, {
+                    method: 'GET'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`API call failed: ${response.status}`);
+                }
+                
+                return response.json();
             });
             
-            if (!response.ok) {
-                throw new Error(`API call failed: ${response.status}`);
-            }
-            
-            const data = await response.json();
             if (responseArea) {
                 responseArea.textContent = JSON.stringify(data, null, 2);
             }
@@ -142,7 +204,7 @@ const API = (function() {
         }
     }
     
-    // Test API call function (for admin page)
+    // Test API call function (rate-limited)
     async function testApiCall() {
         if (!isTokenValid()) {
             Utils.showStatus('No valid token. Please authenticate first.', 'error');
@@ -168,15 +230,18 @@ const API = (function() {
                 fullEndpoint = fullEndpoint.replace('{chapter}', appState.chapter);
             }
             
-            const response = await fetch(`/api/blackbaud?action=api&endpoint=${encodeURIComponent(fullEndpoint)}&token=${appState.accessToken}`, {
-                method: 'GET'
+            const data = await rateLimitedRequest(async () => {
+                const response = await fetch(`/api/blackbaud?action=api&endpoint=${encodeURIComponent(fullEndpoint)}&token=${appState.accessToken}`, {
+                    method: 'GET'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`API call failed: ${response.status}`);
+                }
+                
+                return response.json();
             });
             
-            if (!response.ok) {
-                throw new Error(`API call failed: ${response.status}`);
-            }
-            
-            const data = await response.json();
             if (responseArea) {
                 responseArea.textContent = JSON.stringify(data, null, 2);
             }
@@ -191,7 +256,7 @@ const API = (function() {
         }
     }
     
-    // Query execution functionality
+    // Query execution functionality (rate-limited)
     async function executeQuery(queryRequest, resultsFileName = 'query_results') {
         console.log('=== executeQuery() started ===');
         console.log('Results file name:', resultsFileName);
@@ -208,25 +273,28 @@ const API = (function() {
 
         console.log('Query request built:', JSON.stringify(fullQueryRequest, null, 2));
 
-        // Step 1: Execute the query
+        // Step 1: Execute the query (rate-limited)
         console.log('Executing query via API...');
-        const executeResponse = await fetch(`/api/blackbaud?action=query-execute`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(fullQueryRequest)
+        const executeData = await rateLimitedRequest(async () => {
+            const executeResponse = await fetch(`/api/blackbaud?action=query-execute`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(fullQueryRequest)
+            });
+
+            console.log('Execute response status:', executeResponse.status);
+
+            if (!executeResponse.ok) {
+                const errorText = await executeResponse.text();
+                console.error('Execute response error:', errorText);
+                throw new Error(`Query execution failed: ${executeResponse.status} - ${errorText}`);
+            }
+
+            return executeResponse.json();
         });
 
-        console.log('Execute response status:', executeResponse.status);
-
-        if (!executeResponse.ok) {
-            const errorText = await executeResponse.text();
-            console.error('Execute response error:', errorText);
-            throw new Error(`Query execution failed: ${executeResponse.status} - ${errorText}`);
-        }
-
-        const executeData = await executeResponse.json();
         console.log('Execute response data:', executeData);
         
         // Get the job ID from the response
@@ -239,14 +307,14 @@ const API = (function() {
         console.log('Query job ID:', jobId);
         console.log('Initial status:', executeData.status);
 
-        // Step 2: Poll for job completion
+        // Step 2: Poll for job completion (rate-limited)
         const statusData = await pollJobStatus(jobId);
         
         if (!statusData.sas_uri) {
             throw new Error('Query completed but no results URL provided');
         }
 
-        // Step 3: Fetch the actual results
+        // Step 3: Fetch the actual results (not rate-limited as it's not a Blackbaud API call)
         console.log('Fetching query results from URL...');
         console.log('SAS URI to fetch:', statusData.sas_uri);
         
@@ -280,17 +348,20 @@ const API = (function() {
         while (attempts < maxAttempts) {
             console.log(`Polling attempt ${attempts + 1}/${maxAttempts}...`);
             
-            const statusResponse = await fetch(`/api/blackbaud?action=query-status&jobId=${jobId}`, {
-                method: 'GET'
+            const statusData = await rateLimitedRequest(async () => {
+                const statusResponse = await fetch(`/api/blackbaud?action=query-status&jobId=${jobId}`, {
+                    method: 'GET'
+                });
+
+                if (!statusResponse.ok) {
+                    const errorText = await statusResponse.text();
+                    console.error('Status check error:', errorText);
+                    throw new Error(`Query status check failed: ${statusResponse.status}`);
+                }
+
+                return statusResponse.json();
             });
 
-            if (!statusResponse.ok) {
-                const errorText = await statusResponse.text();
-                console.error('Status check error:', errorText);
-                throw new Error(`Query status check failed: ${statusResponse.status}`);
-            }
-
-            const statusData = await statusResponse.json();
             console.log('Status data:', statusData);
 
             // Check for completion
@@ -321,31 +392,34 @@ const API = (function() {
             return appState.chapterData.quid;
         }
         
-        // If not cached, fetch from server
+        // If not cached, fetch from server (rate-limited)
         try {
-            const response = await fetch(`/api/blackbaud?action=chapter-lookup&chapter=${encodeURIComponent(chapterName)}`, {
-                method: 'GET'
-            });
-            
-            console.log('Chapter lookup response status:', response.status);
-            
-            if (response.ok) {
-                const data = await response.json();
-                console.log('Chapter data received:', data);
+            const data = await rateLimitedRequest(async () => {
+                const response = await fetch(`/api/blackbaud?action=chapter-lookup&chapter=${encodeURIComponent(chapterName)}`, {
+                    method: 'GET'
+                });
                 
-                // Cache the data if it's for the current chapter
-                if (appState.chapter === chapterName) {
-                    appState.chapterData = data;
+                console.log('Chapter lookup response status:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`Chapter lookup failed: ${response.status}`);
                 }
                 
-                return data.quid;
+                return response.json();
+            });
+            
+            console.log('Chapter data received:', data);
+            
+            // Cache the data if it's for the current chapter
+            if (appState.chapter === chapterName) {
+                appState.chapterData = data;
             }
+            
+            return data.quid;
         } catch (error) {
-            console.warn('Server-side chapter lookup failed:', error);
+            console.error('Chapter lookup failed:', error);
+            return null;
         }
-
-        console.error('Chapter QUID not found');
-        return null;
     }
     
     async function getChapterData(chapterName) {
@@ -358,34 +432,37 @@ const API = (function() {
             return appState.chapterData;
         }
         
-        // If not cached, fetch from server
+        // If not cached, fetch from server (rate-limited)
         try {
-            const response = await fetch(`/api/blackbaud?action=chapter-lookup&chapter=${encodeURIComponent(chapterName)}`, {
-                method: 'GET'
-            });
-            
-            console.log('Chapter lookup response status:', response.status);
-            
-            if (response.ok) {
-                const data = await response.json();
-                console.log('Chapter data received:', data);
+            const data = await rateLimitedRequest(async () => {
+                const response = await fetch(`/api/blackbaud?action=chapter-lookup&chapter=${encodeURIComponent(chapterName)}`, {
+                    method: 'GET'
+                });
                 
-                // Cache the data if it's for the current chapter
-                if (appState.chapter === chapterName) {
-                    appState.chapterData = data;
+                console.log('Chapter lookup response status:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`Chapter lookup failed: ${response.status}`);
                 }
                 
-                return data;
+                return response.json();
+            });
+            
+            console.log('Chapter data received:', data);
+            
+            // Cache the data if it's for the current chapter
+            if (appState.chapter === chapterName) {
+                appState.chapterData = data;
             }
+            
+            return data;
         } catch (error) {
-            console.warn('Server-side chapter lookup failed:', error);
+            console.error('Chapter lookup failed:', error);
+            return null;
         }
-
-        console.error('Chapter data not found');
-        return null;
     }
     
-    // Allow skips configuration functions
+    // Allow skips configuration functions (not rate-limited as they're internal)
     async function loadAllowSkipsConfig() {
         console.log('=== loadAllowSkipsConfig() started ===');
         
@@ -403,7 +480,7 @@ const API = (function() {
         Utils.hideElement('allow-skips-error');
         
         try {
-            // Get allowed skips data from server
+            // Get allowed skips data from server (not rate-limited - internal endpoint)
             const response = await fetch('/api/blackbaud?action=get-allowed-skips', {
                 method: 'GET'
             });
@@ -505,6 +582,30 @@ const API = (function() {
         return false;
     }
     
+    // Rate-limited API call wrapper (exposed for modules that make direct API calls)
+    async function makeRateLimitedApiCall(endpoint, method = 'GET', body = null) {
+        return rateLimitedRequest(async () => {
+            const options = {
+                method: method,
+                headers: {}
+            };
+            
+            if (body) {
+                options.headers['Content-Type'] = 'application/json';
+                options.body = JSON.stringify(body);
+            }
+            
+            const response = await fetch(endpoint, options);
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`API call failed: ${response.status} - ${errorText}`);
+            }
+            
+            return response.json();
+        });
+    }
+    
     // Public API
     return {
         authenticate,
@@ -521,7 +622,8 @@ const API = (function() {
         loadAllowSkipsConfig,
         displayAllowSkipsConfig,
         updateAllowSkips,
-        checkAllowedSkips
+        checkAllowedSkips,
+        makeRateLimitedApiCall
     };
 })();
 
