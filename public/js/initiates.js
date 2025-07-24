@@ -161,6 +161,7 @@ const InitiatesModule = (function() {
                     row.dataset.codeId = initiate.codeId;
                     row.dataset.relationId = initiate.relationId;
                     row.dataset.sncImpId = initiate.sncImpId;
+                    row.dataset.candidateCeremonyDate = initiate.candidateCeremonyDate;
                     
                     // Initiated checkbox
                     const initiatedCell = row.insertCell();
@@ -302,6 +303,7 @@ const InitiatesModule = (function() {
                             codeId: row.dataset.codeId,
                             relationId: row.dataset.relationId,
                             sncImpId: row.dataset.sncImpId,
+                            candidateCeremonyDate: row.dataset.candidateCeremonyDate,
                             name: nameCell.textContent,
                             initiated: true,
                             ceremonyDate: dateInput.value,
@@ -423,7 +425,10 @@ const InitiatesModule = (function() {
                     code: change.code,
                     codeId: change.codeId,
                     relationId: change.relationId,
-                    sncImpId: change.sncImpId
+                    sncImpId: change.sncImpId,
+                    candidateCeremonyDate: change.candidateCeremonyDate,
+                    ceremonyDate: change.ceremonyDate,
+                    badgeNumber: change.badgeNumber
                 };
                 
                 // Name
@@ -453,69 +458,365 @@ const InitiatesModule = (function() {
     }
 
     function submitInitiateVerifications() {
-        // Get all initiate data
-        const initiates = [];
-        const tbody = document.getElementById('initiates-tbody');
-        
-        if (tbody) {
-            const rows = tbody.querySelectorAll('tr');
-            
-            rows.forEach((row, index) => {
-                const initiateId = row.dataset.initiateId;
-                if (initiateId) {
-                    const checkbox = document.getElementById(`initiated-${index}`);
-                    const dateInput = document.getElementById(`initiate-ceremony-date-${index}`);
-                    const badgeInput = document.getElementById(`badge-number-${index}`);
-                    
-                    if (checkbox && checkbox.checked && dateInput && badgeInput) {
-                        // Format date as mm/dd/yyyy for display
-                        let formattedDate = '';
-                        if (dateInput.value) {
-                            const [year, month, day] = dateInput.value.split('-');
-                            formattedDate = `${month}/${day}/${year}`;
-                        }
-                        
-                        initiates.push({
-                            id: initiateId,
-                            initiated: true,
-                            ceremonyDate: dateInput.value,
-                            ceremonyDateFormatted: formattedDate,
-                            badgeNumber: badgeInput.value
-                        });
-                    }
-                }
-            });
+        // Get all initiate data from the review table
+        const tbody = document.getElementById('initiates-review-tbody');
+        if (!tbody) {
+            Utils.showStatus('No review data found. Please return to the main screen.', 'error');
+            return;
         }
+        
+        const rows = tbody.querySelectorAll('tr');
+        const initiates = [];
+        
+        // Collect all initiate data from review table
+        rows.forEach((row) => {
+            const nameCell = row.cells[0];
+            const dateCell = row.cells[1];
+            const badgeCell = row.cells[2];
+            
+            // Store the initiate data that was saved during review
+            const initiateData = row.initiateData;
+            
+            if (initiateData) {
+                initiates.push({
+                    id: initiateData.id,
+                    code: initiateData.code,
+                    codeId: initiateData.codeId,
+                    relationId: initiateData.relationId,
+                    sncImpId: initiateData.sncImpId,
+                    candidateCeremonyDate: initiateData.candidateCeremonyDate,
+                    name: nameCell.textContent,
+                    ceremonyDate: initiateData.ceremonyDate,
+                    badgeNumber: initiateData.badgeNumber
+                });
+            }
+        });
         
         if (initiates.length === 0) {
-            Utils.showStatus('No initiates have been selected. Please check at least one initiate.', 'error');
+            Utils.showStatus('No initiates found for submission.', 'error');
             return;
         }
         
-        // Validate that all selected initiates have ceremony dates and badge numbers
-        const incomplete = initiates.filter(i => !i.ceremonyDate || !i.badgeNumber);
+        // Store pending initiates in case of retry
+        appState.pendingInitiates = initiates;
         
-        if (incomplete.length > 0) {
-            Utils.showStatus(`Please ensure all selected initiates have ceremony dates and badge numbers. ${incomplete.length} initiate(s) missing required information.`, 'error');
-            return;
-        }
+        // Start the submission process
+        submitInitiateChanges(initiates);
+    }
+    
+    async function submitInitiateChanges(initiates) {
+        console.log('=== submitInitiateChanges() started ===');
+        console.log('Submitting changes for', initiates.length, 'initiates');
         
-        // Validate badge numbers are greater than last badge
-        if (appState.lastBadgeNumber !== null) {
-            const invalidBadges = initiates.filter(i => {
-                const badgeNum = parseInt(i.badgeNumber, 10);
-                return badgeNum <= appState.lastBadgeNumber;
-            });
+        // Get the submit section and create spinner
+        const submitSection = document.querySelector('#initiates-review .submit-section');
+        const originalContent = submitSection.innerHTML;
+        
+        // Replace submit section content with spinner
+        submitSection.innerHTML = '<div class="spinner"></div>';
+        
+        try {
+            // Use cached chapter data
+            const chapterData = appState.chapterData;
+            if (!chapterData) {
+                throw new Error('Chapter data not available');
+            }
             
-            if (invalidBadges.length > 0) {
-                Utils.showStatus(`Badge numbers must be greater than ${appState.lastBadgeNumber}. ${invalidBadges.length} initiate(s) have invalid badge numbers.`, 'error');
-                return;
+            let successCount = 0;
+            let errorCount = 0;
+            const errors = [];
+            
+            // Process each initiate
+            for (const initiate of initiates) {
+                try {
+                    await processInitiateSubmission(initiate, chapterData);
+                    successCount++;
+                } catch (error) {
+                    console.error(`Error processing initiate ${initiate.name}:`, error);
+                    errorCount++;
+                    errors.push(`${initiate.name}: ${error.message}`);
+                }
+            }
+            
+            // Show results
+            if (errorCount === 0) {
+                // Hide the review table before showing success message
+                Utils.hideElement('initiates-review');
+                
+                // Create a temporary success message div
+                const successDiv = document.createElement('div');
+                successDiv.className = 'submission-success-overlay';
+                successDiv.innerHTML = `
+                    <div class="submission-success">
+                        <p>Successfully processed all ${successCount} initiate(s).</p>
+                    </div>
+                `;
+                document.querySelector('.container').appendChild(successDiv);
+                
+                // Clear pending initiates
+                delete appState.pendingInitiates;
+                
+                // Wait 2 seconds then return to main menu
+                setTimeout(() => {
+                    successDiv.remove();
+                    window.showMainMenu();
+                }, 2000);
+            } else {
+                // Show error message with retry instructions
+                submitSection.innerHTML = `
+                    <div class="submission-error">
+                        <p>Processed ${successCount} initiate(s) with ${errorCount} error(s).</p>
+                        <p>Errors encountered:</p>
+                        <ul class="error-list">
+                            ${errors.map(err => `<li>${err}</li>`).join('')}
+                        </ul>
+                        <p>Please retry submission. If the problem persists, email <a href="mailto:members.area@sigmanu.org">members.area@sigmanu.org</a> with the error message above.</p>
+                        <button class="btn" onclick="InitiatesModule.retrySubmission()">Retry</button>
+                        <button class="btn" onclick="InitiatesModule.backToInitiates()">Back</button>
+                    </div>
+                `;
+            }
+            
+        } catch (error) {
+            console.error('Fatal error during submission:', error);
+            
+            // Show error message with email instructions
+            submitSection.innerHTML = `
+                <div class="submission-error">
+                    <p>Submission failed: ${error.message}</p>
+                    <p>Please retry submission. If the problem persists, email <a href="mailto:members.area@sigmanu.org">members.area@sigmanu.org</a> with the error message above.</p>
+                    <button class="btn" onclick="InitiatesModule.retrySubmission()">Retry</button>
+                    <button class="btn" onclick="InitiatesModule.backToInitiates()">Back</button>
+                </div>
+            `;
+        }
+    }
+    
+    async function processInitiateSubmission(initiate, chapterData) {
+        console.log(`Processing initiate: ${initiate.name}`);
+        
+        // Step 1: Parse initiate ceremony date
+        const [iYear, iMonth, iDay] = initiate.ceremonyDate.split('-');
+        const startDate = {
+            d: parseInt(iDay, 10),
+            m: parseInt(iMonth, 10),
+            y: parseInt(iYear, 10)
+        };
+        
+        // Step 2: Parse candidate ceremony date if exists
+        let cstartDate = null;
+        if (initiate.candidateCeremonyDate) {
+            const candidateDate = Utils.parseDate(initiate.candidateCeremonyDate);
+            if (candidateDate) {
+                cstartDate = {
+                    d: candidateDate.getDate(),
+                    m: candidateDate.getMonth() + 1,
+                    y: candidateDate.getFullYear()
+                };
             }
         }
         
-        // For now, just show what would be submitted
-        console.log('Initiate verifications to submit:', initiates);
-        Utils.showStatus(`Ready to submit ${initiates.length} initiate verification(s). (Submit functionality coming soon)`, 'info');
+        // Step 3: Calculate end date (initiate ceremony date - 1 day)
+        const endDateObj = new Date(initiate.ceremonyDate);
+        endDateObj.setDate(endDateObj.getDate() - 1);
+        const endDate = {
+            d: endDateObj.getDate(),
+            m: endDateObj.getMonth() + 1,
+            y: endDateObj.getFullYear()
+        };
+        
+        // Get current date in Eastern Time
+        const easternTime = new Date().toLocaleString("en-US", {timeZone: "America/New_York"});
+        const easternDate = new Date(easternTime);
+        const currentDate = {
+            d: easternDate.getDate(),
+            m: easternDate.getMonth() + 1,
+            y: easternDate.getFullYear()
+        };
+        const currentDateISO = `${easternDate.getFullYear()}-${String(easternDate.getMonth() + 1).padStart(2, '0')}-${String(easternDate.getDate()).padStart(2, '0')}T00:00:00Z`;
+        
+        // Step 4: Delete existing constituent code
+        console.log(`Deleting code: ${initiate.codeId}`);
+        const deleteResponse = await API.makeRateLimitedApiCall(
+            `/api/blackbaud?action=delete-constituent-code&endpoint=/constituent/v1/constituentcodes/${initiate.codeId}`,
+            'DELETE'
+        );
+        
+        console.log('Delete response:', deleteResponse);
+        
+        // Step 5: Create new constituent code (Initiate)
+        console.log('Creating new code: Initiate');
+        const codeData = {
+            constituent_id: initiate.id,
+            description: 'Initiate',
+            start: startDate
+        };
+        
+        const createCodeResponse = await API.makeRateLimitedApiCall(
+            '/api/blackbaud?action=create-constituent-code',
+            'POST',
+            codeData
+        );
+        
+        console.log('Create code response:', createCodeResponse);
+        
+        // Step 6: Create constituent note
+        console.log('Creating note');
+        const noteData = {
+            constituent_id: initiate.id,
+            date: currentDate,
+            text: `Changed to Initiate by ${appState.offname || 'Unknown'}`,
+            type: "CodeLog"
+        };
+        
+        const createNoteResponse = await API.makeRateLimitedApiCall(
+            '/api/blackbaud?action=create-constituent-note',
+            'POST',
+            noteData
+        );
+        
+        console.log('Create note response:', createNoteResponse);
+        
+        // Step 7: Create closed candidate relationship (only if we have candidate ceremony date)
+        if (cstartDate) {
+            console.log('Creating closed candidate relationship');
+            const closedRelationshipData = {
+                comment: `Added by ${appState.offname || 'Unknown'}`,
+                constituent_id: initiate.id,
+                is_organization_contact: false,
+                is_primary_business: false,
+                is_spouse: false,
+                do_not_reciprocate: true,
+                reciprocal_type: "Candidate",
+                relation_id: chapterData.csid,
+                start: cstartDate,
+                end: endDate,
+                type: "Collegiate Chapter"
+            };
+            
+            const createClosedRelResponse = await API.makeRateLimitedApiCall(
+                '/api/blackbaud?action=create-constituent-relationship',
+                'POST',
+                closedRelationshipData
+            );
+            
+            console.log('Create closed relationship response:', createClosedRelResponse);
+        }
+        
+        // Step 8: Create initiate relationship
+        console.log('Creating initiate relationship');
+        const initiateRelationshipData = {
+            comment: `Added by ${appState.offname || 'Unknown'}`,
+            constituent_id: initiate.id,
+            is_organization_contact: false,
+            is_primary_business: false,
+            is_spouse: false,
+            reciprocal_type: "Initiate",
+            relation_id: chapterData.csid,
+            start: startDate,
+            type: "Collegiate Chapter"
+        };
+        
+        const createInitRelResponse = await API.makeRateLimitedApiCall(
+            '/api/blackbaud?action=create-constituent-relationship',
+            'POST',
+            initiateRelationshipData
+        );
+        
+        console.log('Create initiate relationship response:', createInitRelResponse);
+        
+        // Step 9: Delete existing candidate relationship
+        console.log(`Deleting relationship: ${initiate.relationId}`);
+        const deleteRelResponse = await API.makeRateLimitedApiCall(
+            `/api/blackbaud?action=delete-relationship&endpoint=/constituent/v1/relationships/${initiate.relationId}`,
+            'DELETE'
+        );
+        
+        console.log('Delete relationship response:', deleteRelResponse);
+        
+        // Step 10: Create custom fields
+        console.log('Creating custom fields');
+        
+        // Format badge number with leading zeros
+        const formattedBadge = initiate.badgeNumber.padStart(4, '0');
+        const fullBadge = `${chapterData.prefix}${formattedBadge}`;
+        
+        const customFields = [
+            {
+                category: "Initiate - Ceremony Date",
+                comment: "Yes",
+                date: currentDateISO,
+                value: `${initiate.ceremonyDate}T00:00:00Z`
+            },
+            {
+                category: "Initiate - Fee Paid",
+                comment: chapterData.feid,
+                value: "No"
+            },
+            {
+                category: "Initiate - Complete Date",
+                value: ""
+            },
+            {
+                category: "Preferred Chapter Badge",
+                value: fullBadge
+            }
+        ];
+        
+        const createFieldsResponse = await API.makeRateLimitedApiCall(
+            '/api/blackbaud?action=create-custom-fields',
+            'POST',
+            {
+                constituentId: initiate.id,
+                fields: customFields
+            }
+        );
+        
+        console.log('Create custom fields response:', createFieldsResponse);
+        
+        // Step 11: Update Sigma Nu Code custom field
+        console.log('Updating Sigma Nu Code');
+        const updateSNCData = {
+            value: "Initiate"
+        };
+        
+        const updateSNCResponse = await API.makeRateLimitedApiCall(
+            `/api/blackbaud?action=patch-custom-field&endpoint=/constituent/v1/constituents/customfields/${initiate.sncImpId}`,
+            'PATCH',
+            updateSNCData
+        );
+        
+        console.log('Update SNC response:', updateSNCResponse);
+        
+        // Step 12: Create membership
+        console.log('Creating membership');
+        const membershipData = {
+            membership_id: fullBadge,
+            category: {
+                value: appState.chapter
+            },
+            joined_date: initiate.ceremonyDate,
+            lifetime_membership: true,
+            total_members: 1
+        };
+        
+        const createMembershipResponse = await API.makeRateLimitedApiCall(
+            `/api/blackbaud?action=create-membership&constituentId=${initiate.id}`,
+            'POST',
+            membershipData
+        );
+        
+        console.log('Create membership response:', createMembershipResponse);
+        
+        console.log(`Successfully processed initiate: ${initiate.name}`);
+    }
+    
+    function retrySubmission() {
+        if (appState.pendingInitiates) {
+            submitInitiateChanges(appState.pendingInitiates);
+        } else {
+            Utils.showStatus('No pending initiates to retry.', 'error');
+        }
     }
     
     // Public API
@@ -523,7 +824,8 @@ const InitiatesModule = (function() {
         loadInitiates,
         reviewInitiateChanges,
         backToInitiates,
-        submitInitiateVerifications
+        submitInitiateVerifications,
+        retrySubmission
     };
 })();
 

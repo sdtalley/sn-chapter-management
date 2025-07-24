@@ -98,7 +98,7 @@ async function getValidAccessToken() {
 export default async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, PATCH, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   
   if (req.method === 'OPTIONS') {
@@ -107,7 +107,7 @@ export default async function handler(req, res) {
   }
   
   try {
-    const { action, endpoint, chapter, jobId } = req.query;
+    const { action, endpoint, chapter, jobId, constituentId } = req.query;
     
     // Handle chapter lookup
     if (action === 'chapter-lookup' && chapter) {
@@ -380,6 +380,26 @@ export default async function handler(req, res) {
       const result = await createResponse.json();
       res.json(result);
       
+    } else if (action === 'delete-relationship' && endpoint) {
+      // Delete constituent relationship
+      const deleteUrl = `https://api.sky.blackbaud.com${endpoint}`;
+      console.log('Deleting relationship:', deleteUrl);
+      
+      const deleteResponse = await fetch(deleteUrl, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Bb-Api-Subscription-Key': process.env.BLACKBAUD_SUBSCRIPTION_KEY
+        }
+      });
+      
+      if (!deleteResponse.ok && deleteResponse.status !== 404) {
+        const errorText = await deleteResponse.text();
+        throw new Error(`Delete relationship failed: ${deleteResponse.status} - ${errorText}`);
+      }
+      
+      res.json({ success: true, message: 'Relationship deleted successfully' });
+      
     } else if (action === 'create-custom-fields' && req.method === 'POST') {
       // Create custom field collection
       const { constituentId, fields } = req.body;
@@ -401,6 +421,54 @@ export default async function handler(req, res) {
       if (!createResponse.ok) {
         const errorText = await createResponse.text();
         throw new Error(`Create custom fields failed: ${createResponse.status} - ${errorText}`);
+      }
+      
+      const result = await createResponse.json();
+      res.json(result);
+      
+    } else if (action === 'patch-custom-field' && endpoint && req.method === 'PATCH') {
+      // Update custom field
+      const patchData = req.body;
+      const patchUrl = `https://api.sky.blackbaud.com${endpoint}`;
+      console.log('Patching custom field:', patchUrl);
+      
+      const patchResponse = await fetch(patchUrl, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Bb-Api-Subscription-Key': process.env.BLACKBAUD_SUBSCRIPTION_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(patchData)
+      });
+      
+      if (!patchResponse.ok) {
+        const errorText = await patchResponse.text();
+        throw new Error(`Patch custom field failed: ${patchResponse.status} - ${errorText}`);
+      }
+      
+      const result = await patchResponse.json();
+      res.json(result);
+      
+    } else if (action === 'create-membership' && constituentId && req.method === 'POST') {
+      // Create membership
+      const membershipData = req.body;
+      const membershipUrl = `https://api.sky.blackbaud.com/membership/v1/constituents/${constituentId}/membership`;
+      console.log('Creating membership:', membershipUrl);
+      
+      const createResponse = await fetch(membershipUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Bb-Api-Subscription-Key': process.env.BLACKBAUD_SUBSCRIPTION_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(membershipData)
+      });
+      
+      if (!createResponse.ok) {
+        const errorText = await createResponse.text();
+        throw new Error(`Create membership failed: ${createResponse.status} - ${errorText}`);
       }
       
       const result = await createResponse.json();
