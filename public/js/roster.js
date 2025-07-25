@@ -83,7 +83,8 @@ const RosterModule = (function() {
                     relationId: truncatedRelationId,
                     candidateFeePaid: row.Candidate_Fee_Paid || 'No',
                     initiateFeePaid: row.Initiate_Fee_Paid || 'No',
-                    codeId: truncatedCodeId
+                    codeId: truncatedCodeId,
+                    recip: row.Recip || ''
                 };
                 
                 console.log(`Member ${index}:`, member);
@@ -146,6 +147,7 @@ const RosterModule = (function() {
                     row.dataset.initiateFeePaid = member.initiateFeePaid;
                     row.dataset.codeId = member.codeId;
                     row.dataset.relationId = member.relationId;
+                    row.dataset.recip = member.recip;
                     
                     // Name
                     const nameCell = row.insertCell();
@@ -164,82 +166,90 @@ const RosterModule = (function() {
                     // Status dropdown
                     const statusCell = row.insertCell();
                     
-                    // Determine if dropdown should be shown
-                    const isCandidate = member.status === '5707' || member.status === 'Candidate';
-                    const isInitiate = member.status === '5708' || member.status === 'Initiate';
-                    const candidateFeeUnpaid = isCandidate && member.candidateFeePaid !== 'Yes';
-                    const feesUnpaid = isInitiate && (member.candidateFeePaid !== 'Yes' || member.initiateFeePaid !== 'Yes');
-                    
-                    if (candidateFeeUnpaid) {
-                        statusCell.textContent = '-';
-                        statusCell.title = 'Candidate Fee Unpaid';
-                        statusCell.style.cursor = 'help';
+                    // Check if member has Proposed Expelled or Proposed Suspended status
+                    if (member.recip === 'Proposed Expelled' || member.recip === 'Proposed Suspended') {
+                        // Display as uneditable text
+                        statusCell.textContent = member.recip;
+                        statusCell.style.fontWeight = 'bold';
+                        statusCell.style.color = '#dc3545'; // Red color for emphasis
                     } else {
-                        const selectWrapper = document.createElement('div');
-                        selectWrapper.className = 'select-wrapper';
+                        // Determine if dropdown should be shown
+                        const isCandidate = member.status === '5707' || member.status === 'Candidate';
+                        const isInitiate = member.status === '5708' || member.status === 'Initiate';
+                        const candidateFeeUnpaid = isCandidate && member.candidateFeePaid !== 'Yes';
+                        const feesUnpaid = isInitiate && (member.candidateFeePaid !== 'Yes' || member.initiateFeePaid !== 'Yes');
                         
-                        const statusSelect = document.createElement('select');
-                        statusSelect.className = 'status-select';
-                        statusSelect.id = `status-${index}`;
-                        
-                        // Default option
-                        const defaultOption = document.createElement('option');
-                        defaultOption.value = '';
-                        defaultOption.textContent = 'No Change';
-                        defaultOption.selected = true;
-                        statusSelect.appendChild(defaultOption);
-                        
-                        if (isCandidate) {
-                            // Candidate options
-                            const depledgeOption = document.createElement('option');
-                            depledgeOption.value = 'De-Pledge';
-                            depledgeOption.textContent = 'De-pledge';
-                            statusSelect.appendChild(depledgeOption);
-                        } else if (isInitiate) {
-                            if (feesUnpaid) {
-                                // Limited options for unpaid fees
-                                selectWrapper.title = 'Fee(s) Unpaid';
-                                
-                                const suspendedOption = document.createElement('option');
-                                suspendedOption.value = 'Proposed Suspended';
-                                suspendedOption.textContent = 'Proposed Suspended';
-                                statusSelect.appendChild(suspendedOption);
-                                
-                                const expelledOption = document.createElement('option');
-                                expelledOption.value = 'Proposed Expelled';
-                                expelledOption.textContent = 'Proposed Expelled';
-                                statusSelect.appendChild(expelledOption);
-                            } else {
-                                // Full options for paid fees
-                                const alumniLeftOption = document.createElement('option');
-                                alumniLeftOption.value = 'Alumni (Left School)';
-                                alumniLeftOption.textContent = 'Alumni (Left-School)';
-                                statusSelect.appendChild(alumniLeftOption);
-                                
-                                const alumniGradOption = document.createElement('option');
-                                alumniGradOption.value = 'Alumni';
-                                alumniGradOption.textContent = 'Alumni (Graduated)';
-                                statusSelect.appendChild(alumniGradOption);
-                                
-                                const suspendedOption = document.createElement('option');
-                                suspendedOption.value = 'Proposed Suspended';
-                                suspendedOption.textContent = 'Proposed Suspended';
-                                statusSelect.appendChild(suspendedOption);
-                                
-                                const expelledOption = document.createElement('option');
-                                expelledOption.value = 'Proposed Expelled';
-                                expelledOption.textContent = 'Proposed Expelled';
-                                statusSelect.appendChild(expelledOption);
+                        if (candidateFeeUnpaid) {
+                            statusCell.textContent = '-';
+                            statusCell.title = 'Candidate Fee Unpaid';
+                            statusCell.style.cursor = 'help';
+                        } else {
+                            const selectWrapper = document.createElement('div');
+                            selectWrapper.className = 'select-wrapper';
+                            
+                            const statusSelect = document.createElement('select');
+                            statusSelect.className = 'status-select';
+                            statusSelect.id = `status-${index}`;
+                            
+                            // Default option
+                            const defaultOption = document.createElement('option');
+                            defaultOption.value = '';
+                            defaultOption.textContent = 'No Change';
+                            defaultOption.selected = true;
+                            statusSelect.appendChild(defaultOption);
+                            
+                            if (isCandidate) {
+                                // Candidate options
+                                const depledgeOption = document.createElement('option');
+                                depledgeOption.value = 'De-Pledge';
+                                depledgeOption.textContent = 'De-pledge';
+                                statusSelect.appendChild(depledgeOption);
+                            } else if (isInitiate) {
+                                if (feesUnpaid) {
+                                    // Limited options for unpaid fees
+                                    selectWrapper.title = 'Fee(s) Unpaid';
+                                    
+                                    const suspendedOption = document.createElement('option');
+                                    suspendedOption.value = 'Proposed Suspended';
+                                    suspendedOption.textContent = 'Proposed Suspended';
+                                    statusSelect.appendChild(suspendedOption);
+                                    
+                                    const expelledOption = document.createElement('option');
+                                    expelledOption.value = 'Proposed Expelled';
+                                    expelledOption.textContent = 'Proposed Expelled';
+                                    statusSelect.appendChild(expelledOption);
+                                } else {
+                                    // Full options for paid fees
+                                    const alumniLeftOption = document.createElement('option');
+                                    alumniLeftOption.value = 'Alumni (Left School)';
+                                    alumniLeftOption.textContent = 'Alumni (Left-School)';
+                                    statusSelect.appendChild(alumniLeftOption);
+                                    
+                                    const alumniGradOption = document.createElement('option');
+                                    alumniGradOption.value = 'Alumni';
+                                    alumniGradOption.textContent = 'Alumni (Graduated)';
+                                    statusSelect.appendChild(alumniGradOption);
+                                    
+                                    const suspendedOption = document.createElement('option');
+                                    suspendedOption.value = 'Proposed Suspended';
+                                    suspendedOption.textContent = 'Proposed Suspended';
+                                    statusSelect.appendChild(suspendedOption);
+                                    
+                                    const expelledOption = document.createElement('option');
+                                    expelledOption.value = 'Proposed Expelled';
+                                    expelledOption.textContent = 'Proposed Expelled';
+                                    statusSelect.appendChild(expelledOption);
+                                }
                             }
+                            
+                            // Add change event listener
+                            statusSelect.addEventListener('change', function() {
+                                handleRosterStatusChange(index, this.value);
+                            });
+                            
+                            selectWrapper.appendChild(statusSelect);
+                            statusCell.appendChild(selectWrapper);
                         }
-                        
-                        // Add change event listener
-                        statusSelect.addEventListener('change', function() {
-                            handleRosterStatusChange(index, this.value);
-                        });
-                        
-                        selectWrapper.appendChild(statusSelect);
-                        statusCell.appendChild(selectWrapper);
                     }
                     
                     // Date picker

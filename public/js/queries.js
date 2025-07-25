@@ -291,8 +291,8 @@ const Queries = (function() {
                     },
                     {
                         "compare_type": "And",
-                        "filter_values": ["1700"],
-                        "operator": "Equals",
+                        "filter_values": ["1700", "6676", "6714"],
+                        "operator": "OneOf",
                         "query_field_id": 4151
                     },
                     {
@@ -334,6 +334,10 @@ const Queries = (function() {
                     {
                         "query_field_id": 4127,
                         "user_alias": "Relation_ID"
+                    },
+                    {
+                        "query_field_id": 4151,
+                        "user_alias": "Recip"
                     },
                     {
                         "query_field_id": 656,
