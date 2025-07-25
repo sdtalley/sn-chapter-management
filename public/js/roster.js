@@ -637,6 +637,7 @@ const RosterModule = (function() {
             is_organization_contact: false,
             is_primary_business: false,
             is_spouse: false,
+            do_not_reciprocate: true,
             reciprocal_type: member.newStatus,
             relation_id: chapterData.csid,
             start: startDate,
