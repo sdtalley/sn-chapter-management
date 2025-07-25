@@ -8,6 +8,9 @@ const RosterModule = (function() {
     const API = window.API;
     const Queries = window.Queries;
     
+    // Module-level storage for officer relationships
+    let memberOfficerRelationships = {};
+    
     // Load roster data
     async function loadRoster() {
         console.log('=== loadRoster() started ===');
@@ -34,13 +37,21 @@ const RosterModule = (function() {
                 throw new Error(`Chapter QUID not found for ${appState.chapter}`);
             }
 
-            // Build and execute query
-            const queryRequest = Queries.buildRosterQuery(chapterQuid, appState.chapter);
-            const resultsData = await API.executeQuery(queryRequest, 'roster');
+            // Execute all three queries in parallel
+            const [rosterResults, officerRelResults] = await Promise.all([
+                // Query 1: Get roster
+                API.executeQuery(Queries.buildRosterQuery(chapterQuid, appState.chapter), 'roster'),
+                // Query 2: Get all open officer relationships
+                API.executeQuery(buildAllOpenOfficerRelationshipsQuery(chapterQuid, appState.chapter), 'open_officer_relationships')
+            ]);
             
             // Process results
-            const roster = processRosterResults(resultsData);
+            const roster = processRosterResults(rosterResults);
             console.log('Processed roster:', roster);
+            
+            // Process and store officer relationships
+            memberOfficerRelationships = processOpenOfficerRelationships(officerRelResults);
+            console.log('Processed officer relationships:', memberOfficerRelationships);
             
             // Display roster
             displayRoster(roster);
@@ -49,6 +60,102 @@ const RosterModule = (function() {
             console.error('Error loading roster:', error);
             Utils.showRosterError(`Failed to load roster: ${error.message}`);
         }
+    }
+    
+    // Build query for all open officer relationships
+    function buildAllOpenOfficerRelationshipsQuery(chapterQuid, chapterName) {
+        return {
+            "query": {
+                "advanced_processing_options": {},
+                "constituent_filters": {
+                    "include_deceased": true,
+                    "include_inactive": true,
+                    "include_no_valid_addresses": true
+                },
+                "filter_fields": [
+                    {
+                        "compare_type": "None",
+                        "filter_values": [chapterName],
+                        "operator": "Equals",
+                        "query_field_id": 40918
+                    },
+                    {
+                        "compare_type": "And",
+                        "filter_values": [
+                            "2422", "2425", "2408", "2429", "2442", "2423",
+                            "2426", "2510", "2412", "2490", "2432", "2431",
+                            "2427", "2428", "2430", "2424"
+                        ],
+                        "operator": "OneOf",
+                        "query_field_id": 40924
+                    },
+                    {
+                        "compare_type": "And",
+                        "filter_values": [],
+                        "operator": "Blank",
+                        "query_field_id": 40927
+                    }
+                ],
+                "gift_processing_options": {
+                    "matching_gift_credit_option": "MatchingGiftCompany",
+                    "soft_credit_option": "Donor"
+                },
+                "select_fields": [
+                    {
+                        "query_field_id": 40961,
+                        "user_alias": "offMemID"
+                    },
+                    {
+                        "query_field_id": 40924,
+                        "user_alias": "offRecip"
+                    },
+                    {
+                        "query_field_id": 40906,
+                        "user_alias": "offFromDate"
+                    },
+                    {
+                        "query_field_id": 40907,
+                        "user_alias": "offRelID"
+                    }
+                ],
+                "sort_fields": [],
+                "type_id": 40,
+                "sql_generation_mode": "Query"
+            }
+        };
+    }
+    
+    // Process open officer relationships into a lookup map
+    function processOpenOfficerRelationships(results) {
+        console.log('=== processOpenOfficerRelationships() started ===');
+        const relationshipMap = {};
+        
+        if (Array.isArray(results)) {
+            results.forEach(row => {
+                const memberId = row.offMemID;
+                
+                if (!relationshipMap[memberId]) {
+                    relationshipMap[memberId] = [];
+                }
+                
+                // Truncate offRelID to last 7 digits
+                let truncatedRelId = row.offRelID || '';
+                if (truncatedRelId && truncatedRelId.length > 7) {
+                    truncatedRelId = truncatedRelId.slice(-7);
+                }
+                
+                relationshipMap[memberId].push({
+                    id: truncatedRelId,
+                    reciprocal_type: row.offRecip,
+                    fromDate: row.offFromDate
+                });
+                
+                console.log(`Added officer relationship for member ${memberId}: ${row.offRecip}`);
+            });
+        }
+        
+        console.log(`Total members with officer relationships: ${Object.keys(relationshipMap).length}`);
+        return relationshipMap;
     }
 
     function processRosterResults(results) {
@@ -745,6 +852,68 @@ const RosterModule = (function() {
         );
         
         console.log('Update SNC response:', updateSNCResponse);
+        
+        // Steps 12-13: Process open officer relationships (if any)
+        const openOfficerRels = memberOfficerRelationships[member.id] || [];
+        if (openOfficerRels.length > 0) {
+            console.log(`Processing ${openOfficerRels.length} open officer relationships for member ${member.id}`);
+            
+            for (const officerRel of openOfficerRels) {
+                try {
+                    // Parse the officer relationship from date
+                    let officerStartDate = null;
+                    if (officerRel.fromDate) {
+                        const offFromDate = Utils.parseDate(officerRel.fromDate);
+                        if (offFromDate) {
+                            officerStartDate = {
+                                d: offFromDate.getDate(),
+                                m: offFromDate.getMonth() + 1,
+                                y: offFromDate.getFullYear()
+                            };
+                        }
+                    }
+                    
+                    // Step 12: Create closed officer relationship
+                    if (officerStartDate) {
+                        console.log(`Creating closed officer relationship for ${officerRel.reciprocal_type}`);
+                        const closedOfficerRelData = {
+                            comment: `Added by ${appState.offname || 'Unknown'}`,
+                            constituent_id: member.id,
+                            is_organization_contact: false,
+                            is_primary_business: false,
+                            is_spouse: false,
+                            do_not_reciprocate: true,
+                            reciprocal_type: officerRel.reciprocal_type,
+                            relation_id: chapterData.csid,
+                            start: officerStartDate,
+                            end: endDate,
+                            type: "Collegiate Chapter"
+                        };
+                        
+                        const createClosedOfficerResponse = await API.makeRateLimitedApiCall(
+                            '/api/blackbaud?action=create-constituent-relationship',
+                            'POST',
+                            closedOfficerRelData
+                        );
+                        
+                        console.log('Create closed officer relationship response:', createClosedOfficerResponse);
+                    }
+                    
+                    // Step 13: Delete open officer relationship
+                    console.log(`Deleting officer relationship: ${officerRel.id}`);
+                    const deleteOfficerRelResponse = await API.makeRateLimitedApiCall(
+                        `/api/blackbaud?action=delete-relationship&endpoint=/constituent/v1/relationships/${officerRel.id}`,
+                        'DELETE'
+                    );
+                    
+                    console.log('Delete officer relationship response:', deleteOfficerRelResponse);
+                    
+                } catch (officerError) {
+                    // Log error but continue processing other relationships
+                    console.error(`Error processing officer relationship ${officerRel.reciprocal_type} for member ${member.name}:`, officerError);
+                }
+            }
+        }
         
         console.log(`Successfully processed member: ${member.name}`);
     }
