@@ -148,6 +148,7 @@ const RosterModule = (function() {
                     row.dataset.codeId = member.codeId;
                     row.dataset.relationId = member.relationId;
                     row.dataset.recip = member.recip;
+                    row.dataset.fromDate = member.fromDate;
                     
                     // Name
                     const nameCell = row.insertCell();
@@ -322,16 +323,28 @@ const RosterModule = (function() {
                     if (statusSelect && statusSelect.value && statusSelect.value !== '' && dateInput) {
                         const selectedOption = statusSelect.options[statusSelect.selectedIndex];
                         
+                        // Determine the reciprocal type based on current status
+                        let reciprocalType = 'Candidate'; // Default
+                        const currentStatus = currentStatusCell.textContent;
+                        if (currentStatus === 'Candidate') {
+                            reciprocalType = 'Candidate';
+                        } else if (currentStatus === 'Initiate') {
+                            reciprocalType = 'Initiate';
+                        }
+                        
                         changes.push({
                             id: memberId,
                             name: nameCell.textContent,
-                            currentStatus: currentStatusCell.textContent,
+                            currentStatus: currentStatus,
                             newStatus: statusSelect.value,
                             newStatusText: selectedOption.textContent,
                             effectiveDate: dateInput.value,
                             effectiveDateFormatted: dateInput.value ? Utils.formatDateForDisplay(dateInput.value) : '',
                             codeId: row.dataset.codeId,
-                            relationId: row.dataset.relationId
+                            relationId: row.dataset.relationId,
+                            fromDate: row.dataset.fromDate,
+                            reciprocalType: reciprocalType,
+                            recip: row.dataset.recip || reciprocalType // Use dataset recip if exists, otherwise use reciprocalType
                         });
                     }
                 }
@@ -373,6 +386,19 @@ const RosterModule = (function() {
             changes.forEach(change => {
                 const row = tbody.insertRow();
                 
+                // Store the roster data on the row for later retrieval
+                row.rosterData = {
+                    id: change.id,
+                    currentStatus: change.currentStatus,
+                    newStatus: change.newStatus,
+                    effectiveDate: change.effectiveDate,
+                    codeId: change.codeId,
+                    relationId: change.relationId,
+                    fromDate: change.fromDate,
+                    reciprocalType: change.reciprocalType,
+                    recip: change.recip
+                };
+                
                 // Name
                 const nameCell = row.insertCell();
                 nameCell.textContent = change.name;
@@ -404,9 +430,330 @@ const RosterModule = (function() {
     }
 
     function submitRosterChanges() {
-        // For now, just show what would be submitted
-        console.log('Roster changes to submit from review');
-        Utils.showStatus('Submit functionality coming soon', 'info');
+        // Get all roster data from the review table
+        const tbody = document.getElementById('roster-review-tbody');
+        if (!tbody) {
+            Utils.showStatus('No review data found. Please return to the main screen.', 'error');
+            return;
+        }
+        
+        const rows = tbody.querySelectorAll('tr');
+        const members = [];
+        
+        // Collect all roster data from review table
+        rows.forEach((row) => {
+            const nameCell = row.cells[0];
+            
+            // Store the roster data that was saved during review
+            const rosterData = row.rosterData;
+            
+            if (rosterData) {
+                members.push({
+                    id: rosterData.id,
+                    name: nameCell.textContent,
+                    currentStatus: rosterData.currentStatus,
+                    newStatus: rosterData.newStatus,
+                    effectiveDate: rosterData.effectiveDate,
+                    codeId: rosterData.codeId,
+                    relationId: rosterData.relationId,
+                    fromDate: rosterData.fromDate,
+                    reciprocalType: rosterData.reciprocalType,
+                    recip: rosterData.recip
+                });
+            }
+        });
+        
+        if (members.length === 0) {
+            Utils.showStatus('No members found for submission.', 'error');
+            return;
+        }
+        
+        // Store pending members in case of retry
+        appState.pendingRosterMembers = members;
+        
+        // Start the submission process
+        submitRosterMemberChanges(members);
+    }
+    
+    async function submitRosterMemberChanges(members) {
+        console.log('=== submitRosterMemberChanges() started ===');
+        console.log('Submitting changes for', members.length, 'members');
+        
+        // Get the submit section and create spinner
+        const submitSection = document.querySelector('#roster-review .submit-section');
+        const originalContent = submitSection.innerHTML;
+        
+        // Replace submit section content with spinner
+        submitSection.innerHTML = '<div class="spinner"></div>';
+        
+        try {
+            // Use cached chapter data
+            const chapterData = appState.chapterData;
+            if (!chapterData) {
+                throw new Error('Chapter data not available');
+            }
+            
+            let successCount = 0;
+            let errorCount = 0;
+            const errors = [];
+            
+            // Process each member
+            for (const member of members) {
+                try {
+                    await processRosterMemberSubmission(member, chapterData);
+                    successCount++;
+                } catch (error) {
+                    console.error(`Error processing member ${member.name}:`, error);
+                    errorCount++;
+                    errors.push(`${member.name}: ${error.message}`);
+                }
+            }
+            
+            // Show results
+            if (errorCount === 0) {
+                // Hide the review table before showing success message
+                Utils.hideElement('roster-review');
+                
+                // Create a temporary success message div
+                const successDiv = document.createElement('div');
+                successDiv.className = 'submission-success-overlay';
+                successDiv.innerHTML = `
+                    <div class="submission-success">
+                        <p>Successfully processed all ${successCount} member(s).</p>
+                    </div>
+                `;
+                document.querySelector('.container').appendChild(successDiv);
+                
+                // Clear pending members
+                delete appState.pendingRosterMembers;
+                
+                // Wait 2 seconds then return to main menu
+                setTimeout(() => {
+                    successDiv.remove();
+                    window.showMainMenu();
+                }, 2000);
+            } else {
+                // Show error message with retry instructions
+                submitSection.innerHTML = `
+                    <div class="submission-error">
+                        <p>Processed ${successCount} member(s) with ${errorCount} error(s).</p>
+                        <p>Errors encountered:</p>
+                        <ul class="error-list">
+                            ${errors.map(err => `<li>${err}</li>`).join('')}
+                        </ul>
+                        <p>Please retry submission. If the problem persists, email <a href="mailto:members.area@sigmanu.org">members.area@sigmanu.org</a> with the error message above.</p>
+                        <button class="btn" onclick="RosterModule.backToRoster()">Back</button>
+                    </div>
+                `;
+            }
+            
+        } catch (error) {
+            console.error('Fatal error during submission:', error);
+            
+            // Show error message with email instructions
+            submitSection.innerHTML = `
+                <div class="submission-error">
+                    <p>Submission failed: ${error.message}</p>
+                    <p>Please retry submission. If the problem persists, email <a href="mailto:members.area@sigmanu.org">members.area@sigmanu.org</a> with the error message above.</p>
+                    <button class="btn" onclick="RosterModule.backToRoster()">Back</button>
+                </div>
+            `;
+        }
+    }
+    
+    async function processRosterMemberSubmission(member, chapterData) {
+        console.log(`Processing member: ${member.name}`);
+        
+        // Step 1: Parse effective date
+        const [year, month, day] = member.effectiveDate.split('-');
+        const startDate = {
+            d: parseInt(day, 10),
+            m: parseInt(month, 10),
+            y: parseInt(year, 10)
+        };
+        
+        // Step 2: Parse from date
+        let cstartDate = null;
+        if (member.fromDate) {
+            const fromDate = Utils.parseDate(member.fromDate);
+            if (fromDate) {
+                cstartDate = {
+                    d: fromDate.getDate(),
+                    m: fromDate.getMonth() + 1,
+                    y: fromDate.getFullYear()
+                };
+            }
+        }
+        
+        // Step 3: Calculate end date (effective date - 1 day)
+        const endDateObj = new Date(member.effectiveDate);
+        endDateObj.setDate(endDateObj.getDate() - 1);
+        const endDate = {
+            d: endDateObj.getDate(),
+            m: endDateObj.getMonth() + 1,
+            y: endDateObj.getFullYear()
+        };
+        
+        // Get current date in Eastern Time
+        const easternTime = new Date().toLocaleString("en-US", {timeZone: "America/New_York"});
+        const easternDate = new Date(easternTime);
+        const currentDate = {
+            d: easternDate.getDate(),
+            m: easternDate.getMonth() + 1,
+            y: easternDate.getFullYear()
+        };
+        
+        // Step 4: Create closed relationship (only if we have from date)
+        if (cstartDate) {
+            console.log('Creating closed relationship');
+            const closedRelationshipData = {
+                comment: `Added by ${appState.offname || 'Unknown'}`,
+                constituent_id: member.id,
+                is_organization_contact: false,
+                is_primary_business: false,
+                is_spouse: false,
+                do_not_reciprocate: true,
+                reciprocal_type: member.recip,
+                relation_id: chapterData.csid,
+                start: cstartDate,
+                end: endDate,
+                type: "Collegiate Chapter"
+            };
+            
+            const createClosedRelResponse = await API.makeRateLimitedApiCall(
+                '/api/blackbaud?action=create-constituent-relationship',
+                'POST',
+                closedRelationshipData
+            );
+            
+            console.log('Create closed relationship response:', createClosedRelResponse);
+        }
+        
+        // Step 5: Create new relationship
+        console.log('Creating new relationship');
+        const newRelationshipData = {
+            comment: `Added by ${appState.offname || 'Unknown'}`,
+            constituent_id: member.id,
+            is_organization_contact: false,
+            is_primary_business: false,
+            is_spouse: false,
+            reciprocal_type: member.newStatus,
+            relation_id: chapterData.csid,
+            start: startDate,
+            type: "Collegiate Chapter"
+        };
+        
+        const createRelResponse = await API.makeRateLimitedApiCall(
+            '/api/blackbaud?action=create-constituent-relationship',
+            'POST',
+            newRelationshipData
+        );
+        
+        console.log('Create relationship response:', createRelResponse);
+        
+        // Step 6: Delete existing relationship
+        console.log(`Deleting relationship: ${member.relationId}`);
+        const deleteRelResponse = await API.makeRateLimitedApiCall(
+            `/api/blackbaud?action=delete-relationship&endpoint=/constituent/v1/relationships/${member.relationId}`,
+            'DELETE'
+        );
+        
+        console.log('Delete relationship response:', deleteRelResponse);
+        
+        // Check if this is Proposed Expelled or Proposed Suspended - if so, stop here
+        if (member.newStatus === 'Proposed Expelled' || member.newStatus === 'Proposed Suspended') {
+            console.log(`Member status is ${member.newStatus}, stopping further processing`);
+            return;
+        }
+        
+        // Step 7: Delete existing constituent code
+        console.log(`Deleting code: ${member.codeId}`);
+        const deleteCodeResponse = await API.makeRateLimitedApiCall(
+            `/api/blackbaud?action=delete-constituent-code&endpoint=/constituent/v1/constituentcodes/${member.codeId}`,
+            'DELETE'
+        );
+        
+        console.log('Delete code response:', deleteCodeResponse);
+        
+        // Step 8: Create new constituent code
+        console.log(`Creating new code: ${member.newStatus}`);
+        const codeData = {
+            constituent_id: member.id,
+            description: member.newStatus,
+            start: startDate
+        };
+        
+        const createCodeResponse = await API.makeRateLimitedApiCall(
+            '/api/blackbaud?action=create-constituent-code',
+            'POST',
+            codeData
+        );
+        
+        console.log('Create code response:', createCodeResponse);
+        
+        // Step 9: Create constituent note
+        console.log('Creating note');
+        const noteData = {
+            constituent_id: member.id,
+            date: currentDate,
+            text: `Changed to ${member.newStatus} by ${appState.offname || 'Unknown'}`,
+            type: "CodeLog"
+        };
+        
+        const createNoteResponse = await API.makeRateLimitedApiCall(
+            '/api/blackbaud?action=create-constituent-note',
+            'POST',
+            noteData
+        );
+        
+        console.log('Create note response:', createNoteResponse);
+        
+        // Step 10: Get custom fields to find Sigma Nu Code ID
+        console.log('Getting custom fields to find Sigma Nu Code ID');
+        const customFieldsResponse = await API.makeRateLimitedApiCall(
+            `/api/blackbaud?action=get-custom-fields&constituentId=${member.id}`,
+            'GET'
+        );
+        
+        console.log('Custom fields response:', customFieldsResponse);
+        
+        // Find the Sigma Nu Code attribute ID
+        let snAttId = null;
+        if (customFieldsResponse && customFieldsResponse.value) {
+            const sncField = customFieldsResponse.value.find(field => field.category === 'Sigma Nu Code');
+            if (sncField) {
+                snAttId = sncField.id;
+                console.log('Found Sigma Nu Code attribute ID:', snAttId);
+            }
+        }
+        
+        if (!snAttId) {
+            throw new Error('Could not find Sigma Nu Code attribute ID');
+        }
+        
+        // Step 11: Update Sigma Nu Code custom field
+        console.log('Updating Sigma Nu Code');
+        const updateSNCData = {
+            value: member.newStatus
+        };
+        
+        const updateSNCResponse = await API.makeRateLimitedApiCall(
+            `/api/blackbaud?action=patch-custom-field&endpoint=/constituent/v1/constituents/customfields/${snAttId}&method=PATCH`,
+            'POST',
+            updateSNCData
+        );
+        
+        console.log('Update SNC response:', updateSNCResponse);
+        
+        console.log(`Successfully processed member: ${member.name}`);
+    }
+    
+    function retrySubmission() {
+        if (appState.pendingRosterMembers) {
+            submitRosterMemberChanges(appState.pendingRosterMembers);
+        } else {
+            Utils.showStatus('No pending members to retry.', 'error');
+        }
     }
 
     async function getRosterInfo() {
@@ -430,7 +777,8 @@ const RosterModule = (function() {
         reviewRosterChanges,
         backToRoster,
         submitRosterChanges,
-        getRosterInfo
+        getRosterInfo,
+        retrySubmission
     };
 })();
 
