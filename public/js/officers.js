@@ -276,7 +276,8 @@ const OfficersModule = (function() {
                             newOfficerName: selectedOption.textContent,
                             startDate: dateInput.value,
                             startDateFormatted: dateInput.value ? Utils.formatDateForDisplay(dateInput.value) : '',
-                            relationId: row.dataset.relationId || null
+                            relationId: row.dataset.relationId || null,
+                            fromDate: row.dataset.fromDate || null
                         });
                     }
                 }
@@ -318,6 +319,16 @@ const OfficersModule = (function() {
             changes.forEach(change => {
                 const row = tbody.insertRow();
                 
+                // Store the officer data on the row for later retrieval
+                row.officerData = {
+                    position: change.position,
+                    currentOfficerId: change.currentOfficerId,
+                    newOfficerId: change.newOfficerId,
+                    startDate: change.startDate,
+                    relationId: change.relationId,
+                    fromDate: change.fromDate
+                };
+                
                 // Position
                 const positionCell = row.insertCell();
                 positionCell.textContent = change.position;
@@ -349,9 +360,225 @@ const OfficersModule = (function() {
     }
 
     function submitOfficerChanges() {
-        // For now, just show what would be submitted
-        console.log('Officer changes to submit from review');
-        Utils.showStatus('Submit functionality coming soon', 'info');
+        // Get all officer data from the review table
+        const tbody = document.getElementById('officer-review-tbody');
+        if (!tbody) {
+            Utils.showStatus('No review data found. Please return to the main screen.', 'error');
+            return;
+        }
+        
+        const rows = tbody.querySelectorAll('tr');
+        const officers = [];
+        
+        // Collect all officer data from review table
+        rows.forEach((row) => {
+            // Store the officer data that was saved during review
+            const officerData = row.officerData;
+            
+            if (officerData) {
+                officers.push({
+                    position: officerData.position,
+                    currentOfficerId: officerData.currentOfficerId,
+                    newOfficerId: officerData.newOfficerId,
+                    startDate: officerData.startDate,
+                    relationId: officerData.relationId,
+                    fromDate: officerData.fromDate
+                });
+            }
+        });
+        
+        if (officers.length === 0) {
+            Utils.showStatus('No officers found for submission.', 'error');
+            return;
+        }
+        
+        // Store pending officers in case of retry
+        appState.pendingOfficers = officers;
+        
+        // Start the submission process
+        submitOfficerPositionChanges(officers);
+    }
+    
+    async function submitOfficerPositionChanges(officers) {
+        console.log('=== submitOfficerPositionChanges() started ===');
+        console.log('Submitting changes for', officers.length, 'officers');
+        
+        // Get the submit section and create spinner
+        const submitSection = document.querySelector('#officer-review .submit-section');
+        const originalContent = submitSection.innerHTML;
+        
+        // Replace submit section content with spinner
+        submitSection.innerHTML = '<div class="spinner"></div>';
+        
+        try {
+            // Use cached chapter data
+            const chapterData = appState.chapterData;
+            if (!chapterData) {
+                throw new Error('Chapter data not available');
+            }
+            
+            let successCount = 0;
+            let errorCount = 0;
+            const errors = [];
+            
+            // Process each officer
+            for (const officer of officers) {
+                try {
+                    await processOfficerSubmission(officer, chapterData);
+                    successCount++;
+                } catch (error) {
+                    console.error(`Error processing officer ${officer.position}:`, error);
+                    errorCount++;
+                    errors.push(`${officer.position}: ${error.message}`);
+                }
+            }
+            
+            // Show results
+            if (errorCount === 0) {
+                // Hide the review table before showing success message
+                Utils.hideElement('officer-review');
+                
+                // Create a temporary success message div
+                const successDiv = document.createElement('div');
+                successDiv.className = 'submission-success-overlay';
+                successDiv.innerHTML = `
+                    <div class="submission-success">
+                        <p>Successfully processed all ${successCount} officer position(s).</p>
+                    </div>
+                `;
+                document.querySelector('.container').appendChild(successDiv);
+                
+                // Clear pending officers
+                delete appState.pendingOfficers;
+                
+                // Wait 2 seconds then return to main menu
+                setTimeout(() => {
+                    successDiv.remove();
+                    window.showMainMenu();
+                }, 2000);
+            } else {
+                // Show error message with retry instructions
+                submitSection.innerHTML = `
+                    <div class="submission-error">
+                        <p>Processed ${successCount} officer position(s) with ${errorCount} error(s).</p>
+                        <p>Errors encountered:</p>
+                        <ul class="error-list">
+                            ${errors.map(err => `<li>${err}</li>`).join('')}
+                        </ul>
+                        <p>Please retry submission. If the problem persists, email <a href="mailto:members.area@sigmanu.org">members.area@sigmanu.org</a> with the error message above.</p>
+                        <button class="btn" onclick="OfficersModule.backToOfficers()">Back</button>
+                    </div>
+                `;
+            }
+            
+        } catch (error) {
+            console.error('Fatal error during submission:', error);
+            
+            // Show error message with email instructions
+            submitSection.innerHTML = `
+                <div class="submission-error">
+                    <p>Submission failed: ${error.message}</p>
+                    <p>Please retry submission. If the problem persists, email <a href="mailto:members.area@sigmanu.org">members.area@sigmanu.org</a> with the error message above.</p>
+                    <button class="btn" onclick="OfficersModule.backToOfficers()">Back</button>
+                </div>
+            `;
+        }
+    }
+    
+    async function processOfficerSubmission(officer, chapterData) {
+        console.log(`Processing officer position: ${officer.position}`);
+        
+        // Step 1: Split Start Date into three values
+        const [startYear, startMonth, startDay] = officer.startDate.split('-');
+        const startDate = {
+            d: parseInt(startDay, 10),
+            m: parseInt(startMonth, 10),
+            y: parseInt(startYear, 10)
+        };
+        
+        // Step 2: Split From Date into three values (if exists)
+        let cstartDate = null;
+        if (officer.fromDate) {
+            const fromDate = Utils.parseDate(officer.fromDate);
+            if (fromDate) {
+                cstartDate = {
+                    d: fromDate.getDate(),
+                    m: fromDate.getMonth() + 1,
+                    y: fromDate.getFullYear()
+                };
+            }
+        }
+        
+        // Step 3: Take the Start Date -1 day
+        const endDateObj = new Date(officer.startDate);
+        endDateObj.setDate(endDateObj.getDate() - 1);
+        const endDate = {
+            d: endDateObj.getDate(),
+            m: endDateObj.getMonth() + 1,
+            y: endDateObj.getFullYear()
+        };
+        
+        // If there's a current officer, create closed relationship
+        if (officer.currentOfficerId && cstartDate) {
+            // Step 4: Create closed officer relationship for current officer
+            console.log(`Creating closed relationship for current officer: ${officer.currentOfficerId}`);
+            const closedRelationshipData = {
+                comment: `Added by ${appState.offname || 'Unknown'}`,
+                constituent_id: officer.currentOfficerId,
+                is_organization_contact: false,
+                is_primary_business: false,
+                is_spouse: false,
+                do_not_reciprocate: true,
+                reciprocal_type: officer.position,
+                relation_id: chapterData.csid,
+                start: cstartDate,
+                end: endDate,
+                type: "Collegiate Chapter"
+            };
+            
+            const createClosedRelResponse = await API.makeRateLimitedApiCall(
+                '/api/blackbaud?action=create-constituent-relationship',
+                'POST',
+                closedRelationshipData
+            );
+            
+            console.log('Create closed relationship response:', createClosedRelResponse);
+        }
+        
+        // Step 5: Create new officer relationship
+        console.log(`Creating new officer relationship for: ${officer.newOfficerId}`);
+        const newRelationshipData = {
+            comment: `Added by ${appState.offname || 'Unknown'}`,
+            constituent_id: officer.newOfficerId,
+            is_organization_contact: false,
+            is_primary_business: false,
+            is_spouse: false,
+            reciprocal_type: officer.position,
+            relation_id: chapterData.csid,
+            start: startDate,
+            type: "Collegiate Chapter"
+        };
+        
+        const createRelResponse = await API.makeRateLimitedApiCall(
+            '/api/blackbaud?action=create-constituent-relationship',
+            'POST',
+            newRelationshipData
+        );
+        
+        console.log('Create new officer relationship response:', createRelResponse);
+        
+        // Step 6: Delete existing officer relationship (if exists)
+        if (officer.relationId) {
+            console.log(`Deleting existing relationship: ${officer.relationId}`);
+            const deleteRelResponse = await API.makeRateLimitedApiCall(
+                `/api/blackbaud?action=delete-relationship&endpoint=/constituent/v1/relationships/${officer.relationId}`,
+                'DELETE'
+            );
+            
+            console.log('Delete relationship response:', deleteRelResponse);
+        }
+        
+        console.log(`Successfully processed officer position: ${officer.position}`);
     }
 
     async function getOfficerInfo() {
