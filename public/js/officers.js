@@ -531,8 +531,14 @@ const OfficersModule = (function() {
         }
         
         // Step 3: Take the Start Date -1 day
-        const endDateObj = new Date(officer.startDate);
+        // Parse the date components directly to avoid timezone issues
+        const [sYear, sMonth, sDay] = officer.startDate.split('-');
+        const startDateParsed = new Date(parseInt(sYear), parseInt(sMonth) - 1, parseInt(sDay));
+        
+        // Calculate end date (1 day before start date)
+        const endDateObj = new Date(startDateParsed);
         endDateObj.setDate(endDateObj.getDate() - 1);
+        
         const endDate = {
             d: endDateObj.getDate(),
             m: endDateObj.getMonth() + 1,
