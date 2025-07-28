@@ -462,10 +462,10 @@ const ContactModule = (function() {
         const easternDate = new Date(easternTime);
         const currentDateISO = `${easternDate.getFullYear()}-${String(easternDate.getMonth() + 1).padStart(2, '0')}-${String(easternDate.getDate()).padStart(2, '0')}T00:00:00Z`;
         
-        // Concatenate address lines with /n
+        // Concatenate address lines with \n
         let addressLines = change.data.address1;
         if (change.data.address2) {
-            addressLines += `/n${change.data.address2}`;
+            addressLines += `\n${change.data.address2}`;
         }
         
         // Check if we have an address ID - if not, create instead of update
