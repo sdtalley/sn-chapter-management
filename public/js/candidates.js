@@ -489,11 +489,21 @@ const CandidatesModule = (function() {
         
         console.log('Create code response:', createCodeResponse);
         
+        
         // Step 4: Create constituent note
         console.log('Creating note');
+        // Get current date in Eastern Time
+        const easternTime = new Date().toLocaleString("en-US", {timeZone: "America/New_York"});
+        const easternDate = new Date(easternTime);
+        const currentDate = {
+            d: easternDate.getDate(),
+            m: easternDate.getMonth() + 1,
+            y: easternDate.getFullYear()
+        };
+        
         const noteData = {
             constituent_id: candidate.id,
-            date: startDate,
+            date: currentDate,
             text: `Changed to ${candidate.approval} by ${appState.offname || 'Unknown'}`,
             type: "CodeLog"
         };
