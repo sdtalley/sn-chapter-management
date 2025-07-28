@@ -136,6 +136,9 @@ const InitiatesModule = (function() {
             lastBadgeInfo.style.display = 'block';
         }
         
+        // Set up same date checkbox functionality
+        setupSameDateCheckbox();
+        
         // Clear existing rows
         if (tbody) {
             tbody.innerHTML = '';
@@ -259,14 +262,101 @@ const InitiatesModule = (function() {
         console.log('=== displayInitiates() completed ===');
     }
 
+    function setupSameDateCheckbox() {
+        const checkbox = document.getElementById('initiates-same-date-checkbox');
+        const datePicker = document.getElementById('initiates-same-date-picker');
+        
+        if (checkbox && datePicker) {
+            // Set max date to today
+            const today = new Date();
+            datePicker.max = today.toISOString().split('T')[0];
+            
+            // Clear any existing event listeners
+            const newCheckbox = checkbox.cloneNode(true);
+            checkbox.parentNode.replaceChild(newCheckbox, checkbox);
+            
+            // Add event listener for checkbox
+            newCheckbox.addEventListener('change', function() {
+                datePicker.disabled = !this.checked;
+                if (!this.checked) {
+                    datePicker.value = '';
+                    // Clear all date fields when unchecked
+                    clearAllDateFields();
+                }
+            });
+            
+            // Add event listener for date picker
+            datePicker.addEventListener('change', function() {
+                if (newCheckbox.checked && this.value) {
+                    updateAllInitiatedDates(this.value);
+                }
+            });
+        }
+    }
+    
+    function clearAllDateFields() {
+        const tbody = document.getElementById('initiates-tbody');
+        if (tbody) {
+            const rows = tbody.querySelectorAll('tr');
+            rows.forEach((row, index) => {
+                const checkbox = document.getElementById(`initiated-${index}`);
+                const dateInput = document.getElementById(`initiate-ceremony-date-${index}`);
+                
+                if (checkbox && dateInput) {
+                    // Only clear if initiated
+                    if (checkbox.checked) {
+                        dateInput.value = '';
+                    }
+                }
+            });
+        }
+    }
+    
+    function updateAllInitiatedDates(date) {
+        const tbody = document.getElementById('initiates-tbody');
+        if (tbody) {
+            const rows = tbody.querySelectorAll('tr');
+            rows.forEach((row, index) => {
+                const checkbox = document.getElementById(`initiated-${index}`);
+                const dateInput = document.getElementById(`initiate-ceremony-date-${index}`);
+                
+                if (checkbox && dateInput) {
+                    // Only update if initiated
+                    if (checkbox.checked) {
+                        // Check if the date meets the min date requirement
+                        if (dateInput.min && date >= dateInput.min) {
+                            dateInput.value = date;
+                        } else if (!dateInput.min) {
+                            dateInput.value = date;
+                        }
+                        // If date is before min date, don't update this field
+                    }
+                }
+            });
+        }
+    }
+
     function handleInitiatedChange(index, isChecked) {
         const dateInput = document.getElementById(`initiate-ceremony-date-${index}`);
         const badgeInput = document.getElementById(`badge-number-${index}`);
+        
+        const sameDateCheckbox = document.getElementById('initiates-same-date-checkbox');
+        const sameDatePicker = document.getElementById('initiates-same-date-picker');
         
         if (dateInput) {
             dateInput.disabled = !isChecked;
             if (!isChecked) {
                 dateInput.value = '';
+            } else {
+                // If same date is checked and has a value, apply it
+                if (sameDateCheckbox && sameDateCheckbox.checked && sameDatePicker && sameDatePicker.value) {
+                    // Check if the date meets the min date requirement
+                    if (dateInput.min && sameDatePicker.value >= dateInput.min) {
+                        dateInput.value = sameDatePicker.value;
+                    } else if (!dateInput.min) {
+                        dateInput.value = sameDatePicker.value;
+                    }
+                }
             }
         }
         

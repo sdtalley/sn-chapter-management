@@ -98,6 +98,9 @@ const CandidatesModule = (function() {
         if (chapterSpan) chapterSpan.textContent = appState.chapter || 'Unknown';
         if (countSpan) countSpan.textContent = candidates.length;
         
+        // Set up same date checkbox functionality
+        setupSameDateCheckbox();
+        
         // Clear existing rows
         if (tbody) {
             tbody.innerHTML = '';
@@ -193,14 +196,91 @@ const CandidatesModule = (function() {
         console.log('=== displayCandidates() completed ===');
     }
 
+    function setupSameDateCheckbox() {
+        const checkbox = document.getElementById('candidates-same-date-checkbox');
+        const datePicker = document.getElementById('candidates-same-date-picker');
+        
+        if (checkbox && datePicker) {
+            // Set max date to today
+            const today = new Date();
+            datePicker.max = today.toISOString().split('T')[0];
+            
+            // Clear any existing event listeners
+            const newCheckbox = checkbox.cloneNode(true);
+            checkbox.parentNode.replaceChild(newCheckbox, checkbox);
+            
+            // Add event listener for checkbox
+            newCheckbox.addEventListener('change', function() {
+                datePicker.disabled = !this.checked;
+                if (!this.checked) {
+                    datePicker.value = '';
+                    // Clear all date fields when unchecked
+                    clearAllDateFields();
+                }
+            });
+            
+            // Add event listener for date picker
+            datePicker.addEventListener('change', function() {
+                if (newCheckbox.checked && this.value) {
+                    updateAllApprovedDates(this.value);
+                }
+            });
+        }
+    }
+    
+    function clearAllDateFields() {
+        const tbody = document.getElementById('candidates-tbody');
+        if (tbody) {
+            const rows = tbody.querySelectorAll('tr');
+            rows.forEach((row, index) => {
+                const approvalSelect = document.getElementById(`approval-${index}`);
+                const dateInput = document.getElementById(`ceremony-date-${index}`);
+                
+                if (approvalSelect && dateInput) {
+                    // Only clear if approved
+                    if (approvalSelect.value === 'Candidate') {
+                        dateInput.value = '';
+                    }
+                }
+            });
+        }
+    }
+    
+    function updateAllApprovedDates(date) {
+        const tbody = document.getElementById('candidates-tbody');
+        if (tbody) {
+            const rows = tbody.querySelectorAll('tr');
+            rows.forEach((row, index) => {
+                const approvalSelect = document.getElementById(`approval-${index}`);
+                const dateInput = document.getElementById(`ceremony-date-${index}`);
+                
+                if (approvalSelect && dateInput) {
+                    // Only update if approved
+                    if (approvalSelect.value === 'Candidate') {
+                        dateInput.value = date;
+                    }
+                }
+            });
+        }
+    }
+
     function handleApprovalChange(index, approvalValue) {
         const dateInput = document.getElementById(`ceremony-date-${index}`);
         if (!dateInput) return;
 
+        const sameDateCheckbox = document.getElementById('candidates-same-date-checkbox');
+        const sameDatePicker = document.getElementById('candidates-same-date-picker');
+
         if (approvalValue === 'Candidate') {
             // Enable date picker for approved candidates
             dateInput.disabled = false;
-            dateInput.value = ''; // Clear any default value
+            
+            // If same date is checked and has a value, apply it
+            if (sameDateCheckbox && sameDateCheckbox.checked && sameDatePicker && sameDatePicker.value) {
+                dateInput.value = sameDatePicker.value;
+            } else {
+                dateInput.value = ''; // Clear any default value
+            }
         } else if (approvalValue === '' || !approvalValue) {
             // No Change selected - disable and clear date
             dateInput.disabled = true;

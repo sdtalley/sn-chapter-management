@@ -624,3 +624,43 @@ input[type="text"]:focus, input[type="password"]:focus, select:focus {
     display: inline-block;
     padding: 10px 20px;
 }
+
+/* Same date control styles */
+.same-date-control {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #dee2e6;
+}
+
+.same-date-checkbox {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    margin: 0;
+}
+
+.same-date-control .checkbox-label {
+    margin-bottom: 0;
+    flex: 0 0 auto;
+}
+
+.same-date-picker {
+    width: 180px;
+    padding: 8px;
+    border: 2px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.same-date-picker:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.same-date-picker:disabled {
+    background-color: #e9ecef;
+    cursor: not-allowed;
+}
