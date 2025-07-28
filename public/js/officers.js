@@ -309,6 +309,15 @@ const OfficersModule = (function() {
         const chapterSpan = document.getElementById('officer-review-chapter');
         const countSpan = document.getElementById('officer-review-count');
         const tbody = document.getElementById('officer-review-tbody');
+        const submitSection = document.querySelector('#officer-review .submit-section');
+        
+        // IMPORTANT: Reset submit section to ensure no spinner is showing
+        if (submitSection) {
+            submitSection.innerHTML = `
+                <button class="btn" onclick="OfficersModule.backToOfficers()">Back</button>
+                <button class="btn" onclick="OfficersModule.submitOfficerChanges()">Submit</button>
+            `;
+        }
         
         if (chapterSpan) chapterSpan.textContent = appState.chapter || 'Unknown';
         if (countSpan) countSpan.textContent = changes.length;
@@ -354,6 +363,18 @@ const OfficersModule = (function() {
     }
 
     function backToOfficers() {
+        // Clear any pending state
+        delete appState.pendingOfficers;
+        
+        // Reset submit section to ensure no spinner
+        const submitSection = document.querySelector('#officer-review .submit-section');
+        if (submitSection) {
+            submitSection.innerHTML = `
+                <button class="btn" onclick="OfficersModule.backToOfficers()">Back</button>
+                <button class="btn" onclick="OfficersModule.submitOfficerChanges()">Submit</button>
+            `;
+        }
+        
         Utils.hideElement('officer-review');
         Utils.showElement('officer-content');
         Utils.resizeIframe();
