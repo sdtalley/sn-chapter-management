@@ -106,8 +106,13 @@ const ContactModule = (function() {
         
         // Store IDs for later use
         appState.contactId = contactInfo.id;
-        appState.postalImpId = contactInfo.postalImpId;
-        appState.shippingImpId = contactInfo.shippingImpId;
+        
+        // Truncate ImpIDs to last 7 digits
+        appState.postalImpId = truncateImpId(contactInfo.postalImpId);
+        appState.shippingImpId = truncateImpId(contactInfo.shippingImpId);
+        
+        console.log('Truncated Postal ImpId:', appState.postalImpId);
+        console.log('Truncated Shipping ImpId:', appState.shippingImpId);
         
         // Store original values for comparison
         appState.originalContactInfo = {
@@ -143,6 +148,16 @@ const ContactModule = (function() {
         
         phoneInput.value = contactInfo.phone;
         emailInput.value = contactInfo.email;
+        
+        // Add event listener for "Same as Postal Address" checkbox
+        const sameAddressCheckbox = document.getElementById('same-as-postal');
+        if (sameAddressCheckbox) {
+            sameAddressCheckbox.addEventListener('change', function() {
+                if (this.checked) {
+                    copyPostalToShipping();
+                }
+            });
+        }
         
         // Add phone formatting on input
         phoneInput.addEventListener('input', function(e) {
@@ -182,9 +197,55 @@ const ContactModule = (function() {
         Utils.resizeIframe();
         console.log('=== displayContactInfo() completed ===');
     }
+    
+    function truncateImpId(impId) {
+        if (!impId) return '';
+        
+        // If the ImpId contains "00001-516-000", remove it and take last 7 digits
+        let truncated = impId;
+        if (impId.includes('00001-516-000')) {
+            truncated = impId.replace('00001-516-000', '');
+        }
+        
+        // Ensure we get the last 7 digits
+        if (truncated.length > 7) {
+            truncated = truncated.slice(-7);
+        }
+        
+        return truncated;
+    }
+    
+    function copyPostalToShipping() {
+        document.getElementById('shipping-address-1').value = document.getElementById('postal-address-1').value;
+        document.getElementById('shipping-address-2').value = document.getElementById('postal-address-2').value;
+        document.getElementById('shipping-city').value = document.getElementById('postal-city').value;
+        document.getElementById('shipping-state').value = document.getElementById('postal-state').value;
+        document.getElementById('shipping-zip').value = document.getElementById('postal-zip').value;
+    }
 
     async function submitContactChanges() {
-        // Validate email
+        // Validate required fields
+        const requiredFields = [
+            { id: 'postal-address-1', name: 'Postal Address Line 1' },
+            { id: 'postal-city', name: 'Postal City' },
+            { id: 'postal-state', name: 'Postal State' },
+            { id: 'postal-zip', name: 'Postal Zip' },
+            { id: 'shipping-address-1', name: 'Shipping Address Line 1' },
+            { id: 'shipping-city', name: 'Shipping City' },
+            { id: 'shipping-state', name: 'Shipping State' },
+            { id: 'shipping-zip', name: 'Shipping Zip' }
+        ];
+        
+        for (const field of requiredFields) {
+            const element = document.getElementById(field.id);
+            if (!element.value.trim()) {
+                Utils.showStatus(`${field.name} is required.`, 'error');
+                element.focus();
+                return;
+            }
+        }
+        
+        // Validate email if provided
         const emailInput = document.getElementById('chapter-email');
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (emailInput.value && !emailRegex.test(emailInput.value)) {
@@ -193,7 +254,7 @@ const ContactModule = (function() {
             return;
         }
         
-        // Validate phone format
+        // Validate phone format if provided
         const phoneInput = document.getElementById('chapter-phone');
         const phoneRegex = /^\(\d{3}\) \d{3}-\d{4}$/;
         if (phoneInput.value && !phoneRegex.test(phoneInput.value)) {

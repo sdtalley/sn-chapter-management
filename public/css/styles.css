@@ -507,6 +507,25 @@ input[type="text"]:focus, input[type="password"]:focus, select:focus {
     cursor: pointer;
 }
 
+.same-address-checkbox {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    margin-right: 8px;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-weight: normal;
+    margin-bottom: 10px;
+}
+
+.checkbox-label:hover {
+    color: #667eea;
+}
+
 /* Badge input styles */
 .badge-input {
     width: 80px;

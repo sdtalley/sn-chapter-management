@@ -336,27 +336,33 @@
                 <div class="contact-form">
                     <h3>Postal Address</h3>
                     <div class="form-group">
-                        <label for="postal-address-1">Address Line 1:</label>
-                        <input type="text" id="postal-address-1" placeholder="Enter address line 1">
+                        <label for="postal-address-1">Address Line 1: <span style="color: red;">*</span></label>
+                        <input type="text" id="postal-address-1" placeholder="Enter address line 1" required>
                     </div>
                     <div class="form-group">
                         <label for="postal-address-2">Address Line 2:</label>
                         <input type="text" id="postal-address-2" placeholder="Enter address line 2">
                     </div>
                     <div class="form-group">
-                        <label for="postal-city">City:</label>
-                        <input type="text" id="postal-city" placeholder="Enter city">
+                        <label for="postal-city">City: <span style="color: red;">*</span></label>
+                        <input type="text" id="postal-city" placeholder="Enter city" required>
                     </div>
                     <div class="form-group">
-                        <label for="postal-state">State:</label>
-                        <input type="text" id="postal-state" placeholder="Enter state">
+                        <label for="postal-state">State: <span style="color: red;">*</span></label>
+                        <input type="text" id="postal-state" placeholder="Enter state" required>
                     </div>
                     <div class="form-group">
-                        <label for="postal-zip">Zip:</label>
-                        <input type="text" id="postal-zip" placeholder="Enter zip code">
+                        <label for="postal-zip">Zip: <span style="color: red;">*</span></label>
+                        <input type="text" id="postal-zip" placeholder="Enter zip code" required>
                     </div>
                     
                     <h3>Shipping Address</h3>
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="same-as-postal" class="same-address-checkbox">
+                            <span>Same as Postal Address</span>
+                        </label>
+                    </div>
                     <div class="form-group">
                         <label for="shipping-address-1">Address Line 1:</label>
                         <input type="text" id="shipping-address-1" placeholder="Enter address line 1">
