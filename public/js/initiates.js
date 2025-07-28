@@ -610,8 +610,14 @@ const InitiatesModule = (function() {
         }
         
         // Step 3: Calculate end date (initiate ceremony date - 1 day)
-        const endDateObj = new Date(initiate.ceremonyDate);
+        // Parse the date components directly to avoid timezone issues
+        const [eYear, eMonth, eDay] = initiate.ceremonyDate.split('-');
+        const ceremonyDateParsed = new Date(parseInt(eYear), parseInt(eMonth) - 1, parseInt(eDay));
+        
+        // Calculate end date (1 day before ceremony date)
+        const endDateObj = new Date(ceremonyDateParsed);
         endDateObj.setDate(endDateObj.getDate() - 1);
+        
         const endDate = {
             d: endDateObj.getDate(),
             m: endDateObj.getMonth() + 1,

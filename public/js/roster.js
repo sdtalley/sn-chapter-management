@@ -693,8 +693,14 @@ const RosterModule = (function() {
         }
         
         // Step 3: Calculate end date (effective date - 1 day)
-        const endDateObj = new Date(member.effectiveDate);
+        // Parse the date components directly to avoid timezone issues
+        const [eYear, eMonth, eDay] = member.effectiveDate.split('-');
+        const effectiveDateParsed = new Date(parseInt(eYear), parseInt(eMonth) - 1, parseInt(eDay));
+        
+        // Calculate end date (1 day before effective date)
+        const endDateObj = new Date(effectiveDateParsed);
         endDateObj.setDate(endDateObj.getDate() - 1);
+        
         const endDate = {
             d: endDateObj.getDate(),
             m: endDateObj.getMonth() + 1,
