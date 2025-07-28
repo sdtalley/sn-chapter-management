@@ -109,6 +109,22 @@ const ContactModule = (function() {
         appState.postalImpId = contactInfo.postalImpId;
         appState.shippingImpId = contactInfo.shippingImpId;
         
+        // Store original values for comparison
+        appState.originalContactInfo = {
+            postalAddress1: contactInfo.postalAddress1,
+            postalAddress2: contactInfo.postalAddress2,
+            postalCity: contactInfo.postalCity,
+            postalState: contactInfo.postalState,
+            postalZip: contactInfo.postalZip,
+            shippingAddress1: contactInfo.shippingAddress1,
+            shippingAddress2: contactInfo.shippingAddress2,
+            shippingCity: contactInfo.shippingCity,
+            shippingState: contactInfo.shippingState,
+            shippingZip: contactInfo.shippingZip,
+            phone: contactInfo.phone,
+            email: contactInfo.email
+        };
+        
         // Populate form fields
         document.getElementById('postal-address-1').value = contactInfo.postalAddress1;
         document.getElementById('postal-address-2').value = contactInfo.postalAddress2;
@@ -167,7 +183,7 @@ const ContactModule = (function() {
         console.log('=== displayContactInfo() completed ===');
     }
 
-    function submitContactChanges() {
+    async function submitContactChanges() {
         // Validate email
         const emailInput = document.getElementById('chapter-email');
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -209,9 +225,283 @@ const ContactModule = (function() {
             email: document.getElementById('chapter-email').value
         };
         
-        // For now, just show what would be submitted
-        console.log('Contact information to submit:', contactData);
-        Utils.showStatus('Ready to submit contact information updates. (Submit functionality coming soon)', 'info');
+        // Check what has changed
+        const changes = [];
+        
+        if (hasAddressChanged(contactData.postalAddress, 'postal')) {
+            changes.push({ type: 'postal_address', data: contactData.postalAddress });
+        }
+        
+        if (hasAddressChanged(contactData.shippingAddress, 'shipping')) {
+            changes.push({ type: 'shipping_address', data: contactData.shippingAddress });
+        }
+        
+        if (contactData.phone !== appState.originalContactInfo.phone) {
+            changes.push({ type: 'phone', data: contactData.phone });
+        }
+        
+        if (contactData.email !== appState.originalContactInfo.email) {
+            changes.push({ type: 'email', data: contactData.email });
+        }
+        
+        if (changes.length === 0) {
+            Utils.showStatus('No changes detected. Please modify at least one field before submitting.', 'error');
+            return;
+        }
+        
+        // Get the submit section and create spinner
+        const submitSection = document.querySelector('#contact-content .submit-section');
+        const originalContent = submitSection.innerHTML;
+        
+        // Replace submit section content with spinner
+        submitSection.innerHTML = '<div class="spinner"></div>';
+        
+        // Process the submission
+        processContactSubmission(contactData, changes, submitSection, originalContent);
+    }
+    
+    function hasAddressChanged(address, type) {
+        const original = appState.originalContactInfo;
+        if (type === 'postal') {
+            return address.address1 !== original.postalAddress1 ||
+                   address.address2 !== original.postalAddress2 ||
+                   address.city !== original.postalCity ||
+                   address.state !== original.postalState ||
+                   address.zip !== original.postalZip;
+        } else {
+            return address.address1 !== original.shippingAddress1 ||
+                   address.address2 !== original.shippingAddress2 ||
+                   address.city !== original.shippingCity ||
+                   address.state !== original.shippingState ||
+                   address.zip !== original.shippingZip;
+        }
+    }
+    
+    async function processContactSubmission(contactData, changes, submitSection, originalContent) {
+        console.log('=== processContactSubmission() started ===');
+        console.log('Processing', changes.length, 'changes');
+        
+        try {
+            // Use cached chapter data
+            const chapterData = appState.chapterData;
+            if (!chapterData) {
+                throw new Error('Chapter data not available');
+            }
+            
+            let successCount = 0;
+            let errorCount = 0;
+            const errors = [];
+            
+            // Step 1: Get phone IDs if we need to update phone or email
+            let phoneIds = {};
+            if (changes.some(c => c.type === 'phone' || c.type === 'email')) {
+                try {
+                    const phonesResponse = await API.makeRateLimitedApiCall(
+                        `/api/blackbaud?action=api&endpoint=/constituent/v1/constituents/${chapterData.csid}/phones&token=${appState.accessToken}`,
+                        'GET'
+                    );
+                    
+                    console.log('Phones response:', phonesResponse);
+                    
+                    if (phonesResponse && phonesResponse.value) {
+                        phonesResponse.value.forEach(phone => {
+                            if (phone.type === 'Chapter #1') {
+                                phoneIds.phone = phone.id;
+                            } else if (phone.type === 'Email #1 (Chapter)') {
+                                phoneIds.email = phone.id;
+                            }
+                        });
+                    }
+                    
+                    console.log('Phone IDs found:', phoneIds);
+                } catch (error) {
+                    console.error('Error getting phone IDs:', error);
+                    // Don't add to errors array - we'll try to create new records instead
+                    console.log('Will attempt to create new phone/email records');
+                }
+            }
+            
+            // Process each change
+            for (const change of changes) {
+                try {
+                    if (change.type === 'postal_address' || change.type === 'shipping_address') {
+                        await processAddressUpdate(change, chapterData);
+                        successCount++;
+                    } else if (change.type === 'phone') {
+                        await processPhoneUpdate(phoneIds.phone, change.data, 'Chapter #1', chapterData);
+                        successCount++;
+                    } else if (change.type === 'email') {
+                        await processPhoneUpdate(phoneIds.email, change.data, 'Email #1 (Chapter)', chapterData);
+                        successCount++;
+                    }
+                } catch (error) {
+                    console.error(`Error processing ${change.type}:`, error);
+                    errorCount++;
+                    errors.push(`${change.type}: ${error.message}`);
+                }
+            }
+            
+            // Show results
+            if (errorCount === 0) {
+                // Hide the content section
+                Utils.hideElement('contact-content');
+                
+                // Create a temporary success message div
+                const successDiv = document.createElement('div');
+                successDiv.className = 'submission-success-overlay';
+                successDiv.innerHTML = `
+                    <div class="submission-success">
+                        <p>Successfully updated ${successCount} contact information field(s).</p>
+                    </div>
+                `;
+                document.querySelector('.container').appendChild(successDiv);
+                
+                // Wait 2 seconds then return to main menu
+                setTimeout(() => {
+                    successDiv.remove();
+                    window.showMainMenu();
+                }, 2000);
+            } else {
+                // Show error message with retry instructions
+                submitSection.innerHTML = `
+                    <div class="submission-error">
+                        <p>Updated ${successCount} field(s) with ${errorCount} error(s).</p>
+                        <p>Errors encountered:</p>
+                        <ul class="error-list">
+                            ${errors.map(err => `<li>${err}</li>`).join('')}
+                        </ul>
+                        <p>Please retry submission. If the problem persists, email <a href="mailto:members.area@sigmanu.org">members.area@sigmanu.org</a> with the error message above.</p>
+                        <button class="btn" onclick="ContactModule.submitContactChanges()">Retry</button>
+                    </div>
+                `;
+            }
+            
+        } catch (error) {
+            console.error('Fatal error during submission:', error);
+            
+            // Show error message
+            submitSection.innerHTML = `
+                <div class="submission-error">
+                    <p>Submission failed: ${error.message}</p>
+                    <p>Please retry submission. If the problem persists, email <a href="mailto:members.area@sigmanu.org">members.area@sigmanu.org</a> with the error message above.</p>
+                    <button class="btn" onclick="ContactModule.submitContactChanges()">Retry</button>
+                </div>
+            `;
+        }
+    }
+    
+    async function processAddressUpdate(change, chapterData) {
+        console.log(`Processing ${change.type} update`);
+        
+        const addressId = change.type === 'postal_address' ? appState.postalImpId : appState.shippingImpId;
+        const addressType = change.type === 'postal_address' ? 'Chapter (Postal)' : 'Chapter (Shipping)';
+        
+        // Get current date in Eastern Time in ISO format
+        const easternTime = new Date().toLocaleString("en-US", {timeZone: "America/New_York"});
+        const easternDate = new Date(easternTime);
+        const currentDateISO = `${easternDate.getFullYear()}-${String(easternDate.getMonth() + 1).padStart(2, '0')}-${String(easternDate.getDate()).padStart(2, '0')}T00:00:00Z`;
+        
+        // Concatenate address lines with /n
+        let addressLines = change.data.address1;
+        if (change.data.address2) {
+            addressLines += `/n${change.data.address2}`;
+        }
+        
+        // Check if we have an address ID - if not, create instead of update
+        if (!addressId) {
+            console.log(`No address ID found for ${change.type}, creating new address`);
+            
+            const createAddressData = {
+                constituent_id: chapterData.csid,
+                address_lines: addressLines,
+                city: change.data.city,
+                country: "United States",
+                do_not_mail: false,
+                postal_code: change.data.zip,
+                start: currentDateISO,
+                state: change.data.state,
+                type: addressType,
+                information_source: "NetCommunity"
+            };
+            
+            console.log('Address create data:', createAddressData);
+            
+            const response = await API.makeRateLimitedApiCall(
+                '/api/blackbaud?action=create-address',
+                'POST',
+                createAddressData
+            );
+            
+            console.log('Address create response:', response);
+        } else {
+            // Update existing address
+            const addressData = {
+                address_lines: addressLines,
+                city: change.data.city,
+                country: "United States",
+                do_not_mail: false,
+                postal_code: change.data.zip,
+                start: currentDateISO,
+                state: change.data.state,
+                type: addressType,
+                information_source: "NetCommunity"
+            };
+            
+            console.log('Address update data:', addressData);
+            
+            const response = await API.makeRateLimitedApiCall(
+                `/api/blackbaud?action=patch-address&endpoint=/constituent/v1/addresses/${addressId}&method=PATCH`,
+                'POST',
+                addressData
+            );
+            
+            console.log('Address update response:', response);
+        }
+    }
+    
+    async function processPhoneUpdate(phoneId, value, phoneType, chapterData) {
+        console.log(`Processing phone/email update for ID: ${phoneId}, type: ${phoneType}`);
+        
+        // Check if we have a phone ID - if not, create instead of update
+        if (!phoneId) {
+            console.log(`No phone ID found for ${phoneType}, creating new phone/email`);
+            
+            const createPhoneData = {
+                constituent_id: chapterData.csid,
+                do_not_call: false,
+                inactive: false,
+                number: value,
+                primary: false,
+                type: phoneType
+            };
+            
+            console.log('Phone create data:', createPhoneData);
+            
+            const response = await API.makeRateLimitedApiCall(
+                '/api/blackbaud?action=create-phone',
+                'POST',
+                createPhoneData
+            );
+            
+            console.log('Phone create response:', response);
+        } else {
+            // Update existing phone/email
+            const phoneData = {
+                do_not_call: false,
+                inactive: false,
+                number: value
+            };
+            
+            console.log('Phone update data:', phoneData);
+            
+            const response = await API.makeRateLimitedApiCall(
+                `/api/blackbaud?action=patch-phone&endpoint=/constituent/v1/phones/${phoneId}&method=PATCH`,
+                'POST',
+                phoneData
+            );
+            
+            console.log('Phone update response:', response);
+        }
     }
     
     async function getContactInfo() {

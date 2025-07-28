@@ -516,6 +516,142 @@ export default async function handler(req, res) {
       const result = await createResponse.json();
       res.json(result);
       
+    } else if (action === 'create-address' && req.method === 'POST') {
+      // Create address
+      const addressData = req.body;
+      console.log('Creating address:', addressData);
+      
+      const createResponse = await fetch('https://api.sky.blackbaud.com/constituent/v1/addresses', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Bb-Api-Subscription-Key': process.env.BLACKBAUD_SUBSCRIPTION_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(addressData)
+      });
+      
+      if (!createResponse.ok) {
+        const errorText = await createResponse.text();
+        throw new Error(`Create address failed: ${createResponse.status} - ${errorText}`);
+      }
+      
+      const result = await createResponse.json();
+      res.json(result);
+      
+    } else if (action === 'create-phone' && req.method === 'POST') {
+      // Create phone
+      const phoneData = req.body;
+      console.log('Creating phone:', phoneData);
+      
+      const createResponse = await fetch('https://api.sky.blackbaud.com/constituent/v1/phones', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Bb-Api-Subscription-Key': process.env.BLACKBAUD_SUBSCRIPTION_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(phoneData)
+      });
+      
+      if (!createResponse.ok) {
+        const errorText = await createResponse.text();
+        throw new Error(`Create phone failed: ${createResponse.status} - ${errorText}`);
+      }
+      
+      const result = await createResponse.json();
+      res.json(result);
+      
+    } else if (action === 'patch-address' && endpoint) {
+      // Update address (handle PATCH)
+      const requestMethod = req.query.method || req.method;
+      console.log('PATCH address - Request Method:', requestMethod);
+      console.log('PATCH address - Body:', req.body);
+      
+      const patchData = req.body;
+      const patchUrl = `https://api.sky.blackbaud.com${endpoint}`;
+      console.log('Patching address:', patchUrl);
+      console.log('Patch data to send:', JSON.stringify(patchData));
+      
+      const patchResponse = await fetch(patchUrl, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Bb-Api-Subscription-Key': process.env.BLACKBAUD_SUBSCRIPTION_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(patchData)
+      });
+      
+      if (!patchResponse.ok) {
+        const errorText = await patchResponse.text();
+        console.error('PATCH address error:', errorText);
+        throw new Error(`Patch address failed: ${patchResponse.status} - ${errorText}`);
+      }
+      
+      // Check if response has content before trying to parse JSON
+      const responseText = await patchResponse.text();
+      console.log('PATCH address response text:', responseText);
+      
+      if (responseText && responseText.trim()) {
+        try {
+          const result = JSON.parse(responseText);
+          res.json(result);
+        } catch (parseError) {
+          console.log('Failed to parse response as JSON, returning success');
+          res.json({ success: true, message: 'Address updated successfully' });
+        }
+      } else {
+        // Empty response is OK for PATCH requests
+        console.log('Empty response from PATCH, returning success');
+        res.json({ success: true, message: 'Address updated successfully' });
+      }
+      
+    } else if (action === 'patch-phone' && endpoint) {
+      // Update phone (handle PATCH)
+      const requestMethod = req.query.method || req.method;
+      console.log('PATCH phone - Request Method:', requestMethod);
+      console.log('PATCH phone - Body:', req.body);
+      
+      const patchData = req.body;
+      const patchUrl = `https://api.sky.blackbaud.com${endpoint}`;
+      console.log('Patching phone:', patchUrl);
+      console.log('Patch data to send:', JSON.stringify(patchData));
+      
+      const patchResponse = await fetch(patchUrl, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Bb-Api-Subscription-Key': process.env.BLACKBAUD_SUBSCRIPTION_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(patchData)
+      });
+      
+      if (!patchResponse.ok) {
+        const errorText = await patchResponse.text();
+        console.error('PATCH phone error:', errorText);
+        throw new Error(`Patch phone failed: ${patchResponse.status} - ${errorText}`);
+      }
+      
+      // Check if response has content before trying to parse JSON
+      const responseText = await patchResponse.text();
+      console.log('PATCH phone response text:', responseText);
+      
+      if (responseText && responseText.trim()) {
+        try {
+          const result = JSON.parse(responseText);
+          res.json(result);
+        } catch (parseError) {
+          console.log('Failed to parse response as JSON, returning success');
+          res.json({ success: true, message: 'Phone updated successfully' });
+        }
+      } else {
+        // Empty response is OK for PATCH requests
+        console.log('Empty response from PATCH, returning success');
+        res.json({ success: true, message: 'Phone updated successfully' });
+      }
+      
     } else if (action === 'api' && endpoint) {
       // Make API call
       const apiResponse = await fetch(`https://api.sky.blackbaud.com${endpoint}`, {
