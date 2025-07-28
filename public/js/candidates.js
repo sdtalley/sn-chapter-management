@@ -459,9 +459,9 @@ const CandidatesModule = (function() {
             y: parseInt(year, 10)
         };
         
-        // Get current date in Eastern Time
-        const easternTime = new Date().toLocaleString("en-US", {timeZone: "America/New_York"});
-        const easternDate = new Date(easternTime);
+        // Get current date in Eastern Time - use let instead of const
+        let easternTime = new Date().toLocaleString("en-US", {timeZone: "America/New_York"});
+        let easternDate = new Date(easternTime);
         const currentDateISO = `${easternDate.getFullYear()}-${String(easternDate.getMonth() + 1).padStart(2, '0')}-${String(easternDate.getDate()).padStart(2, '0')}T00:00:00Z`;
         
         // Step 2: Delete existing constituent code
@@ -492,9 +492,9 @@ const CandidatesModule = (function() {
         
         // Step 4: Create constituent note
         console.log('Creating note');
-        // Get current date in Eastern Time
-        const easternTime = new Date().toLocaleString("en-US", {timeZone: "America/New_York"});
-        const easternDate = new Date(easternTime);
+        // Reuse the existing easternTime and easternDate variables
+        easternTime = new Date().toLocaleString("en-US", {timeZone: "America/New_York"});
+        easternDate = new Date(easternTime);
         const currentDate = {
             d: easternDate.getDate(),
             m: easternDate.getMonth() + 1,
