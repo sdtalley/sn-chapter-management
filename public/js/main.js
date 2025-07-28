@@ -140,8 +140,8 @@ const Main = (function() {
         unauthorized.style.display = 'none';
         mainMenu.style.display = 'block';
         
-        // Hide all buttons first
-        const buttons = {
+        // Hide all navigation items first
+        const navItems = {
             'btn-verify-candidates': false,
             'btn-verify-initiates': false,
             'btn-roster-info': false,
@@ -151,26 +151,27 @@ const Main = (function() {
             'btn-admin': false
         };
         
-        // Show buttons based on sts value
+        // Show navigation items based on sts value
         switch(appState.sts) {
-            case '0': // Show all buttons including Admin
-                Object.keys(buttons).forEach(btn => buttons[btn] = true);
+            case '0': // Show all items including Admin
+                Object.keys(navItems).forEach(btn => navItems[btn] = true);
                 break;
-            case '1': // Show all buttons except Admin
-                Object.keys(buttons).forEach(btn => {
-                    buttons[btn] = btn !== 'btn-admin';
+            case '1': // Show all items except Admin
+                Object.keys(navItems).forEach(btn => {
+                    navItems[btn] = btn !== 'btn-admin';
                 });
                 break;
             case '2': // Show only Fee Status (Treasurer) button
-                buttons['btn-fee-status'] = true;
+                navItems['btn-fee-status'] = true;
                 break;
         }
         
-        // Apply visibility
-        Object.keys(buttons).forEach(btnId => {
+        // Apply visibility to navigation items
+        Object.keys(navItems).forEach(btnId => {
             const button = document.getElementById(btnId);
-            if (button) {
-                button.style.display = buttons[btnId] ? 'block' : 'none';
+            if (button && button.parentElement && button.parentElement.classList.contains('nav-item')) {
+                // Hide/show the entire nav-item div
+                button.parentElement.style.display = navItems[btnId] ? 'flex' : 'none';
             }
         });
         
