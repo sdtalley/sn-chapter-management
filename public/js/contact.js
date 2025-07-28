@@ -359,9 +359,12 @@ const ContactModule = (function() {
             let errorCount = 0;
             const errors = [];
             
-            // Step 1: Get phone IDs if we need to update phone or email
+            // Step 1: Get phone and email IDs if we need to update them
             let phoneIds = {};
-            if (changes.some(c => c.type === 'phone' || c.type === 'email')) {
+            let emailIds = {};
+            
+            // Get phone IDs
+            if (changes.some(c => c.type === 'phone')) {
                 try {
                     const phonesResponse = await API.makeRateLimitedApiCall(
                         `/api/blackbaud?action=api&endpoint=/constituent/v1/constituents/${chapterData.csid}/phones&token=${appState.accessToken}`,
@@ -374,17 +377,39 @@ const ContactModule = (function() {
                         phonesResponse.value.forEach(phone => {
                             if (phone.type === 'Chapter #1') {
                                 phoneIds.phone = phone.id;
-                            } else if (phone.type === 'Email #1 (Chapter)') {
-                                phoneIds.email = phone.id;
                             }
                         });
                     }
                     
-                    console.log('Phone IDs found:', phoneIds);
+                    console.log('Phone ID found:', phoneIds);
                 } catch (error) {
                     console.error('Error getting phone IDs:', error);
-                    // Don't add to errors array - we'll try to create new records instead
-                    console.log('Will attempt to create new phone/email records');
+                    console.log('Will attempt to create new phone record');
+                }
+            }
+            
+            // Get email IDs
+            if (changes.some(c => c.type === 'email')) {
+                try {
+                    const emailsResponse = await API.makeRateLimitedApiCall(
+                        `/api/blackbaud?action=api&endpoint=/constituent/v1/constituents/${chapterData.csid}/emailaddresses&token=${appState.accessToken}`,
+                        'GET'
+                    );
+                    
+                    console.log('Emails response:', emailsResponse);
+                    
+                    if (emailsResponse && emailsResponse.value) {
+                        emailsResponse.value.forEach(email => {
+                            if (email.type === 'Email #1 (Chapter)') {
+                                emailIds.email = email.id;
+                            }
+                        });
+                    }
+                    
+                    console.log('Email ID found:', emailIds);
+                } catch (error) {
+                    console.error('Error getting email IDs:', error);
+                    console.log('Will attempt to create new email record');
                 }
             }
             
@@ -395,10 +420,10 @@ const ContactModule = (function() {
                         await processAddressUpdate(change, chapterData);
                         successCount++;
                     } else if (change.type === 'phone') {
-                        await processPhoneUpdate(phoneIds.phone, change.data, 'Chapter #1', chapterData);
+                        await processPhoneUpdate(phoneIds.phone, change.data, chapterData);
                         successCount++;
                     } else if (change.type === 'email') {
-                        await processPhoneUpdate(phoneIds.email, change.data, 'Email #1 (Chapter)', chapterData);
+                        await processEmailUpdate(emailIds.email, change.data, chapterData);
                         successCount++;
                     }
                 } catch (error) {
@@ -526,12 +551,12 @@ const ContactModule = (function() {
         }
     }
     
-    async function processPhoneUpdate(phoneId, value, phoneType, chapterData) {
-        console.log(`Processing phone/email update for ID: ${phoneId}, type: ${phoneType}`);
+    async function processPhoneUpdate(phoneId, value, chapterData) {
+        console.log(`Processing phone update for ID: ${phoneId}`);
         
         // Check if we have a phone ID - if not, create instead of update
         if (!phoneId) {
-            console.log(`No phone ID found for ${phoneType}, creating new phone/email`);
+            console.log(`No phone ID found, creating new phone`);
             
             const createPhoneData = {
                 constituent_id: chapterData.csid,
@@ -539,7 +564,7 @@ const ContactModule = (function() {
                 inactive: false,
                 number: value,
                 primary: false,
-                type: phoneType
+                type: "Chapter #1"
             };
             
             console.log('Phone create data:', createPhoneData);
@@ -552,7 +577,7 @@ const ContactModule = (function() {
             
             console.log('Phone create response:', response);
         } else {
-            // Update existing phone/email
+            // Update existing phone
             const phoneData = {
                 do_not_call: false,
                 inactive: false,
@@ -568,6 +593,51 @@ const ContactModule = (function() {
             );
             
             console.log('Phone update response:', response);
+        }
+    }
+    
+    async function processEmailUpdate(emailId, value, chapterData) {
+        console.log(`Processing email update for ID: ${emailId}`);
+        
+        // Check if we have an email ID - if not, create instead of update
+        if (!emailId) {
+            console.log(`No email ID found, creating new email`);
+            
+            const createEmailData = {
+                constituent_id: chapterData.csid,
+                do_not_email: false,
+                inactive: false,
+                address: value,
+                primary: false,
+                type: "Email #1 (Chapter)"
+            };
+            
+            console.log('Email create data:', createEmailData);
+            
+            const response = await API.makeRateLimitedApiCall(
+                '/api/blackbaud?action=create-email',
+                'POST',
+                createEmailData
+            );
+            
+            console.log('Email create response:', response);
+        } else {
+            // Update existing email
+            const emailData = {
+                do_not_email: false,
+                inactive: false,
+                address: value
+            };
+            
+            console.log('Email update data:', emailData);
+            
+            const response = await API.makeRateLimitedApiCall(
+                `/api/blackbaud?action=patch-email&endpoint=/constituent/v1/emailaddresses/${emailId}&method=PATCH`,
+                'POST',
+                emailData
+            );
+            
+            console.log('Email update response:', response);
         }
     }
     

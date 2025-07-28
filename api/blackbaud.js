@@ -562,6 +562,29 @@ export default async function handler(req, res) {
       const result = await createResponse.json();
       res.json(result);
       
+    } else if (action === 'create-email' && req.method === 'POST') {
+      // Create email address
+      const emailData = req.body;
+      console.log('Creating email:', emailData);
+      
+      const createResponse = await fetch('https://api.sky.blackbaud.com/constituent/v1/emailaddresses', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Bb-Api-Subscription-Key': process.env.BLACKBAUD_SUBSCRIPTION_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(emailData)
+      });
+      
+      if (!createResponse.ok) {
+        const errorText = await createResponse.text();
+        throw new Error(`Create email failed: ${createResponse.status} - ${errorText}`);
+      }
+      
+      const result = await createResponse.json();
+      res.json(result);
+      
     } else if (action === 'patch-address' && endpoint) {
       // Update address (handle PATCH)
       const requestMethod = req.query.method || req.method;
@@ -650,6 +673,51 @@ export default async function handler(req, res) {
         // Empty response is OK for PATCH requests
         console.log('Empty response from PATCH, returning success');
         res.json({ success: true, message: 'Phone updated successfully' });
+      }
+      
+    } else if (action === 'patch-email' && endpoint) {
+      // Update email address (handle PATCH)
+      const requestMethod = req.query.method || req.method;
+      console.log('PATCH email - Request Method:', requestMethod);
+      console.log('PATCH email - Body:', req.body);
+      
+      const patchData = req.body;
+      const patchUrl = `https://api.sky.blackbaud.com${endpoint}`;
+      console.log('Patching email:', patchUrl);
+      console.log('Patch data to send:', JSON.stringify(patchData));
+      
+      const patchResponse = await fetch(patchUrl, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Bb-Api-Subscription-Key': process.env.BLACKBAUD_SUBSCRIPTION_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(patchData)
+      });
+      
+      if (!patchResponse.ok) {
+        const errorText = await patchResponse.text();
+        console.error('PATCH email error:', errorText);
+        throw new Error(`Patch email failed: ${patchResponse.status} - ${errorText}`);
+      }
+      
+      // Check if response has content before trying to parse JSON
+      const responseText = await patchResponse.text();
+      console.log('PATCH email response text:', responseText);
+      
+      if (responseText && responseText.trim()) {
+        try {
+          const result = JSON.parse(responseText);
+          res.json(result);
+        } catch (parseError) {
+          console.log('Failed to parse response as JSON, returning success');
+          res.json({ success: true, message: 'Email updated successfully' });
+        }
+      } else {
+        // Empty response is OK for PATCH requests
+        console.log('Empty response from PATCH, returning success');
+        res.json({ success: true, message: 'Email updated successfully' });
       }
       
     } else if (action === 'api' && endpoint) {
