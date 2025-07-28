@@ -104,6 +104,12 @@ const ContactModule = (function() {
         
         if (chapterSpan) chapterSpan.textContent = appState.chapter || 'Unknown';
         
+        // Reset submit section to ensure no spinner is showing
+        const submitSection = document.querySelector('#contact-content .submit-section');
+        if (submitSection) {
+            submitSection.innerHTML = '<button class="btn" onclick="ContactModule.submitContactChanges()">Update Contact Information</button>';
+        }
+        
         // Store IDs for later use
         appState.contactId = contactInfo.id;
         
