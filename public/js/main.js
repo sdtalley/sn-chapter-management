@@ -72,17 +72,17 @@ const Main = (function() {
         
         // Load page-specific data
         if (pageId === 'verify-candidates') {
-            loadCandidates();
+            window.CandidatesModule.loadCandidates();
         } else if (pageId === 'verify-initiates') {
-            loadInitiates();
+            window.InitiatesModule.loadInitiates();
         } else if (pageId === 'roster-info') {
-            loadRoster();
+            window.RosterModule.loadRoster();
         } else if (pageId === 'officer-info') {
-            loadOfficers();
+            window.OfficersModule.loadOfficers();
         } else if (pageId === 'contact-info') {
-            loadContactInfo();
+            window.ContactModule.loadContactInfo();
         } else if (pageId === 'fee-status') {
-            loadFeeStatus();
+            window.FeesModule.loadFeeStatus();
         } else if (pageId === 'admin') {
             if (window.AdminModule) {
                 window.AdminModule.initAdmin();
