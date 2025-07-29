@@ -142,6 +142,7 @@ const Main = (function() {
         
         // Hide all navigation items first
         const navItems = {
+            'btn-member-directory': false,
             'btn-verify-candidates': false,
             'btn-verify-initiates': false,
             'btn-roster-info': false,
@@ -161,8 +162,9 @@ const Main = (function() {
                     navItems[btn] = btn !== 'btn-admin';
                 });
                 break;
-            case '2': // Show only Fee Status (Treasurer) button
+            case '2': // Show only Fee Status (Treasurer) button and Member Directory
                 navItems['btn-fee-status'] = true;
+                navItems['btn-member-directory'] = true;
                 break;
         }
         
