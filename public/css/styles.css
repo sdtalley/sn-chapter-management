@@ -47,12 +47,14 @@ h2 {
     gap: 15px;
     margin-top: 20px;
     align-items: center;
+    padding-bottom: 60px; /* Add padding to accommodate the last button's description */
 }
 
 .nav-item {
     width: 100%;
     max-width: 450px;
     position: relative;
+    margin-bottom: 35px; /* Add margin to create space for descriptions */
 }
 
 .nav-btn {
@@ -92,6 +94,7 @@ h2 {
     transition: all 0.3s ease;
     z-index: 10;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    pointer-events: none; /* Prevent description from interfering with clicks */
 }
 
 .nav-item:hover .nav-description {
