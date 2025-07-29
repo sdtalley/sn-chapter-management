@@ -52,23 +52,21 @@ h2 {
 .nav-item {
     width: 100%;
     max-width: 450px;
+    position: relative;
 }
 
 .nav-btn {
     background: linear-gradient(135deg, #343a40 0%, #212529 100%);
     color: white;
-    padding: 18px 20px;
+    padding: 15px 20px;
     border: none;
     border-radius: 8px;
     cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
     transition: all 0.3s ease;
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    align-items: center;
     text-align: center;
-    min-height: auto;
+    width: 100%;
 }
 
 .nav-btn:hover {
@@ -76,22 +74,35 @@ h2 {
     box-shadow: 0 5px 15px rgba(52, 58, 64, 0.3);
 }
 
-.nav-btn-title {
-    font-size: 15px;
-    font-weight: bold;
-    line-height: 1.2;
-}
-
-.nav-btn-description {
-    font-size: 12px;
-    font-weight: normal;
-    opacity: 0.85;
-    line-height: 1.4;
-}
-
-/* Remove old nav-description styles */
 .nav-description {
-    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin-top: 8px;
+    padding: 12px 16px;
+    background: #343a40;
+    color: white;
+    font-size: 13px;
+    line-height: 1.4;
+    text-align: center;
+    border-radius: 8px;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    z-index: 10;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.nav-item:hover .nav-description {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+/* Initial state for animation */
+.nav-description {
+    transform: translateY(-10px);
 }
 
 /* PAGE STYLES */
