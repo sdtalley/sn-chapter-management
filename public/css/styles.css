@@ -277,6 +277,34 @@ input[type="text"]:focus, input[type="password"]:focus, select:focus {
     color: #666;
 }
 
+/* PAGE DESCRIPTION STYLES */
+.page-description {
+    background: #f8f9fa;
+    border-left: 4px solid #667eea;
+    padding: 20px;
+    margin: 20px 0;
+    border-radius: 8px;
+}
+
+.page-description p {
+    margin-bottom: 12px;
+    color: #495057;
+    line-height: 1.6;
+}
+
+.page-description p:last-child {
+    margin-bottom: 0;
+}
+
+.page-description a {
+    color: #0056b3;
+    text-decoration: underline;
+}
+
+.page-description a:hover {
+    color: #004085;
+}
+
 /* CANDIDATES TABLE STYLES */
 .loading-message {
     text-align: center;
