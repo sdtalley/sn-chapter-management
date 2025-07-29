@@ -595,6 +595,7 @@ const ReturningModule = (function() {
         console.log(`Updating relationship to closed: ${student.relationId}`);
         const patchRelationshipData = {
             comment: `Updated on ${currentDateFormatted} by ${appState.offname || 'Unknown'}`,
+            do_not_reciprocate: true,
             end: endDate
         };
         
