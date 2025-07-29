@@ -591,21 +591,38 @@ const ReturningModule = (function() {
         };
         const currentDateFormatted = `${String(easternDate.getMonth() + 1).padStart(2, '0')}/${String(easternDate.getDate()).padStart(2, '0')}/${easternDate.getFullYear()}`;
         
-        // Step 4: PATCH existing relationship to close it
-        console.log(`Updating relationship to closed: ${student.relationId}`);
-        const patchRelationshipData = {
-            comment: `Updated on ${currentDateFormatted} by ${appState.offname || 'Unknown'}`,
+        // Step 4: Create closed relationship (replacement for PATCH which doesn't work properly)
+        console.log('Creating closed relationship');
+        const closedRelationshipData = {
+            comment: `Added ${currentDateFormatted} by ${appState.offname || 'Unknown'}`,
+            constituent_id: student.id,
+            is_organization_contact: false,
+            is_primary_business: false,
+            is_spouse: false,
             do_not_reciprocate: true,
-            end: endDate
+            reciprocal_type: student.currentStatus === 'Alumni (Left School)' ? 'Alumni (Left School)' : student.currentStatus,
+            relation_id: chapterData.csid,
+            start: cstartDate,
+            end: endDate,
+            type: "Collegiate Chapter"
         };
         
-        const patchRelResponse = await API.makeRateLimitedApiCall(
-            `/api/blackbaud?action=patch-relationship&endpoint=/constituent/v1/relationships/${student.relationId}&method=PATCH`,
+        const createClosedRelResponse = await API.makeRateLimitedApiCall(
+            '/api/blackbaud?action=create-constituent-relationship',
             'POST',
-            patchRelationshipData
+            closedRelationshipData
         );
         
-        console.log('Patch relationship response:', patchRelResponse);
+        console.log('Create closed relationship response:', createClosedRelResponse);
+        
+        // Step 4A: Delete existing relationship
+        console.log(`Deleting existing relationship: ${student.relationId}`);
+        const deleteRelResponse = await API.makeRateLimitedApiCall(
+            `/api/blackbaud?action=delete-relationship&endpoint=/constituent/v1/relationships/${student.relationId}`,
+            'DELETE'
+        );
+        
+        console.log('Delete relationship response:', deleteRelResponse);
         
         // Step 5: Delete existing constituent code
         console.log(`Deleting code: ${student.codeId}`);
