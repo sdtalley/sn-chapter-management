@@ -44,15 +44,12 @@ h2 {
 .nav-buttons {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 15px;
     margin-top: 20px;
     align-items: center;
 }
 
 .nav-item {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
     width: 100%;
     max-width: 450px;
 }
@@ -60,15 +57,18 @@ h2 {
 .nav-btn {
     background: linear-gradient(135deg, #343a40 0%, #212529 100%);
     color: white;
-    padding: 15px 20px;
+    padding: 18px 20px;
     border: none;
     border-radius: 8px;
     cursor: pointer;
-    font-size: 14px;
-    font-weight: bold;
     transition: all 0.3s ease;
-    text-align: center;
     width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: center;
+    text-align: center;
+    min-height: auto;
 }
 
 .nav-btn:hover {
@@ -76,13 +76,22 @@ h2 {
     box-shadow: 0 5px 15px rgba(52, 58, 64, 0.3);
 }
 
-.nav-description {
-    font-size: 13px;
-    color: #6c757d;
+.nav-btn-title {
+    font-size: 15px;
+    font-weight: bold;
+    line-height: 1.2;
+}
+
+.nav-btn-description {
+    font-size: 12px;
+    font-weight: normal;
+    opacity: 0.85;
     line-height: 1.4;
-    margin: 0;
-    padding: 0 10px;
-    text-align: center;
+}
+
+/* Remove old nav-description styles */
+.nav-description {
+    display: none;
 }
 
 /* PAGE STYLES */
