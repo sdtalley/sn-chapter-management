@@ -36,6 +36,10 @@
                     <p class="nav-description">Manage your chapter's roster of active candidates and initiates.</p>
                 </div>
                 <div class="nav-item">
+                    <button class="nav-btn" id="btn-returning-students" onclick="showPage('returning-students')">Returning Students</button>
+                    <p class="nav-description">Add returning students currently marked as Alumni (Left School) or De-Pledge back to your roster</p>
+                </div>
+                <div class="nav-item">
                     <button class="nav-btn" id="btn-officer-info" onclick="showPage('officer-info')">Officer Information</button>
                     <p class="nav-description">Make changes to elected officers.</p>
                 </div>
@@ -299,6 +303,80 @@
             </div>
         </div>
 
+        <!-- RETURNING STUDENTS PAGE -->
+        <div id="returning-students" class="page">
+            <button class="back-btn" onclick="showMainMenu()">← Back to Main Menu</button>
+            <h2>Returning Students</h2>
+            
+            <div class="loading-message" id="returning-loading" style="display: none;">
+                <div class="spinner"></div>
+                <p>Loading returning students...</p>
+            </div>
+            
+            <div id="returning-content" style="display: none;">
+                <div class="candidates-info">
+                    <p><strong>Chapter:</strong> <span id="returning-chapter">-</span></p>
+                    <p><strong>Total Alumni (Left School):</strong> <span id="returning-alumni-count">0</span></p>
+                    <p><strong>Total De-Pledge:</strong> <span id="returning-depledge-count">0</span></p>
+                </div>
+                
+                <div class="candidates-table-container">
+                    <table class="candidates-table" id="returning-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Current</th>
+                                <th>From Date</th>
+                                <th>Status</th>
+                                <th>Effective Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="returning-tbody">
+                            <!-- Dynamic content will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="submit-section">
+                    <button class="btn" onclick="reviewReturningChanges()">Review Changes</button>
+                </div>
+            </div>
+            
+            <!-- RETURNING STUDENTS REVIEW SECTION -->
+            <div id="returning-review" style="display: none;">
+                <div class="candidates-info">
+                    <p><strong>Chapter:</strong> <span id="returning-review-chapter">-</span></p>
+                    <p><strong>Changes to Submit:</strong> <span id="returning-review-count">0</span></p>
+                </div>
+                
+                <div class="candidates-table-container">
+                    <table class="candidates-table" id="returning-review-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Current Status</th>
+                                <th>New Status</th>
+                                <th>Effective Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="returning-review-tbody">
+                            <!-- Dynamic content will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="submit-section">
+                    <button class="btn" onclick="backToReturning()">Back</button>
+                    <button class="btn" onclick="submitReturningChanges()">Submit</button>
+                </div>
+            </div>
+            
+            <div id="returning-error" class="error-message" style="display: none;">
+                <p>Error loading returning students. Please try again or check your authentication.</p>
+                <button class="btn" onclick="loadReturningStudents()">Retry</button>
+            </div>
+        </div>
+
         <!-- OFFICER INFORMATION PAGE -->
         <div id="officer-info" class="page">
             <button class="back-btn" onclick="showMainMenu()">← Back to Main Menu</button>
@@ -545,6 +623,7 @@
     <script src="js/candidates.js"></script>
     <script src="js/initiates.js"></script>
     <script src="js/roster.js"></script>
+    <script src="js/returning.js"></script>
     <script src="js/officers.js"></script>
     <script src="js/contact.js"></script>
     <script src="js/fees.js"></script>

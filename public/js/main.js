@@ -77,6 +77,8 @@ const Main = (function() {
             window.InitiatesModule.loadInitiates();
         } else if (pageId === 'roster-info') {
             window.RosterModule.loadRoster();
+        } else if (pageId === 'returning-students') {
+            window.ReturningModule.loadReturningStudents();
         } else if (pageId === 'officer-info') {
             window.OfficersModule.loadOfficers();
         } else if (pageId === 'contact-info') {
@@ -146,6 +148,7 @@ const Main = (function() {
             'btn-verify-candidates': false,
             'btn-verify-initiates': false,
             'btn-roster-info': false,
+            'btn-returning-students': false,
             'btn-officer-info': false,
             'btn-contact-info': false,
             'btn-fee-status': false,

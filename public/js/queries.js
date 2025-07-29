@@ -578,6 +578,194 @@ const Queries = (function() {
         };
     }
     
+    // Build query for Returning Students page
+    function buildReturningStudentsQuery(chapterQuid, chapterName) {
+        return {
+            "query": {
+                "advanced_processing_options": {
+                    "use_alternate_sql_code_table_fields": false,
+                    "use_alternate_sql_multiple_attributes": false
+                },
+                "constituent_filters": {
+                    "include_deceased": false,
+                    "include_inactive": true,
+                    "include_no_valid_addresses": true
+                },
+                "filter_fields": [
+                    {
+                        "compare_type": "None",
+                        "filter_values": ["5733"],
+                        "left_parenthesis": true,
+                        "operator": "Equals",
+                        "query_field_id": 2217,
+                        "right_parenthesis": false
+                    },
+                    {
+                        "compare_type": "And",
+                        "filter_values": [String(chapterQuid)],
+                        "left_parenthesis": false,
+                        "operator": "Equals",
+                        "query_field_id": 656,
+                        "right_parenthesis": false,
+                        "unique_id": "120"
+                    },
+                    {
+                        "compare_type": "And",
+                        "filter_values": [chapterName],
+                        "left_parenthesis": false,
+                        "operator": "Equals",
+                        "query_field_id": 4123,
+                        "right_parenthesis": false
+                    },
+                    {
+                        "compare_type": "And",
+                        "filter_values": ["1762"],
+                        "left_parenthesis": false,
+                        "operator": "Equals",
+                        "query_field_id": 4151,
+                        "right_parenthesis": false
+                    },
+                    {
+                        "compare_type": "And",
+                        "filter_values": [],
+                        "left_parenthesis": false,
+                        "operator": "Blank",
+                        "query_field_id": 4148,
+                        "right_parenthesis": false
+                    },
+                    {
+                        "compare_type": "And",
+                        "filter_values": [],
+                        "left_parenthesis": false,
+                        "operator": "Blank",
+                        "query_field_id": 14682,
+                        "right_parenthesis": true,
+                        "unique_id": "594"
+                    },
+                    {
+                        "compare_type": "Or",
+                        "filter_values": ["5737"],
+                        "left_parenthesis": true,
+                        "operator": "Equals",
+                        "query_field_id": 2217,
+                        "right_parenthesis": false
+                    },
+                    {
+                        "compare_type": "And",
+                        "filter_values": [String(chapterQuid)],
+                        "left_parenthesis": false,
+                        "operator": "Equals",
+                        "query_field_id": 656,
+                        "right_parenthesis": false,
+                        "unique_id": "120"
+                    },
+                    {
+                        "compare_type": "And",
+                        "filter_values": [chapterName],
+                        "left_parenthesis": false,
+                        "operator": "Equals",
+                        "query_field_id": 4123,
+                        "right_parenthesis": false
+                    },
+                    {
+                        "compare_type": "And",
+                        "filter_values": ["1708"],
+                        "left_parenthesis": false,
+                        "operator": "Equals",
+                        "query_field_id": 4151,
+                        "right_parenthesis": false
+                    },
+                    {
+                        "compare_type": "And",
+                        "filter_values": [
+                            {
+                                "year": 2022,
+                                "day": 30,
+                                "month": 6
+                            }
+                        ],
+                        "operator": "GreaterThan",
+                        "query_field_id": 4125
+                    },
+                    {
+                        "compare_type": "And",
+                        "filter_values": [],
+                        "left_parenthesis": false,
+                        "operator": "Blank",
+                        "query_field_id": 4148,
+                        "right_parenthesis": false
+                    },
+                    {
+                        "compare_type": "And",
+                        "filter_values": [],
+                        "left_parenthesis": false,
+                        "operator": "Blank",
+                        "query_field_id": 14682,
+                        "right_parenthesis": true,
+                        "unique_id": "594"
+                    }
+                ],
+                "gift_processing_options": {
+                    "matching_gift_credit_option": "MatchingGiftCompany",
+                    "soft_credit_option": "Donor",
+                    "use_gross_amount_for_covenants": false
+                },
+                "select_fields": [
+                    {
+                        "query_field_id": 349,
+                        "user_alias": "ID"
+                    },
+                    {
+                        "query_field_id": 597
+                    },
+                    {
+                        "query_field_id": 2217,
+                        "user_alias": "Code"
+                    },
+                    {
+                        "query_field_id": 4125,
+                        "user_alias": "From_Date"
+                    },
+                    {
+                        "query_field_id": 4127,
+                        "user_alias": "Relation_ID"
+                    },
+                    {
+                        "query_field_id": 4151,
+                        "user_alias": "Recip"
+                    },
+                    {
+                        "query_field_id": 656,
+                        "unique_id": "37",
+                        "user_alias": "Candidate_Fee_Paid"
+                    },
+                    {
+                        "query_field_id": 656,
+                        "unique_id": "42",
+                        "user_alias": "Initiate_Fee_Paid"
+                    },
+                    {
+                        "query_field_id": 2216,
+                        "user_alias": "CodeID"
+                    }
+                ],
+                "sort_fields": [
+                    {
+                        "query_field_id": 2217,
+                        "sort_order": "Ascending"
+                    },
+                    {
+                        "query_field_id": 597,
+                        "sort_order": "Ascending"
+                    }
+                ],
+                "suppress_duplicates": true,
+                "type_id": 18,
+                "sql_generation_mode": "Query"
+            }
+        };
+    }
+    
     // Public API
     return {
         buildCandidatesQuery,
@@ -585,7 +773,8 @@ const Queries = (function() {
         buildTopBadgeQuery,
         buildRosterQuery,
         buildOfficerQuery,
-        buildChapterContactQuery
+        buildChapterContactQuery,
+        buildReturningStudentsQuery
     };
 })();
 
@@ -599,3 +788,4 @@ window.buildTopBadgeQuery = Queries.buildTopBadgeQuery;
 window.buildRosterQuery = Queries.buildRosterQuery;
 window.buildOfficerQuery = Queries.buildOfficerQuery;
 window.buildChapterContactQuery = Queries.buildChapterContactQuery;
+window.buildReturningStudentsQuery = Queries.buildReturningStudentsQuery;

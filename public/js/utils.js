@@ -187,6 +187,17 @@ const Utils = (function() {
         }
     }
     
+    function showReturningError(message) {
+        hideElement('returning-loading');
+        hideElement('returning-content');
+        const errorElement = document.getElementById('returning-error');
+        if (errorElement) {
+            const errorText = errorElement.querySelector('p');
+            if (errorText) errorText.textContent = message;
+            errorElement.style.display = 'block';
+        }
+    }
+    
     // Compare dates helper
     function compareFromDates(date1, date2) {
         const d1 = parseDate(date1);
@@ -212,6 +223,7 @@ const Utils = (function() {
         showOfficerError,
         showContactError,
         showFeeError,
+        showReturningError,
         compareFromDates
     };
 })();
