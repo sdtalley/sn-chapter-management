@@ -337,6 +337,15 @@ const ReturningModule = (function() {
         const chapterSpan = document.getElementById('returning-review-chapter');
         const countSpan = document.getElementById('returning-review-count');
         const tbody = document.getElementById('returning-review-tbody');
+        const submitSection = document.querySelector('#returning-review .submit-section');
+        
+        // IMPORTANT: Reset submit section to ensure no spinner is showing
+        if (submitSection) {
+            submitSection.innerHTML = `
+                <button class="btn" onclick="ReturningModule.backToReturning()">Back</button>
+                <button class="btn" onclick="ReturningModule.submitReturningChanges()">Submit</button>
+            `;
+        }
         
         if (chapterSpan) chapterSpan.textContent = appState.chapter || 'Unknown';
         if (countSpan) countSpan.textContent = changes.length;
@@ -350,6 +359,7 @@ const ReturningModule = (function() {
                 // Store the student data on the row for later retrieval
                 row.studentData = {
                     id: change.id,
+                    name: change.name,
                     currentStatus: change.currentStatus,
                     newStatus: change.newStatus,
                     effectiveDate: change.effectiveDate,
@@ -385,14 +395,345 @@ const ReturningModule = (function() {
     }
 
     function backToReturning() {
+        // Clear any pending state
+        delete appState.pendingReturningStudents;
+        
+        // Reset submit section to ensure no spinner
+        const submitSection = document.querySelector('#returning-review .submit-section');
+        if (submitSection) {
+            submitSection.innerHTML = `
+                <button class="btn" onclick="ReturningModule.backToReturning()">Back</button>
+                <button class="btn" onclick="ReturningModule.submitReturningChanges()">Submit</button>
+            `;
+        }
+        
         Utils.hideElement('returning-review');
         Utils.showElement('returning-content');
         Utils.resizeIframe();
     }
 
     function submitReturningChanges() {
-        // TODO: Implement submission logic later
-        Utils.showStatus('Returning student submission functionality coming soon.', 'info');
+        // Get all student data from the review table
+        const tbody = document.getElementById('returning-review-tbody');
+        if (!tbody) {
+            Utils.showStatus('No review data found. Please return to the main screen.', 'error');
+            return;
+        }
+        
+        const rows = tbody.querySelectorAll('tr');
+        const students = [];
+        
+        // Collect all student data from review table
+        rows.forEach((row) => {
+            // Store the student data that was saved during review
+            const studentData = row.studentData;
+            
+            if (studentData) {
+                students.push({
+                    id: studentData.id,
+                    name: studentData.name,
+                    currentStatus: studentData.currentStatus,
+                    newStatus: studentData.newStatus,
+                    effectiveDate: studentData.effectiveDate,
+                    codeId: studentData.codeId,
+                    relationId: studentData.relationId,
+                    fromDate: studentData.fromDate,
+                    candidateFeePaid: studentData.candidateFeePaid,
+                    initiateFeePaid: studentData.initiateFeePaid
+                });
+            }
+        });
+        
+        if (students.length === 0) {
+            Utils.showStatus('No students found for submission.', 'error');
+            return;
+        }
+        
+        // Store pending students in case of retry
+        appState.pendingReturningStudents = students;
+        
+        // Start the submission process
+        submitReturningStudentChanges(students);
+    }
+    
+    async function submitReturningStudentChanges(students) {
+        console.log('=== submitReturningStudentChanges() started ===');
+        console.log('Submitting changes for', students.length, 'students');
+        
+        // Get the submit section and create spinner
+        const submitSection = document.querySelector('#returning-review .submit-section');
+        const originalContent = submitSection.innerHTML;
+        
+        // Replace submit section content with spinner
+        submitSection.innerHTML = '<div class="spinner"></div>';
+        
+        try {
+            // Use cached chapter data
+            const chapterData = appState.chapterData;
+            if (!chapterData) {
+                throw new Error('Chapter data not available');
+            }
+            
+            let successCount = 0;
+            let errorCount = 0;
+            const errors = [];
+            
+            // Process each student
+            for (const student of students) {
+                try {
+                    await processReturningStudentSubmission(student, chapterData);
+                    successCount++;
+                } catch (error) {
+                    console.error(`Error processing student ${student.name}:`, error);
+                    errorCount++;
+                    errors.push(`${student.name}: ${error.message}`);
+                }
+            }
+            
+            // Show results
+            if (errorCount === 0) {
+                // Hide the review table before showing success message
+                Utils.hideElement('returning-review');
+                
+                // Create a temporary success message div
+                const successDiv = document.createElement('div');
+                successDiv.className = 'submission-success-overlay';
+                successDiv.innerHTML = `
+                    <div class="submission-success">
+                        <p>Successfully processed all ${successCount} returning student(s).</p>
+                    </div>
+                `;
+                document.querySelector('.container').appendChild(successDiv);
+                
+                // Clear pending students
+                delete appState.pendingReturningStudents;
+                
+                // Wait 2 seconds then return to main menu
+                setTimeout(() => {
+                    successDiv.remove();
+                    window.showMainMenu();
+                }, 2000);
+            } else {
+                // Show error message with retry instructions
+                submitSection.innerHTML = `
+                    <div class="submission-error">
+                        <p>Processed ${successCount} student(s) with ${errorCount} error(s).</p>
+                        <p>Errors encountered:</p>
+                        <ul class="error-list">
+                            ${errors.map(err => `<li>${err}</li>`).join('')}
+                        </ul>
+                        <p>Please retry submission. If the problem persists, email <a href="mailto:members.area@sigmanu.org">members.area@sigmanu.org</a> with the error message above.</p>
+                        <button class="btn" onclick="ReturningModule.backToReturning()">Back</button>
+                    </div>
+                `;
+            }
+            
+        } catch (error) {
+            console.error('Fatal error during submission:', error);
+            
+            // Show error message with email instructions
+            submitSection.innerHTML = `
+                <div class="submission-error">
+                    <p>Submission failed: ${error.message}</p>
+                    <p>Please retry submission. If the problem persists, email <a href="mailto:members.area@sigmanu.org">members.area@sigmanu.org</a> with the error message above.</p>
+                    <button class="btn" onclick="ReturningModule.backToReturning()">Back</button>
+                </div>
+            `;
+        }
+    }
+    
+    async function processReturningStudentSubmission(student, chapterData) {
+        console.log(`Processing returning student: ${student.name}`);
+        
+        // Step 1: Parse effective date
+        const [year, month, day] = student.effectiveDate.split('-');
+        const startDate = {
+            d: parseInt(day, 10),
+            m: parseInt(month, 10),
+            y: parseInt(year, 10)
+        };
+        
+        // Step 2: Parse from date
+        let cstartDate = null;
+        if (student.fromDate) {
+            const fromDate = Utils.parseDate(student.fromDate);
+            if (fromDate) {
+                cstartDate = {
+                    d: fromDate.getDate(),
+                    m: fromDate.getMonth() + 1,
+                    y: fromDate.getFullYear()
+                };
+            }
+        }
+        
+        // Step 3: Calculate end date (effective date - 1 day)
+        // Parse the date components directly to avoid timezone issues
+        const [eYear, eMonth, eDay] = student.effectiveDate.split('-');
+        const effectiveDateParsed = new Date(parseInt(eYear), parseInt(eMonth) - 1, parseInt(eDay));
+        
+        // Calculate end date (1 day before effective date)
+        const endDateObj = new Date(effectiveDateParsed);
+        endDateObj.setDate(endDateObj.getDate() - 1);
+        
+        const endDate = {
+            d: endDateObj.getDate(),
+            m: endDateObj.getMonth() + 1,
+            y: endDateObj.getFullYear()
+        };
+        
+        // Get current date in Eastern Time - use let instead of const
+        let easternTime = new Date().toLocaleString("en-US", {timeZone: "America/New_York"});
+        let easternDate = new Date(easternTime);
+        const currentDate = {
+            d: easternDate.getDate(),
+            m: easternDate.getMonth() + 1,
+            y: easternDate.getFullYear()
+        };
+        const currentDateFormatted = `${String(easternDate.getMonth() + 1).padStart(2, '0')}/${String(easternDate.getDate()).padStart(2, '0')}/${easternDate.getFullYear()}`;
+        
+        // Step 4: PATCH existing relationship to close it
+        console.log(`Updating relationship to closed: ${student.relationId}`);
+        const patchRelationshipData = {
+            comment: `Updated on ${currentDateFormatted} by ${appState.offname || 'Unknown'}`,
+            end: endDate
+        };
+        
+        const patchRelResponse = await API.makeRateLimitedApiCall(
+            `/api/blackbaud?action=patch-relationship&endpoint=/constituent/v1/relationships/${student.relationId}&method=PATCH`,
+            'POST',
+            patchRelationshipData
+        );
+        
+        console.log('Patch relationship response:', patchRelResponse);
+        
+        // Step 5: Delete existing constituent code
+        console.log(`Deleting code: ${student.codeId}`);
+        const deleteCodeResponse = await API.makeRateLimitedApiCall(
+            `/api/blackbaud?action=delete-constituent-code&endpoint=/constituent/v1/constituentcodes/${student.codeId}`,
+            'DELETE'
+        );
+        
+        console.log('Delete code response:', deleteCodeResponse);
+        
+        // Step 6: Create new constituent code
+        console.log(`Creating new code: ${student.newStatus}`);
+        const codeData = {
+            constituent_id: student.id,
+            description: student.newStatus,
+            start: startDate
+        };
+        
+        const createCodeResponse = await API.makeRateLimitedApiCall(
+            '/api/blackbaud?action=create-constituent-code',
+            'POST',
+            codeData
+        );
+        
+        console.log('Create code response:', createCodeResponse);
+        
+        // Step 7: Create constituent note
+        console.log('Creating note');
+        const noteData = {
+            constituent_id: student.id,
+            date: currentDate,
+            text: `Changed to ${student.newStatus} by ${appState.offname || 'Unknown'}`,
+            type: "CodeLog"
+        };
+        
+        const createNoteResponse = await API.makeRateLimitedApiCall(
+            '/api/blackbaud?action=create-constituent-note',
+            'POST',
+            noteData
+        );
+        
+        console.log('Create note response:', createNoteResponse);
+        
+        // Step 8: Get custom fields to find Sigma Nu Code ID
+        console.log('Getting custom fields to find Sigma Nu Code ID');
+        const customFieldsResponse = await API.makeRateLimitedApiCall(
+            `/api/blackbaud?action=get-custom-fields&constituentId=${student.id}`,
+            'GET'
+        );
+        
+        console.log('Custom fields response:', customFieldsResponse);
+        
+        // Find the Sigma Nu Code attribute ID
+        let snAttId = null;
+        if (customFieldsResponse && customFieldsResponse.value) {
+            const sncField = customFieldsResponse.value.find(field => field.category === 'Sigma Nu Code');
+            if (sncField) {
+                snAttId = sncField.id;
+                console.log('Found Sigma Nu Code attribute ID:', snAttId);
+            }
+        }
+        
+        if (!snAttId) {
+            throw new Error('Could not find Sigma Nu Code attribute ID');
+        }
+        
+        // Step 9: Update Sigma Nu Code custom field
+        console.log('Updating Sigma Nu Code');
+        const updateSNCData = {
+            value: student.newStatus
+        };
+        
+        const updateSNCResponse = await API.makeRateLimitedApiCall(
+            `/api/blackbaud?action=patch-custom-field&endpoint=/constituent/v1/constituents/customfields/${snAttId}&method=PATCH`,
+            'POST',
+            updateSNCData
+        );
+        
+        console.log('Update SNC response:', updateSNCResponse);
+        
+        // Step 10: Create new relationship based on status
+        if (student.newStatus === 'Alumni') {
+            // Step 10A: Create Alumni relationship with do_not_reciprocate
+            console.log('Creating Alumni relationship');
+            const alumniRelationshipData = {
+                comment: `Added ${currentDateFormatted} by ${appState.offname || 'Unknown'}`,
+                constituent_id: student.id,
+                is_organization_contact: false,
+                is_primary_business: false,
+                is_spouse: false,
+                do_not_reciprocate: true,
+                reciprocal_type: student.newStatus,
+                relation_id: chapterData.csid,
+                start: startDate,
+                type: "Collegiate Chapter"
+            };
+            
+            const createAlumniRelResponse = await API.makeRateLimitedApiCall(
+                '/api/blackbaud?action=create-constituent-relationship',
+                'POST',
+                alumniRelationshipData
+            );
+            
+            console.log('Create alumni relationship response:', createAlumniRelResponse);
+        } else {
+            // Step 10B: Create other relationship types
+            console.log(`Creating ${student.newStatus} relationship`);
+            const relationshipData = {
+                comment: `Added ${currentDateFormatted} by ${appState.offname || 'Unknown'}`,
+                constituent_id: student.id,
+                is_organization_contact: false,
+                is_primary_business: false,
+                is_spouse: false,
+                reciprocal_type: student.newStatus,
+                relation_id: chapterData.csid,
+                start: startDate,
+                type: "Collegiate Chapter"
+            };
+            
+            const createRelResponse = await API.makeRateLimitedApiCall(
+                '/api/blackbaud?action=create-constituent-relationship',
+                'POST',
+                relationshipData
+            );
+            
+            console.log('Create relationship response:', createRelResponse);
+        }
+        
+        console.log(`Successfully processed returning student: ${student.name}`);
     }
     
     // Public API

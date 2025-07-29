@@ -720,6 +720,51 @@ export default async function handler(req, res) {
         res.json({ success: true, message: 'Email updated successfully' });
       }
       
+    } else if (action === 'patch-relationship' && endpoint) {
+      // Update relationship (handle PATCH)
+      const requestMethod = req.query.method || req.method;
+      console.log('PATCH relationship - Request Method:', requestMethod);
+      console.log('PATCH relationship - Body:', req.body);
+      
+      const patchData = req.body;
+      const patchUrl = `https://api.sky.blackbaud.com${endpoint}`;
+      console.log('Patching relationship:', patchUrl);
+      console.log('Patch data to send:', JSON.stringify(patchData));
+      
+      const patchResponse = await fetch(patchUrl, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Bb-Api-Subscription-Key': process.env.BLACKBAUD_SUBSCRIPTION_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(patchData)
+      });
+      
+      if (!patchResponse.ok) {
+        const errorText = await patchResponse.text();
+        console.error('PATCH relationship error:', errorText);
+        throw new Error(`Patch relationship failed: ${patchResponse.status} - ${errorText}`);
+      }
+      
+      // Check if response has content before trying to parse JSON
+      const responseText = await patchResponse.text();
+      console.log('PATCH relationship response text:', responseText);
+      
+      if (responseText && responseText.trim()) {
+        try {
+          const result = JSON.parse(responseText);
+          res.json(result);
+        } catch (parseError) {
+          console.log('Failed to parse response as JSON, returning success');
+          res.json({ success: true, message: 'Relationship updated successfully' });
+        }
+      } else {
+        // Empty response is OK for PATCH requests
+        console.log('Empty response from PATCH, returning success');
+        res.json({ success: true, message: 'Relationship updated successfully' });
+      }
+      
     } else if (action === 'api' && endpoint) {
       // Make API call
       const apiResponse = await fetch(`https://api.sky.blackbaud.com${endpoint}`, {
