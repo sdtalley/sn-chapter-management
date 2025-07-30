@@ -155,6 +155,9 @@ const Main = (function() {
             // Adjust iframe height
             window.Utils.resizeIframe();
         };
+        
+        // Expose showMainMenu globally (alias for backToMenu)
+        window.showMainMenu = window.backToMenu;
     }
     
     function applySecurityLevel() {
