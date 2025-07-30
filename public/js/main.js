@@ -100,27 +100,29 @@ const Main = (function() {
         hideNavigationButtons();
     }
     
-    function populateChapterDropdown() {
+    async function populateChapterDropdown() {
         const chapterSelect = document.getElementById('chapter-select');
         if (!chapterSelect) return;
+    
+        try {
+            // Fetch chapter names from API
+            const response = await fetch('/api/blackbaud?action=get-chapters');
+            const chapters = await response.json();
         
-        // Get chapter data from chapter-records.js
-        if (window.chapterLookup) {
-            const chapters = Object.keys(window.chapterLookup).sort();
-            
             chapters.forEach(chapterName => {
                 const option = document.createElement('option');
                 option.value = chapterName;
                 option.textContent = chapterName;
                 chapterSelect.appendChild(option);
             });
-            
+        
             // Set current chapter if available
             if (appState.chapter && appState.chapter !== 'Not provided') {
                 chapterSelect.value = appState.chapter;
-                // Show navigation if chapter is already selected
                 showNavigationButtons();
             }
+        } catch (error) {
+            console.error('Failed to load chapters:', error);
         }
     }
     

@@ -154,6 +154,14 @@ export default async function handler(req, res) {
       return;
     }
     
+    //Get Chapters for chapter drop-down
+    if (action === 'get-chapters') {
+      // Return just the chapter names (no sensitive data)
+      const chapterNames = Object.keys(chapterLookup).sort();
+      res.json(chapterNames);
+      return;
+    }
+
     // For auth action, just return success since we're using refresh tokens
     if (action === 'auth') {
       // Get a fresh token to verify credentials work
