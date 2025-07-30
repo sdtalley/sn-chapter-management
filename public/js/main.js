@@ -78,15 +78,33 @@ const Main = (function() {
             chapterSelectSection.className = 'chapter-select-section';
             chapterSelectSection.innerHTML = `
                 <div class="form-group">
-                    <label for="chapter-select">Select Chapter:</label>
                     <select id="chapter-select" class="chapter-select">
                         <option value="">Select Chapter</option>
                     </select>
                 </div>
             `;
             
-            // Insert after the h2
-            h2.insertAdjacentElement('afterend', chapterSelectSection);
+            // Insert before the h2 (Chapter Management title)
+            h2.parentElement.insertBefore(chapterSelectSection, h2);
+        }
+        
+        // Create chapter display section if it doesn't exist
+        let chapterDisplay = document.getElementById('chapter-display');
+        if (!chapterDisplay) {
+            const mainMenu = document.getElementById('main-menu');
+            const h2 = mainMenu.querySelector('h2');
+            
+            chapterDisplay = document.createElement('div');
+            chapterDisplay.id = 'chapter-display';
+            chapterDisplay.className = 'chapter-display';
+            chapterDisplay.style.display = 'none';
+            chapterDisplay.innerHTML = `
+                <button class="change-chapter-btn" onclick="Main.showChapterSelect()">Change Chapter</button>
+                <div class="chapter-label" id="chapter-label"></div>
+            `;
+            
+            // Insert before the h2
+            h2.parentElement.insertBefore(chapterDisplay, h2);
         }
         
         // Populate the dropdown
@@ -96,34 +114,60 @@ const Main = (function() {
         const chapterSelect = document.getElementById('chapter-select');
         chapterSelect.addEventListener('change', handleChapterChange);
         
-        // Hide navigation buttons initially
-        hideNavigationButtons();
+        // Hide navigation buttons initially if no chapter selected
+        if (!appState.chapter || appState.chapter === 'Not provided') {
+            hideNavigationButtons();
+        } else {
+            // Show the chapter display instead of dropdown
+            showChapterDisplay();
+        }
     }
     
     async function populateChapterDropdown() {
         const chapterSelect = document.getElementById('chapter-select');
         if (!chapterSelect) return;
-    
+        
         try {
             // Fetch chapter names from API
             const response = await fetch('/api/blackbaud?action=get-chapters');
             const chapters = await response.json();
-        
+            
             chapters.forEach(chapterName => {
                 const option = document.createElement('option');
                 option.value = chapterName;
                 option.textContent = chapterName;
                 chapterSelect.appendChild(option);
             });
-        
+            
             // Set current chapter if available
             if (appState.chapter && appState.chapter !== 'Not provided') {
                 chapterSelect.value = appState.chapter;
-                showNavigationButtons();
             }
         } catch (error) {
             console.error('Failed to load chapters:', error);
         }
+    }
+    
+    function showChapterDisplay() {
+        const chapterSelectSection = document.getElementById('chapter-select-section');
+        const chapterDisplay = document.getElementById('chapter-display');
+        const chapterLabel = document.getElementById('chapter-label');
+        
+        if (chapterSelectSection) chapterSelectSection.style.display = 'none';
+        if (chapterDisplay) chapterDisplay.style.display = 'block';
+        if (chapterLabel) chapterLabel.textContent = appState.chapter;
+        
+        showNavigationButtons();
+    }
+    
+    function showChapterSelect() {
+        const chapterSelectSection = document.getElementById('chapter-select-section');
+        const chapterDisplay = document.getElementById('chapter-display');
+        
+        if (chapterSelectSection) chapterSelectSection.style.display = 'block';
+        if (chapterDisplay) chapterDisplay.style.display = 'none';
+        
+        hideNavigationButtons();
     }
     
     async function handleChapterChange(event) {
@@ -169,8 +213,8 @@ const Main = (function() {
             console.error('Failed to load chapter data:', error);
         }
         
-        // Show navigation buttons
-        showNavigationButtons();
+        // Show chapter display instead of dropdown
+        showChapterDisplay();
         
         // Reset iframe height
         Utils.resizeIframe();
@@ -411,7 +455,8 @@ const Main = (function() {
     
     // Public API
     return {
-        init
+        init,
+        showChapterSelect  // Expose this function
     };
 })();
 
