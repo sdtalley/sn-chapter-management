@@ -107,7 +107,8 @@ const Utils = (function() {
             const container = document.querySelector('.container');
             const containerHeight = container ? container.offsetHeight : 0;
             const bodyPadding = 40; // 20px top + 20px bottom
-            const totalHeight = containerHeight + bodyPadding;
+            const bufferHeight = 20; //adjust as needed
+            const totalHeight = containerHeight + bodyPadding + bufferHeight;
             
             // Send height to parent window
             if (window.parent) {
