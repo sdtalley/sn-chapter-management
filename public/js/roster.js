@@ -386,6 +386,10 @@ const RosterModule = (function() {
                                 // Add change event listener
                                 statusSelect.addEventListener('change', function() {
                                     handleRosterStatusChange(index, this.value);
+                                    // Mark as having unsaved changes
+                                    if (window.setUnsavedChanges) {
+                                        window.setUnsavedChanges(true);
+                                    }
                                 });
                                 
                                 selectWrapper.appendChild(statusSelect);
@@ -668,6 +672,11 @@ const RosterModule = (function() {
                 // Clear pending members
                 delete appState.pendingRosterMembers;
                 
+                // Clear unsaved changes flag
+                if (window.setUnsavedChanges) {
+                    window.setUnsavedChanges(false);
+                }
+
                 // Wait 2 seconds then return to main menu
                 setTimeout(() => {
                     successDiv.remove();

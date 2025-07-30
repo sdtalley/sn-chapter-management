@@ -164,6 +164,10 @@ const CandidatesModule = (function() {
                     // Add change event listener
                     approveSelect.addEventListener('change', function() {
                         handleApprovalChange(index, this.value);
+                        // Mark as having unsaved changes
+                        if (window.setUnsavedChanges) {
+                            window.setUnsavedChanges(true);
+                        }
                     });
                     
                     selectWrapper.appendChild(approveSelect);
@@ -493,7 +497,9 @@ const CandidatesModule = (function() {
                     </div>
                 `;
                 document.querySelector('.container').appendChild(successDiv);
-                
+                if (window.setUnsavedChanges) {
+                    window.setUnsavedChanges(false);
+                }
                 // Wait 2 seconds then return to main menu
                 setTimeout(() => {
                     successDiv.remove();

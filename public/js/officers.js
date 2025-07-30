@@ -195,6 +195,10 @@ const OfficersModule = (function() {
                 // Add change event listener
                 officerSelect.addEventListener('change', function() {
                     handleOfficerChange(index, this.value);
+                    // Mark as having unsaved changes
+                    if (window.setUnsavedChanges) {
+                        window.setUnsavedChanges(true);
+                    }
                 });
                 
                 selectWrapper.appendChild(officerSelect);
@@ -472,6 +476,11 @@ const OfficersModule = (function() {
                 // Clear pending officers
                 delete appState.pendingOfficers;
                 
+                // Clear unsaved Changes Tracking
+                if (window.setUnsavedChanges) {
+                    window.setUnsavedChanges(false);
+                }
+
                 // Wait 2 seconds then return to main menu
                 setTimeout(() => {
                     successDiv.remove();

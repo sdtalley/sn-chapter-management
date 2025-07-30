@@ -218,6 +218,10 @@ const ReturningModule = (function() {
                     // Add change event listener
                     statusSelect.addEventListener('change', function() {
                         handleReturningStatusChange(index, this.value);
+                        // Mark as having unsaved changes
+                        if (window.setUnsavedChanges) {
+                            window.setUnsavedChanges(true);
+                        }
                     });
                     
                     selectWrapper.appendChild(statusSelect);
@@ -508,6 +512,11 @@ const ReturningModule = (function() {
                 // Clear pending students
                 delete appState.pendingReturningStudents;
                 
+                // Clear unsaved Changes Tracking
+                if (window.setUnsavedChanges) {
+                    window.setUnsavedChanges(false);
+                }
+
                 // Wait 2 seconds then return to main menu
                 setTimeout(() => {
                     successDiv.remove();

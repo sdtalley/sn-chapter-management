@@ -36,6 +36,42 @@ h2 {
     font-size: 2em;
 }
 
+/* CHAPTER SELECT STYLES */
+.chapter-select-section {
+    margin-bottom: 30px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+.chapter-select-section .form-group {
+    margin-bottom: 0;
+}
+
+.chapter-select-section label {
+    font-size: 16px;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.chapter-select {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    font-size: 16px;
+    background: white;
+    cursor: pointer;
+    transition: border-color 0.3s ease;
+}
+
+.chapter-select:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
 /* MAIN MENU STYLES */
 .main-menu {
     display: block;
@@ -487,210 +523,211 @@ input[type="text"]:focus, input[type="password"]:focus, select:focus {
     box-shadow: 0 0 0 2px #667eea;
 }
 
-/* Contact form styles */
-.contact-form {
-    margin-top: 20px;
-    max-width: 600px;
+/* Checkbox styles */
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+    font-weight: normal;
+    margin-bottom: 10px;
 }
 
-.contact-form h3 {
+.checkbox-label input[type="checkbox"] {
+    width: auto;
+    margin-right: 8px;
+    cursor: pointer;
+}
+
+.checkbox-label span {
     color: #333;
-    margin-top: 30px;
-    margin-bottom: 20px;
-    padding-bottom: 10px;
-    border-bottom: 2px solid #dee2e6;
+}
+
+/* Contact form specific styles */
+.contact-form {
+    max-width: 600px;
 }
 
 .contact-form .form-group {
     margin-bottom: 15px;
 }
 
-.contact-form input[type="text"],
-.contact-form input[type="tel"],
-.contact-form input[type="email"] {
-    width: 100%;
-    padding: 10px;
-    border: 2px solid #ddd;
-    border-radius: 6px;
-    font-size: 15px;
+.contact-form h3 {
+    color: #343a40;
+    margin-bottom: 15px;
+    margin-top: 25px;
+    font-size: 1.2em;
 }
 
-/* Ensure table cells have enough space and don't clip */
-.candidates-table td {
-    padding: 14px 12px;
-    border-bottom: 1px solid #dee2e6;
-    vertical-align: middle;
-    overflow: visible;
-    position: relative;
+.contact-form span[style*="color: red"] {
+    font-size: 14px;
 }
 
-/* Add extra padding to cells containing selects */
-.candidates-table td:nth-child(2) {
-    padding: 16px 12px;
-}
-
-.candidates-table tbody tr:hover {
+/* Allow skips section */
+.allow-skips-section {
+    margin-top: 30px;
+    padding: 20px;
     background: #f8f9fa;
+    border-radius: 10px;
+    border: 1px solid #dee2e6;
+}
+
+.allow-skips-section h3 {
+    color: #333;
+    margin-bottom: 20px;
+}
+
+.allow-skips-control {
+    margin-bottom: 15px;
+}
+
+.allow-skip-checkbox {
+    width: 20px;
+    height: 20px;
+    margin-right: 10px;
+    cursor: pointer;
+}
+
+.help-text {
+    color: #6c757d;
+    font-size: 14px;
+    margin-top: 5px;
+}
+
+#current-chapter-name {
+    color: #343a40;
+}
+
+/* Review section styles */
+.review-section {
+    margin-top: 30px;
 }
 
 .submit-section {
-    text-align: center;
-    padding-top: 20px;
-    border-top: 2px solid #dee2e6;
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.submit-section .btn {
+    width: auto;
+    margin-top: 0;
+    padding: 12px 30px;
+}
+
+/* Error and warning cells */
+.warning-cell {
+    background-color: #fff3cd;
+    color: #856404;
+    padding: 10px;
+    border-left: 4px solid #ffc107;
+    font-size: 14px;
 }
 
 .error-message {
-    text-align: center;
-    padding: 30px;
-    color: #721c24;
     background: #f8d7da;
-    border: 1px solid #f5c6cb;
+    color: #721c24;
+    padding: 20px;
     border-radius: 8px;
+    border: 1px solid #f5c6cb;
+    margin-top: 20px;
 }
 
 .error-message p {
-    margin-bottom: 15px;
-}
-
-/* UNAUTHORIZED ACCESS STYLES */
-.unauthorized {
-    text-align: center;
-    padding: 40px;
-    color: #721c24;
-    background: #f8d7da;
-    border: 1px solid #f5c6cb;
-    border-radius: 8px;
-    margin: 20px 0;
-}
-
-.unauthorized h2 {
-    color: #721c24;
-    margin-bottom: 15px;
-}
-
-/* Checkbox styles */
-.initiated-checkbox {
-    width: 18px;
-    height: 18px;
-    cursor: pointer;
-}
-
-.same-address-checkbox {
-    width: 18px;
-    height: 18px;
-    cursor: pointer;
-    margin-right: 8px;
-}
-
-.checkbox-label {
-    display: flex;
-    align-items: center;
-    cursor: pointer;
-    font-weight: normal;
     margin-bottom: 10px;
 }
 
-.checkbox-label:hover {
-    color: #667eea;
+.error-message .btn {
+    width: auto;
+    margin: 10px auto 0;
+    display: block;
 }
 
-/* Badge input styles */
-.badge-input {
-    width: 80px;
-    padding: 8px;
-    border: 2px solid #ddd;
-    border-radius: 4px;
-    font-size: 14px;
-    text-align: center;
-}
-
-.badge-input:focus {
-    outline: none;
-    border-color: #667eea;
-}
-
-.badge-input:disabled {
-    background-color: #e9ecef;
-    cursor: not-allowed;
-}
-
-/* Remove spinner from number input */
-.badge-input::-webkit-outer-spin-button,
-.badge-input::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-}
-
-.badge-input[type=number] {
-    -moz-appearance: textfield;
-}
-
-/* Submission messages */
+/* Submission success overlay */
 .submission-success-overlay {
     position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
     z-index: 1000;
-    background: white;
-    border-radius: 10px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-    padding: 20px;
 }
 
 .submission-success {
+    background: white;
+    padding: 40px;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
     text-align: center;
-    padding: 20px;
-    color: #155724;
-    background: #d4edda;
-    border: 1px solid #c3e6cb;
-    border-radius: 8px;
-    margin: 0;
 }
 
 .submission-success p {
-    margin: 0;
-    font-size: 16px;
-    font-weight: bold;
+    font-size: 18px;
+    color: #155724;
+    margin-bottom: 20px;
 }
 
+/* Submission error */
 .submission-error {
-    padding: 20px;
-    color: #721c24;
     background: #f8d7da;
-    border: 1px solid #f5c6cb;
+    color: #721c24;
+    padding: 20px;
     border-radius: 8px;
-    margin: 20px 0;
+    border: 1px solid #f5c6cb;
 }
 
 .submission-error p {
-    margin: 0 0 10px 0;
+    margin-bottom: 10px;
 }
 
 .error-list {
-    margin: 10px 0 15px 20px;
-    padding-left: 20px;
+    margin: 10px 0 10px 20px;
+    text-align: left;
 }
 
 .error-list li {
-    margin: 5px 0;
-    font-size: 14px;
+    margin-bottom: 5px;
 }
 
-.submission-error a {
-    color: #0056b3;
-    text-decoration: underline;
+/* Unauthorized message */
+.unauthorized {
+    text-align: center;
+    padding: 60px 20px;
 }
 
-.submission-error a:hover {
-    color: #004085;
+.unauthorized h2 {
+    color: #dc3545;
+    margin-bottom: 20px;
 }
 
-.submission-error .btn {
-    margin: 10px 10px 0 0;
-    width: auto;
+.unauthorized p {
+    color: #666;
+    font-size: 16px;
+    margin-bottom: 10px;
+}
+
+/* Officer indicator */
+.officer-indicator {
     display: inline-block;
-    padding: 10px 20px;
+    margin-left: 5px;
+    font-size: 0.9em;
+    cursor: help;
+}
+
+/* Highlight class for changed values */
+.highlight {
+    background-color: #fff3cd;
+    font-weight: bold;
+}
+
+/* Roster status cell styles */
+.status-cell {
+    position: relative;
 }
 
 /* Same date control styles */
@@ -699,16 +736,9 @@ input[type="text"]:focus, input[type="password"]:focus, select:focus {
     align-items: center;
     gap: 15px;
     margin-top: 10px;
-    padding-top: 10px;
-    border-top: 1px solid #dee2e6;
-}
-
-.same-date-checkbox {
-    width: 18px;
-    height: 18px;
-    cursor: pointer;
-    margin: 0;
-    margin-right: 10px;  /* Add extra space after checkbox */
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 6px;
 }
 
 .same-date-control .checkbox-label {

@@ -172,6 +172,10 @@ const InitiatesModule = (function() {
                     checkbox.id = `initiated-${index}`;
                     checkbox.addEventListener('change', function() {
                         handleInitiatedChange(index, this.checked);
+                        // Mark as having unsaved changes
+                        if (window.setUnsavedChanges) {
+                            window.setUnsavedChanges(true);
+                        }
                     });
                     initiatedCell.appendChild(checkbox);
                     
@@ -244,6 +248,11 @@ const InitiatesModule = (function() {
                             } else {
                                 this.setCustomValidity('');
                             }
+                        }
+
+                        // Mark as having unsaved changes
+                        if (window.setUnsavedChanges) {
+                            window.setUnsavedChanges(true);
                         }
                     });
                     
@@ -640,7 +649,12 @@ const InitiatesModule = (function() {
                 
                 // Clear pending initiates
                 delete appState.pendingInitiates;
-                
+
+                // Clear unsaved Changes tracking
+                if (window.setUnsavedChanges) {
+                    window.setUnsavedChanges(false);
+                }
+
                 // Wait 2 seconds then return to main menu
                 setTimeout(() => {
                     successDiv.remove();

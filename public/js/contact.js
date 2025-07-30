@@ -162,6 +162,10 @@ const ContactModule = (function() {
                 if (this.checked) {
                     copyPostalToShipping();
                 }
+                // Mark as having unsaved changes
+                if (window.setUnsavedChanges) {
+                    window.setUnsavedChanges(true);
+                }
             });
         }
         
@@ -181,6 +185,10 @@ const ContactModule = (function() {
             }
             
             e.target.value = formattedValue;
+            // Mark as having unsaved changes
+            if (window.setUnsavedChanges) {
+                window.setUnsavedChanges(true);
+            }
         });
         
         // Add email validation
@@ -191,6 +199,10 @@ const ContactModule = (function() {
                 e.target.reportValidity();
             } else {
                 e.target.setCustomValidity('');
+            }
+            // Mark as having unsaved changes
+            if (window.setUnsavedChanges) {
+                window.setUnsavedChanges(true);
             }
         });
         
@@ -448,6 +460,11 @@ const ContactModule = (function() {
                 `;
                 document.querySelector('.container').appendChild(successDiv);
                 
+                // Clear unsaved Changes Tracking
+                if (window.setUnsavedChanges) {
+                    window.setUnsavedChanges(false);
+                }
+
                 // Wait 2 seconds then return to main menu
                 setTimeout(() => {
                     successDiv.remove();
