@@ -216,7 +216,7 @@ const RosterModule = (function() {
         const tbody = document.getElementById('roster-tbody');
         
         // Check if user is STS 2 (view-only)
-        const isViewOnly = appState.sts === '2';
+        const isViewOnly = appState.sts === '2' || appState.sts === '4';
         console.log('View-only mode:', isViewOnly);
         
         // Update header if view-only
@@ -242,6 +242,15 @@ const RosterModule = (function() {
             const instructionText = document.querySelector('#roster-content .page-description');
             if (instructionText) {
                 instructionText.style.display = 'none';
+            }
+            // Hide Status and Effective Date headers
+            const headerRow = document.querySelector('#roster-table thead tr');
+            if (headerRow) {
+                const headers = headerRow.querySelectorAll('th');
+                if (headers.length >= 5) {
+                    headers[3].style.display = 'none'; // Status header
+                    headers[4].style.display = 'none'; // Effective Date header
+                }
             }
         }
         
