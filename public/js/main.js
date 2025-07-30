@@ -56,6 +56,22 @@ const Main = (function() {
             }
         }
         
+        // Cache chapter data if chapter is available
+        if (appState.chapter && appState.chapter !== 'Not provided') {
+            try {
+                console.log('Loading chapter data for:', appState.chapter);
+                const chapterData = await window.API.getChapterData(appState.chapter);
+                if (chapterData) {
+                    appState.chapterData = chapterData;
+                    console.log('Chapter data cached:', chapterData);
+                } else {
+                    console.warn('No chapter data found for:', appState.chapter);
+                }
+            } catch (error) {
+                console.error('Failed to cache chapter data:', error);
+            }
+        }
+        
         // Check token status periodically
         checkTokenStatus();
         
