@@ -47,6 +47,9 @@ const Main = (function() {
         // Apply security based on sts parameter
         applySecurityLevel();
         
+        // Initialize navigation (make functions available globally)
+        initializeNavigation();
+        
         // Set up authentication if we have credentials
         if (appState.clientId && appState.clientSecret) {
             try {
@@ -74,9 +77,6 @@ const Main = (function() {
         
         // Check token status periodically
         checkTokenStatus();
-        
-        // Initialize navigation
-        initializeNavigation();
         
         console.log('=== Application Initialization Complete ===');
     }
