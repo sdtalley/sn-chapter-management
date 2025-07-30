@@ -41,7 +41,7 @@ const Main = (function() {
         checkTokenStatus();
         
         // Initialize chapter dropdown if needed (for STS 0, 3, 4)
-        initializeChapterDropdown();
+        await initializeChapterDropdown();
         
         // Cache chapter data if chapter is available and not STS 0, 3, or 4
         if (appState.chapter && appState.chapter !== 'Not provided' && 
@@ -61,7 +61,7 @@ const Main = (function() {
         Utils.resizeIframe();
     }
     
-    function initializeChapterDropdown() {
+    async function initializeChapterDropdown() {
         // Only initialize for STS 0, 3, or 4
         if (!['0', '3', '4'].includes(appState.sts)) {
             return;
@@ -108,7 +108,7 @@ const Main = (function() {
         }
         
         // Populate the dropdown
-        populateChapterDropdown();
+        await populateChapterDropdown();
         
         // Add change event listener
         const chapterSelect = document.getElementById('chapter-select');
@@ -128,9 +128,44 @@ const Main = (function() {
         if (!chapterSelect) return;
         
         try {
-            // Fetch chapter names from API
-            const response = await fetch('/api/blackbaud?action=get-chapters');
-            const chapters = await response.json();
+            let chapters = [];
+            
+            if (appState.sts === '4' && appState.sid) {
+                // For STS 4, get chapters based on advisor relationships
+                console.log('STS 4: Fetching advisor chapters for SID:', appState.sid);
+                
+                // Show loading state
+                chapterSelect.innerHTML = '<option value="">Loading chapters...</option>';
+                chapterSelect.disabled = true;
+                
+                try {
+                    const response = await fetch(`/api/blackbaud?action=get-advisor-chapters&sid=${appState.sid}`);
+                    if (!response.ok) {
+                        throw new Error(`Failed to fetch advisor chapters: ${response.status}`);
+                    }
+                    chapters = await response.json();
+                    console.log('Advisor chapters received:', chapters);
+                } catch (error) {
+                    console.error('Failed to load advisor chapters:', error);
+                    Utils.showStatus('Failed to load advisor chapters. Please contact support.', 'error');
+                    chapters = [];
+                } finally {
+                    // Re-enable select
+                    chapterSelect.disabled = false;
+                }
+                
+                // Clear and update options
+                chapterSelect.innerHTML = '<option value="">Select Chapter</option>';
+                
+                if (chapters.length === 0) {
+                    chapterSelect.innerHTML = '<option value="">No advisor chapters found</option>';
+                    return;
+                }
+            } else {
+                // For STS 0 and 3, get all chapters
+                const response = await fetch('/api/blackbaud?action=get-chapters');
+                chapters = await response.json();
+            }
             
             chapters.forEach(chapterName => {
                 const option = document.createElement('option');
@@ -145,6 +180,7 @@ const Main = (function() {
             }
         } catch (error) {
             console.error('Failed to load chapters:', error);
+            chapterSelect.innerHTML = '<option value="">Failed to load chapters</option>';
         }
     }
     
@@ -232,36 +268,114 @@ const Main = (function() {
         forms.forEach(form => form.reset());
         
         // Clear any dynamic content
-        const tbodies = document.querySelectorAll('tbody');
+        const tbodies = document.querySelectorAll('tbody[id$="-tbody"]');
         tbodies.forEach(tbody => tbody.innerHTML = '');
         
-        // Reset unsaved changes flag
+        // Reset tracking variables
         appState.hasUnsavedChanges = false;
     }
     
     function hideNavigationButtons() {
-        const navButtons = document.querySelector('.nav-buttons');
-        if (navButtons) {
-            navButtons.style.display = 'none';
-        }
+        const navButtons = document.querySelectorAll('.nav-item button');
+        navButtons.forEach(button => {
+            if (button.parentElement) {
+                button.parentElement.style.visibility = 'hidden';
+            }
+        });
     }
     
     function showNavigationButtons() {
-        const navButtons = document.querySelector('.nav-buttons');
-        if (navButtons) {
-            navButtons.style.display = 'flex';
+        const navButtons = document.querySelectorAll('.nav-item button');
+        navButtons.forEach(button => {
+            if (button.parentElement) {
+                button.parentElement.style.visibility = 'visible';
+            }
+        });
+    }
+    
+    // Parse URL parameters
+    function parseURLParameters() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const sid = urlParams.get('sid') || urlParams.get('SID') || 'Not provided';
+        const chapter = urlParams.get('chapter') || urlParams.get('Chapter') || 'Not provided';
+        const sts = urlParams.get('sts') || urlParams.get('STS');
+        const offname = urlParams.get('offname') || urlParams.get('OFFNAME') || 'Not provided';
+        
+        // Store in application state
+        appState.sid = sid !== 'Not provided' ? sid : null;
+        appState.chapter = chapter !== 'Not provided' ? chapter : null;
+        appState.sts = sts;
+        appState.offname = offname !== 'Not provided' ? offname : null;
+        
+        const sidElement = document.getElementById('sid');
+        const chapterElement = document.getElementById('chapter');
+        const offnameElement = document.getElementById('offname');
+        if (sidElement) sidElement.textContent = sid;
+        if (chapterElement) chapterElement.textContent = chapter;
+        if (offnameElement) offnameElement.textContent = offname;
+        
+        // Apply security based on sts parameter
+        applySecurityLevel();
+    }
+    
+    // Load stored credentials (placeholder)
+    function loadStoredCredentials() {
+        // In a real application, you'd load these from secure server-side storage
+        // For demo purposes, we'll use the form inputs
+    }
+    
+    // Check token status periodically
+    function checkTokenStatus() {
+        // Check token validity every minute
+        setInterval(() => {
+            updateTokenInfo();
+        }, 60000);
+    }
+    
+    // Update token information display
+    function updateTokenInfo() {
+        const tokenInfo = document.getElementById('tokenInfo');
+        const accessTokenSpan = document.getElementById('accessToken');
+        const tokenTypeSpan = document.getElementById('tokenType');
+        const expiresAtSpan = document.getElementById('expiresAt');
+        const tokenStatusSpan = document.getElementById('tokenStatus');
+        
+        if (appState.accessToken && tokenInfo) {
+            tokenInfo.style.display = 'block';
+            if (accessTokenSpan) accessTokenSpan.textContent = appState.accessToken.substring(0, 20) + '...';
+            if (tokenTypeSpan) tokenTypeSpan.textContent = appState.tokenType;
+            if (expiresAtSpan) expiresAtSpan.textContent = appState.expiresAt ? new Date(appState.expiresAt).toLocaleString() : 'Unknown';
+            if (tokenStatusSpan) tokenStatusSpan.textContent = isTokenValid() ? 'Active' : 'Expired';
+        } else if (tokenInfo) {
+            tokenInfo.style.display = 'none';
         }
     }
     
-    // Simple navigation functions
-    window.showPage = function(pageId) {
-        // Check authorization before showing any page
+    // Check if token is valid
+    function isTokenValid() {
+        return appState.accessToken && appState.expiresAt && new Date().getTime() < appState.expiresAt;
+    }
+    
+    // Navigate to page function
+    window.navigateToPage = function(pageId) {
+        // Check authorization first
         if (!isAuthorized()) {
             return;
         }
         
-        // Hide main menu
-        document.getElementById('main-menu').style.display = 'none';
+        // Check if chapter is selected for STS 0, 3, or 4
+        if (['0', '3', '4'].includes(appState.sts) && (!appState.chapter || appState.chapter === 'Not provided')) {
+            alert('Please select a chapter first');
+            return;
+        }
+        
+        // Check for unsaved changes
+        if (appState.hasUnsavedChanges) {
+            const confirmNavigation = confirm('You have unsaved changes. Are you sure you want to leave this page?');
+            if (!confirmNavigation) {
+                return;
+            }
+        }
         
         // Hide all pages
         document.querySelectorAll('.page').forEach(page => {
@@ -269,16 +383,24 @@ const Main = (function() {
         });
         
         // Show selected page
-        document.getElementById(pageId).style.display = 'block';
-        appState.currentPage = pageId;
+        const selectedPage = document.getElementById(pageId);
+        if (selectedPage) {
+            selectedPage.style.display = 'block';
+            appState.currentPage = pageId;
+            
+            // Reset unsaved changes flag
+            appState.hasUnsavedChanges = false;
+        }
         
-        // Load page-specific data
-        if (pageId === 'verify-candidates') {
+        // Load data for the page if needed
+        if (pageId === 'member-directory') {
+            window.MemberDirectoryModule.loadMemberDirectory();
+        } else if (pageId === 'verify-candidates') {
             window.CandidatesModule.loadCandidates();
         } else if (pageId === 'verify-initiates') {
             window.InitiatesModule.loadInitiates();
         } else if (pageId === 'roster-info') {
-            window.RosterModule.loadRoster();
+            window.RosterModule.loadRosterInfo();
         } else if (pageId === 'returning-students') {
             window.ReturningModule.loadReturningStudents();
         } else if (pageId === 'officer-info') {
@@ -385,69 +507,6 @@ const Main = (function() {
         });
     }
     
-    // Parse URL parameters
-    function parseURLParameters() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const sid = urlParams.get('sid') || urlParams.get('SID') || 'Not provided';
-        const chapter = urlParams.get('chapter') || urlParams.get('Chapter') || 'Not provided';
-        const sts = urlParams.get('sts') || urlParams.get('STS');
-        const offname = urlParams.get('offname') || urlParams.get('OFFNAME') || 'Not provided';
-        
-        // Store in application state
-        appState.sid = sid !== 'Not provided' ? sid : null;
-        appState.chapter = chapter !== 'Not provided' ? chapter : null;
-        appState.sts = sts;
-        appState.offname = offname !== 'Not provided' ? offname : null;
-        
-        const sidElement = document.getElementById('sid');
-        const chapterElement = document.getElementById('chapter');
-        const offnameElement = document.getElementById('offname');
-        if (sidElement) sidElement.textContent = sid;
-        if (chapterElement) chapterElement.textContent = chapter;
-        if (offnameElement) offnameElement.textContent = offname;
-        
-        // Apply security based on sts parameter
-        applySecurityLevel();
-    }
-    
-    // Load stored credentials (placeholder)
-    function loadStoredCredentials() {
-        // In a real application, you'd load these from secure server-side storage
-        // For demo purposes, we'll use the form inputs
-    }
-    
-    // Check token status periodically
-    function checkTokenStatus() {
-        // Check token validity every minute
-        setInterval(() => {
-            updateTokenInfo();
-        }, 60000);
-    }
-    
-    // Update token information display
-    function updateTokenInfo() {
-        const tokenInfo = document.getElementById('tokenInfo');
-        const accessTokenSpan = document.getElementById('accessToken');
-        const tokenTypeSpan = document.getElementById('tokenType');
-        const expiresAtSpan = document.getElementById('expiresAt');
-        const tokenStatusSpan = document.getElementById('tokenStatus');
-        
-        if (appState.accessToken && tokenInfo) {
-            tokenInfo.style.display = 'block';
-            if (accessTokenSpan) accessTokenSpan.textContent = appState.accessToken.substring(0, 20) + '...';
-            if (tokenTypeSpan) tokenTypeSpan.textContent = appState.tokenType;
-            if (expiresAtSpan) expiresAtSpan.textContent = appState.expiresAt ? new Date(appState.expiresAt).toLocaleString() : 'Unknown';
-            if (tokenStatusSpan) tokenStatusSpan.textContent = isTokenValid() ? 'Active' : 'Expired';
-        } else if (tokenInfo) {
-            tokenInfo.style.display = 'none';
-        }
-    }
-    
-    // Check if token is valid
-    function isTokenValid() {
-        return appState.accessToken && appState.expiresAt && new Date().getTime() < appState.expiresAt;
-    }
-    
     // Track unsaved changes
     window.setUnsavedChanges = function(hasChanges) {
         appState.hasUnsavedChanges = hasChanges;
@@ -456,7 +515,9 @@ const Main = (function() {
     // Public API
     return {
         init,
-        showChapterSelect  // Expose this function
+        showChapterSelect,  // Expose this function
+        isTokenValid,
+        updateTokenInfo
     };
 })();
 

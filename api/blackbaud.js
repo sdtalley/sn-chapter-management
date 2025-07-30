@@ -107,7 +107,7 @@ export default async function handler(req, res) {
   }
   
   try {
-    const { action, endpoint, chapter, jobId, constituentId } = req.query;
+    const { action, endpoint, chapter, jobId, constituentId, sid } = req.query;
     
     // Handle chapter lookup
     if (action === 'chapter-lookup' && chapter) {
@@ -159,6 +159,69 @@ export default async function handler(req, res) {
       // Return just the chapter names (no sensitive data)
       const chapterNames = Object.keys(chapterLookup).sort();
       res.json(chapterNames);
+      return;
+    }
+    
+    // NEW: Get advisor chapters for STS 4
+    if (action === 'get-advisor-chapters') {
+      if (!sid) {
+        res.status(400).json({ error: 'SID parameter required' });
+        return;
+      }
+      
+      try {
+        console.log('Fetching relationships for SID:', sid);
+        const accessToken = await getValidAccessToken();
+        
+        // Get constituent relationships
+        const relationshipsUrl = `https://api.sky.blackbaud.com/constituent/v1/constituents/${sid}/relationships`;
+        const relationshipsResponse = await fetch(relationshipsUrl, {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Bb-Api-Subscription-Key': process.env.BLACKBAUD_SUBSCRIPTION_KEY
+          }
+        });
+        
+        if (!relationshipsResponse.ok) {
+          const errorText = await relationshipsResponse.text();
+          console.error('Failed to fetch relationships:', relationshipsResponse.status, errorText);
+          throw new Error(`Failed to fetch relationships: ${relationshipsResponse.status}`);
+        }
+        
+        const relationshipsData = await relationshipsResponse.json();
+        console.log('Total relationships found:', relationshipsData.count);
+        
+        // Filter for Chapter Advisor and Co-Advisor relationships with no end date
+        const advisorChapters = [];
+        
+        if (relationshipsData.value && Array.isArray(relationshipsData.value)) {
+          relationshipsData.value.forEach(relationship => {
+            // Check if this is a Chapter Advisor or Co-Advisor relationship
+            if (relationship.reciprocal_type === 'Chapter Advisor' || 
+                relationship.reciprocal_type === 'Co-Advisor') {
+              
+              // Check if there's no end date
+              if (!relationship.end) {
+                // Add the chapter name to our list
+                if (relationship.name && !advisorChapters.includes(relationship.name)) {
+                  advisorChapters.push(relationship.name);
+                  console.log(`Found advisor relationship for chapter: ${relationship.name}`);
+                }
+              }
+            }
+          });
+        }
+        
+        console.log('Advisor chapters found:', advisorChapters);
+        
+        // Sort the chapters alphabetically
+        advisorChapters.sort();
+        
+        res.json(advisorChapters);
+      } catch (error) {
+        console.error('Error getting advisor chapters:', error);
+        res.status(500).json({ error: 'Failed to get advisor chapters: ' + error.message });
+      }
       return;
     }
 
