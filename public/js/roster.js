@@ -15,6 +15,7 @@ const RosterModule = (function() {
     async function loadRoster() {
         console.log('=== loadRoster() started ===');
         console.log('Chapter:', appState.chapter);
+        console.log('STS:', appState.sts);
         
         if (!appState.chapter) {
             Utils.showRosterError('No chapter specified. Please access this page with a chapter parameter.');
@@ -214,6 +215,36 @@ const RosterModule = (function() {
         const initiatesCountSpan = document.getElementById('roster-initiates-count');
         const tbody = document.getElementById('roster-tbody');
         
+        // Check if user is STS 2 (view-only)
+        const isViewOnly = appState.sts === '2';
+        console.log('View-only mode:', isViewOnly);
+        
+        // Update header if view-only
+        if (isViewOnly) {
+            const headerElement = document.querySelector('#roster-content h3');
+            if (headerElement && !headerElement.textContent.includes('(View Only)')) {
+                headerElement.textContent += ' (View Only)';
+            }
+            
+            // Hide submit button
+            const submitBtn = document.getElementById('roster-submit-btn');
+            if (submitBtn) {
+                submitBtn.style.display = 'none';
+            }
+            
+            // Hide the review section entirely
+            const reviewSection = document.getElementById('roster-review');
+            if (reviewSection) {
+                reviewSection.style.display = 'none';
+            }
+            
+            // Hide the instruction text about making changes
+            const instructionText = document.querySelector('#roster-content .page-description');
+            if (instructionText) {
+                instructionText.style.display = 'none';
+            }
+        }
+        
         // Count candidates and initiates
         let candidatesCount = 0;
         let initiatesCount = 0;
@@ -237,7 +268,7 @@ const RosterModule = (function() {
                 console.log('No members found - showing empty state');
                 const row = tbody.insertRow();
                 const cell = row.insertCell();
-                cell.colSpan = 5;
+                cell.colSpan = isViewOnly ? 3 : 5;  // Adjust colspan based on view mode
                 cell.className = 'empty-state-cell';
                 cell.textContent = 'No members found for this chapter.';
             } else {
@@ -271,117 +302,120 @@ const RosterModule = (function() {
                     const fromDateCell = row.insertCell();
                     fromDateCell.textContent = Utils.formatDateForDisplay(member.fromDate);
                     
-                    // Status dropdown
-                    const statusCell = row.insertCell();
-                    
-                    // Check if member has Proposed Expelled or Proposed Suspended status
-                    if (member.recip === 'Proposed Expelled' || member.recip === 'Proposed Suspended') {
-                        // Display as uneditable text
-                        statusCell.textContent = member.recip;
-                        statusCell.style.fontWeight = 'bold';
-                        statusCell.style.color = '#dc3545'; // Red color for emphasis
-                    } else {
-                        // Determine if dropdown should be shown
-                        const isCandidate = member.status === '5707' || member.status === 'Candidate';
-                        const isInitiate = member.status === '5708' || member.status === 'Initiate';
-                        const candidateFeeUnpaid = isCandidate && member.candidateFeePaid !== 'Yes';
-                        const feesUnpaid = isInitiate && (member.candidateFeePaid !== 'Yes' || member.initiateFeePaid !== 'Yes');
+                    // For view-only mode, skip the status dropdown and date columns
+                    if (!isViewOnly) {
+                        // Status dropdown
+                        const statusCell = row.insertCell();
                         
-                        if (candidateFeeUnpaid) {
-                            statusCell.textContent = '-';
-                            statusCell.title = 'Candidate Fee Unpaid';
-                            statusCell.style.cursor = 'help';
+                        // Check if member has Proposed Expelled or Proposed Suspended status
+                        if (member.recip === 'Proposed Expelled' || member.recip === 'Proposed Suspended') {
+                            // Display as uneditable text
+                            statusCell.textContent = member.recip;
+                            statusCell.style.fontWeight = 'bold';
+                            statusCell.style.color = '#dc3545'; // Red color for emphasis
                         } else {
-                            const selectWrapper = document.createElement('div');
-                            selectWrapper.className = 'select-wrapper';
+                            // Determine if dropdown should be shown
+                            const isCandidate = member.status === '5707' || member.status === 'Candidate';
+                            const isInitiate = member.status === '5708' || member.status === 'Initiate';
+                            const candidateFeeUnpaid = isCandidate && member.candidateFeePaid !== 'Yes';
+                            const feesUnpaid = isInitiate && (member.candidateFeePaid !== 'Yes' || member.initiateFeePaid !== 'Yes');
                             
-                            const statusSelect = document.createElement('select');
-                            statusSelect.className = 'status-select';
-                            statusSelect.id = `status-${index}`;
-                            
-                            // Default option
-                            const defaultOption = document.createElement('option');
-                            defaultOption.value = '';
-                            defaultOption.textContent = 'No Change';
-                            defaultOption.selected = true;
-                            statusSelect.appendChild(defaultOption);
-                            
-                            if (isCandidate) {
-                                // Candidate options
-                                const depledgeOption = document.createElement('option');
-                                depledgeOption.value = 'De-Pledge';
-                                depledgeOption.textContent = 'De-pledge';
-                                statusSelect.appendChild(depledgeOption);
-                            } else if (isInitiate) {
-                                if (feesUnpaid) {
-                                    // Limited options for unpaid fees
-                                    selectWrapper.title = 'Fee(s) Unpaid';
-                                    
-                                    const suspendedOption = document.createElement('option');
-                                    suspendedOption.value = 'Proposed Suspended';
-                                    suspendedOption.textContent = 'Proposed Suspended';
-                                    statusSelect.appendChild(suspendedOption);
-                                    
-                                    const expelledOption = document.createElement('option');
-                                    expelledOption.value = 'Proposed Expelled';
-                                    expelledOption.textContent = 'Proposed Expelled';
-                                    statusSelect.appendChild(expelledOption);
-                                } else {
-                                    // Full options for paid fees
-                                    const alumniLeftOption = document.createElement('option');
-                                    alumniLeftOption.value = 'Alumni (Left School)';
-                                    alumniLeftOption.textContent = 'Alumni (Left-School)';
-                                    statusSelect.appendChild(alumniLeftOption);
-                                    
-                                    const alumniGradOption = document.createElement('option');
-                                    alumniGradOption.value = 'Alumni';
-                                    alumniGradOption.textContent = 'Alumni (Graduated)';
-                                    statusSelect.appendChild(alumniGradOption);
-                                    
-                                    const suspendedOption = document.createElement('option');
-                                    suspendedOption.value = 'Proposed Suspended';
-                                    suspendedOption.textContent = 'Proposed Suspended';
-                                    statusSelect.appendChild(suspendedOption);
-                                    
-                                    const expelledOption = document.createElement('option');
-                                    expelledOption.value = 'Proposed Expelled';
-                                    expelledOption.textContent = 'Proposed Expelled';
-                                    statusSelect.appendChild(expelledOption);
+                            if (candidateFeeUnpaid) {
+                                statusCell.textContent = '-';
+                                statusCell.title = 'Candidate Fee Unpaid';
+                                statusCell.style.cursor = 'help';
+                            } else {
+                                const selectWrapper = document.createElement('div');
+                                selectWrapper.className = 'select-wrapper';
+                                
+                                const statusSelect = document.createElement('select');
+                                statusSelect.className = 'status-select';
+                                statusSelect.id = `status-${index}`;
+                                
+                                // Default option
+                                const defaultOption = document.createElement('option');
+                                defaultOption.value = '';
+                                defaultOption.textContent = 'No Change';
+                                defaultOption.selected = true;
+                                statusSelect.appendChild(defaultOption);
+                                
+                                if (isCandidate) {
+                                    // Candidate options
+                                    const depledgeOption = document.createElement('option');
+                                    depledgeOption.value = 'De-Pledge';
+                                    depledgeOption.textContent = 'De-pledge';
+                                    statusSelect.appendChild(depledgeOption);
+                                } else if (isInitiate) {
+                                    if (feesUnpaid) {
+                                        // Limited options for unpaid fees
+                                        selectWrapper.title = 'Fee(s) Unpaid';
+                                        
+                                        const suspendedOption = document.createElement('option');
+                                        suspendedOption.value = 'Proposed Suspended';
+                                        suspendedOption.textContent = 'Proposed Suspended';
+                                        statusSelect.appendChild(suspendedOption);
+                                        
+                                        const expelledOption = document.createElement('option');
+                                        expelledOption.value = 'Proposed Expelled';
+                                        expelledOption.textContent = 'Proposed Expelled';
+                                        statusSelect.appendChild(expelledOption);
+                                    } else {
+                                        // Full options for paid fees
+                                        const alumniLeftOption = document.createElement('option');
+                                        alumniLeftOption.value = 'Alumni (Left School)';
+                                        alumniLeftOption.textContent = 'Alumni (Left-School)';
+                                        statusSelect.appendChild(alumniLeftOption);
+                                        
+                                        const alumniGradOption = document.createElement('option');
+                                        alumniGradOption.value = 'Alumni';
+                                        alumniGradOption.textContent = 'Alumni (Graduated)';
+                                        statusSelect.appendChild(alumniGradOption);
+                                        
+                                        const suspendedOption = document.createElement('option');
+                                        suspendedOption.value = 'Proposed Suspended';
+                                        suspendedOption.textContent = 'Proposed Suspended';
+                                        statusSelect.appendChild(suspendedOption);
+                                        
+                                        const expelledOption = document.createElement('option');
+                                        expelledOption.value = 'Proposed Expelled';
+                                        expelledOption.textContent = 'Proposed Expelled';
+                                        statusSelect.appendChild(expelledOption);
+                                    }
                                 }
+                                
+                                // Add change event listener
+                                statusSelect.addEventListener('change', function() {
+                                    handleRosterStatusChange(index, this.value);
+                                });
+                                
+                                selectWrapper.appendChild(statusSelect);
+                                statusCell.appendChild(selectWrapper);
                             }
-                            
-                            // Add change event listener
-                            statusSelect.addEventListener('change', function() {
-                                handleRosterStatusChange(index, this.value);
-                            });
-                            
-                            selectWrapper.appendChild(statusSelect);
-                            statusCell.appendChild(selectWrapper);
                         }
-                    }
-                    
-                    // Date picker
-                    const dateCell = row.insertCell();
-                    const dateInput = document.createElement('input');
-                    dateInput.type = 'date';
-                    dateInput.className = 'date-input';
-                    dateInput.id = `roster-date-${index}`;
-                    dateInput.disabled = true; // Initially disabled
-                    
-                    // Set max date to today
-                    const today = new Date();
-                    dateInput.max = today.toISOString().split('T')[0];
-                    
-                    // Set min date to day after from date if it exists
-                    if (member.fromDate) {
-                        const fromDate = Utils.parseDate(member.fromDate);
-                        if (fromDate) {
-                            fromDate.setDate(fromDate.getDate() + 1);
-                            dateInput.min = fromDate.toISOString().split('T')[0];
+                        
+                        // Date picker
+                        const dateCell = row.insertCell();
+                        const dateInput = document.createElement('input');
+                        dateInput.type = 'date';
+                        dateInput.className = 'date-input';
+                        dateInput.id = `roster-date-${index}`;
+                        dateInput.disabled = true; // Initially disabled
+                        
+                        // Set max date to today
+                        const today = new Date();
+                        dateInput.max = today.toISOString().split('T')[0];
+                        
+                        // Set min date to day after from date if it exists
+                        if (member.fromDate) {
+                            const fromDate = Utils.parseDate(member.fromDate);
+                            if (fromDate) {
+                                fromDate.setDate(fromDate.getDate() + 1);
+                                dateInput.min = fromDate.toISOString().split('T')[0];
+                            }
                         }
+                        
+                        dateCell.appendChild(dateInput);
                     }
-                    
-                    dateCell.appendChild(dateInput);
                 });
             }
         }

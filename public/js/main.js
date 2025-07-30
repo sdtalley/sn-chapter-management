@@ -1,131 +1,154 @@
-// Main application initialization and state management
+// Main initialization and navigation module for SN Chapter Management
 const Main = (function() {
     'use strict';
     
+    // Configuration
+    const CONFIG = {
+        tokenEndpoint: 'https://oauth2.sky.blackbaud.com/token',
+        apiBaseUrl: 'https://api.sky.blackbaud.com',
+        tokenRefreshBuffer: 300000 // 5 minutes in milliseconds
+    };
+    
+    // Make CONFIG available globally
+    window.CONFIG = CONFIG;
+    
     // Application state
-    window.appState = {
+    const appState = {
         accessToken: null,
         tokenType: 'Bearer',
         expiresAt: null,
         refreshTimer: null,
-        clientId: null,
-        clientSecret: null,
-        subscriptionKey: null,
         sid: null,
         chapter: null,
         sts: null,
         offname: null,
-        currentPage: 'main',
-        lastBadgeNumber: null,
-        allowedSkips: {}, // Store allowed skips configuration
-        chapterData: null // Cache chapter data
+        clientId: null,
+        clientSecret: null,
+        subscriptionKey: null,
+        currentPage: 'main-menu',
+        lastApiCall: null,
+        chapterData: null,
+        allowedSkips: {}
     };
     
-    // Configuration
-    window.CONFIG = {
-        tokenEndpoint: 'https://oauth2.sky.blackbaud.com/token',
-        apiBaseUrl: 'https://api.sky.blackbaud.com/',
-        tokenRefreshBuffer: 300000 // 5 minutes in milliseconds
-    };
+    // Make appState available globally
+    window.appState = appState;
     
-    // Initialize application
+    // Initialize the application
     async function init() {
+        console.log('=== Application Initialization Started ===');
+        
+        // Parse URL parameters
         parseURLParameters();
+        
+        // Load stored credentials
         loadStoredCredentials();
+        
+        // Apply security based on sts parameter
+        applySecurityLevel();
+        
+        // Set up authentication if we have credentials
+        if (appState.clientId && appState.clientSecret) {
+            try {
+                await window.API.authenticate();
+            } catch (error) {
+                console.error('Initial authentication failed:', error);
+            }
+        }
+        
+        // Check token status periodically
         checkTokenStatus();
         
-        // Cache chapter data if chapter is available
-        if (appState.chapter && appState.chapter !== 'Not provided') {
-            try {
-                const chapterData = await API.getChapterData(appState.chapter);
-                if (chapterData) {
-                    appState.chapterData = chapterData;
-                    console.log('Chapter data cached:', chapterData);
+        // Initialize navigation
+        initializeNavigation();
+        
+        console.log('=== Application Initialization Complete ===');
+    }
+    
+    function initializeNavigation() {
+        // Expose showPage globally for navigation
+        window.showPage = function(pageId) {
+            console.log('=== Navigation: ' + pageId + ' ===');
+            
+            // Hide all pages
+            document.querySelectorAll('.page').forEach(page => {
+                page.style.display = 'none';
+            });
+            
+            // Hide main menu
+            document.getElementById('main-menu').style.display = 'none';
+            
+            // Show selected page
+            const selectedPage = document.getElementById(pageId);
+            if (selectedPage) {
+                selectedPage.style.display = 'block';
+                appState.currentPage = pageId;
+                
+                // Auto-load data for specific pages
+                switch(pageId) {
+                    case 'verify-candidates':
+                        window.CandidatesModule.loadCandidates();
+                        break;
+                    case 'verify-initiates':
+                        window.InitiatesModule.loadInitiates();
+                        break;
+                    case 'roster-info':
+                        window.RosterModule.loadRoster();
+                        break;
+                    case 'officer-info':
+                        window.OfficersModule.loadOfficers();
+                        break;
+                    case 'contact-info':
+                        window.ContactModule.loadChapterContact();
+                        break;
+                    case 'fee-status':
+                        window.FeesModule.loadFeeStatus();
+                        break;
+                    case 'returning-students':
+                        window.ReturningModule.loadReturningStudents();
+                        break;
+                    case 'admin':
+                        window.API.loadAllowSkipsConfig();
+                        break;
                 }
-            } catch (error) {
-                console.error('Failed to cache chapter data:', error);
             }
-        }
+            
+            // Adjust iframe height if embedded
+            window.Utils.resizeIframe();
+        };
         
-        // Initial iframe resize
-        Utils.resizeIframe();
+        // Expose backToMenu globally
+        window.backToMenu = function() {
+            console.log('=== Returning to Main Menu ===');
+            
+            // Hide all pages
+            document.querySelectorAll('.page').forEach(page => {
+                page.style.display = 'none';
+            });
+            
+            // Show main menu
+            document.getElementById('main-menu').style.display = 'block';
+            appState.currentPage = 'main-menu';
+            
+            // Clear any status messages
+            const statusElements = document.querySelectorAll('.status');
+            statusElements.forEach(element => {
+                element.style.display = 'none';
+            });
+            
+            // Adjust iframe height
+            window.Utils.resizeIframe();
+        };
     }
     
-    // Simple navigation functions
-    window.showPage = function(pageId) {
-        // Check authorization before showing any page
-        if (!isAuthorized()) {
-            return;
-        }
-        
-        // Hide main menu
-        document.getElementById('main-menu').style.display = 'none';
-        
-        // Hide all pages
-        document.querySelectorAll('.page').forEach(page => {
-            page.style.display = 'none';
-        });
-        
-        // Show selected page
-        document.getElementById(pageId).style.display = 'block';
-        appState.currentPage = pageId;
-        
-        // Load page-specific data
-        if (pageId === 'verify-candidates') {
-            window.CandidatesModule.loadCandidates();
-        } else if (pageId === 'verify-initiates') {
-            window.InitiatesModule.loadInitiates();
-        } else if (pageId === 'roster-info') {
-            window.RosterModule.loadRoster();
-        } else if (pageId === 'returning-students') {
-            window.ReturningModule.loadReturningStudents();
-        } else if (pageId === 'officer-info') {
-            window.OfficersModule.loadOfficers();
-        } else if (pageId === 'contact-info') {
-            window.ContactModule.loadContactInfo();
-        } else if (pageId === 'fee-status') {
-            window.FeesModule.loadFeeStatus();
-        } else if (pageId === 'admin') {
-            if (window.AdminModule) {
-                window.AdminModule.initAdmin();
-            }
-        }
-        
-        // Notify parent of height change
-        Utils.resizeIframe();
-    };
-    
-    window.showMainMenu = function() {
-        // Check authorization
-        if (!isAuthorized()) {
-            return;
-        }
-        
-        // Hide all pages
-        document.querySelectorAll('.page').forEach(page => {
-            page.style.display = 'none';
-        });
-        
-        // Show main menu
-        document.getElementById('main-menu').style.display = 'block';
-        appState.currentPage = 'main';
-        
-        // Notify parent of height change
-        Utils.resizeIframe();
-    };
-    
-    // Authorization check function
-    function isAuthorized() {
-        return appState.sts !== null && ['0', '1', '2'].includes(appState.sts);
-    }
-    
-    // Apply security level based on sts parameter
     function applySecurityLevel() {
+        console.log('=== Applying Security Level ===');
+        console.log('STS Value:', appState.sts);
+        
         const mainMenu = document.getElementById('main-menu');
         const unauthorized = document.getElementById('unauthorized');
         
-        // If no sts parameter or invalid value, show unauthorized
-        if (appState.sts === null || !['0', '1', '2'].includes(appState.sts)) {
+        if (!appState.sts || !['0', '1', '2'].includes(appState.sts)) {
             mainMenu.style.display = 'none';
             unauthorized.style.display = 'block';
             
@@ -165,9 +188,10 @@ const Main = (function() {
                     navItems[btn] = btn !== 'btn-admin';
                 });
                 break;
-            case '2': // Show only Fee Status (Treasurer) button and Member Directory
+            case '2': // Show only Fee Status, Member Directory, and Roster (view-only)
                 navItems['btn-fee-status'] = true;
                 navItems['btn-member-directory'] = true;
+                navItems['btn-roster-info'] = true;  // Added roster access for STS 2
                 break;
         }
         
