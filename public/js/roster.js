@@ -30,9 +30,14 @@ const RosterModule = (function() {
         Utils.hideElement('roster-error');
 
         try {
-            // Use cached chapter data
+            // Ensure chapter data is loaded
+            if (!appState.chapterData) {
+                console.log('Chapter data not cached, loading...');
+                appState.chapterData = await API.getChapterData(appState.chapter);
+            }
+            
             const chapterQuid = appState.chapterData?.quid;
-            console.log('Chapter QUID from cache:', chapterQuid);
+            console.log('Chapter QUID:', chapterQuid);
             
             if (!chapterQuid) {
                 throw new Error(`Chapter QUID not found for ${appState.chapter}`);
