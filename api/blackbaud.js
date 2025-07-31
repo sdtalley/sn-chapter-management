@@ -191,21 +191,22 @@ export default async function handler(req, res) {
         const relationshipsData = await relationshipsResponse.json();
         console.log('Total relationships found:', relationshipsData.count);
         
-        // Filter for Chapter Advisor and Co-Advisor relationships with no end date
+        // Filter for Chapter Advisor and Co-Advisor relationships with no end date and type "Collegiate Chapter"
         const advisorChapters = [];
         
         if (relationshipsData.value && Array.isArray(relationshipsData.value)) {
           relationshipsData.value.forEach(relationship => {
             // Check if this is a Chapter Advisor or Co-Advisor relationship
-            if (relationship.reciprocal_type === 'Chapter Advisor' || 
-                relationship.reciprocal_type === 'Co-Advisor') {
+            if ((relationship.reciprocal_type === 'Chapter Advisor' || 
+                 relationship.reciprocal_type === 'Co-Advisor') &&
+                relationship.type === 'Collegiate Chapter') {
               
               // Check if there's no end date
               if (!relationship.end) {
                 // Add the chapter name to our list
                 if (relationship.name && !advisorChapters.includes(relationship.name)) {
                   advisorChapters.push(relationship.name);
-                  console.log(`Found advisor relationship for chapter: ${relationship.name}`);
+                  console.log(`Found advisor relationship for chapter: ${relationship.name} (type: ${relationship.type})`);
                 }
               }
             }
