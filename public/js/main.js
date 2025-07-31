@@ -37,6 +37,11 @@ const Main = (function() {
         // Store original chapter
         appState.originalChapter = appState.chapter;
         
+        // Hide navigation buttons immediately for STS 0, 3, 4 if no chapter is selected
+        if (['0', '3', '4'].includes(appState.sts) && (!appState.chapter || appState.chapter === 'Not provided')) {
+            hideNavigationButtons();
+        }
+        
         loadStoredCredentials();
         checkTokenStatus();
         
@@ -511,6 +516,11 @@ const Main = (function() {
                 button.parentElement.style.display = navItems[btnId] ? 'flex' : 'none';
             }
         });
+        
+        // For STS 0, 3, 4 - also hide navigation buttons if no chapter is selected
+        if (['0', '3', '4'].includes(appState.sts) && (!appState.chapter || appState.chapter === 'Not provided')) {
+            hideNavigationButtons();
+        }
     }
     
     // Track unsaved changes
