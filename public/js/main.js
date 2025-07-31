@@ -318,6 +318,16 @@ const Main = (function() {
         appState.sts = sts;
         appState.offname = offname !== 'Not provided' ? offname : null;
         
+        // Add STS class to body immediately
+        if (sts) {
+            document.body.classList.add(`sts-${sts}`);
+        }
+        
+        // Also add class if no chapter selected
+        if (!appState.chapter || appState.chapter === 'Not provided') {
+            document.body.classList.add('no-chapter');
+        }
+        
         const sidElement = document.getElementById('sid');
         const chapterElement = document.getElementById('chapter');
         const offnameElement = document.getElementById('offname');
