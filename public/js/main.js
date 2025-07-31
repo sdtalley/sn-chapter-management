@@ -27,7 +27,7 @@ const Main = (function() {
     window.CONFIG = {
         tokenEndpoint: 'https://oauth2.sky.blackbaud.com/token',
         apiBaseUrl: 'https://api.sky.blackbaud.com/',
-        tokenRefreshBuffer: 300000 // 5 minutes in milliseconds,
+        tokenRefreshBuffer: 300000, // 5 minutes in milliseconds
         allowedDomains: ['https://www.sigmanu.org'] // Allowed parent domains
     };
     
