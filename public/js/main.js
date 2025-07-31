@@ -194,10 +194,7 @@ const Main = (function() {
         if (chapterLabel) chapterLabel.textContent = appState.chapter;
         
         // Show navigation buttons when chapter is selected
-        const navButtons = document.querySelector('.nav-buttons');
-        if (navButtons) {
-            navButtons.style.display = 'flex';
-        }
+        showNavigationButtons();
     }
     
     function showChapterSelect() {
@@ -286,10 +283,20 @@ const Main = (function() {
     }
     
     function hideNavigationButtons() {
-        const navButtons = document.querySelector('.nav-buttons');
-        if (navButtons) {
-            navButtons.style.display = 'none';
+        const navButtons = document.querySelectorAll('.nav-item');
+        navButtons.forEach(item => {
+            item.style.display = 'none';
+        });
+    }
+    
+    function showNavigationButtons() {
+        const navButtonsContainer = document.querySelector('.nav-buttons');
+        if (navButtonsContainer) {
+            navButtonsContainer.style.display = 'flex';
         }
+        
+        // Then show/hide individual items based on security level
+        applySecurityLevel();
     }
     
     function showNavigationButtons() {
@@ -402,6 +409,9 @@ const Main = (function() {
         document.querySelectorAll('.page').forEach(page => {
             page.style.display = 'none';
         });
+        
+        // Hide main menu
+        document.getElementById('main-menu').style.display = 'none';
         
         // Show selected page
         const selectedPage = document.getElementById(pageId);
