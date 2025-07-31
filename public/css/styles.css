@@ -12,13 +12,6 @@ body {
     padding: 20px;
 }
 
-/* CRITICAL: Hide navigation items initially for STS 0, 3, 4 when no chapter is selected */
-body.sts-0.no-chapter .nav-item,
-body.sts-3.no-chapter .nav-item,
-body.sts-4.no-chapter .nav-item {
-    visibility: hidden !important;
-}
-
 .container {
     background: white;
     border-radius: 15px;
@@ -111,8 +104,9 @@ h2 {
     display: block;
 }
 
+/* Hide navigation buttons by default - will be shown by JavaScript when appropriate */
 .nav-buttons {
-    display: flex;
+    display: none;
     flex-direction: column;
     gap: 15px;
     margin-top: 20px;

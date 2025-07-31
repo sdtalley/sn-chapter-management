@@ -37,11 +37,6 @@ const Main = (function() {
         // Store original chapter
         appState.originalChapter = appState.chapter;
         
-        // Hide navigation buttons immediately for STS 0, 3, 4 if no chapter is selected
-        if (['0', '3', '4'].includes(appState.sts) && (!appState.chapter || appState.chapter === 'Not provided')) {
-            hideNavigationButtons();
-        }
-        
         loadStoredCredentials();
         checkTokenStatus();
         
@@ -296,12 +291,15 @@ const Main = (function() {
     }
     
     function showNavigationButtons() {
-        const navButtons = document.querySelectorAll('.nav-item button');
-        navButtons.forEach(button => {
-            if (button.parentElement) {
-                button.parentElement.style.visibility = 'visible';
+        const navButtons = document.querySelector('.nav-buttons');
+        if (navButtons) {
+            navButtons.style.display = 'flex';
+            
+            // Only show nav items if we have proper authorization and chapter (for STS 0, 3, 4)
+            if (['0', '3', '4'].includes(appState.sts) && (!appState.chapter || appState.chapter === 'Not provided')) {
+                navButtons.style.display = 'none';
             }
-        });
+        }
     }
     
     // Parse URL parameters
@@ -485,6 +483,12 @@ const Main = (function() {
         // Show main menu
         unauthorized.style.display = 'none';
         mainMenu.style.display = 'block';
+        
+        // Show navigation buttons container (was hidden by default in CSS)
+        const navButtons = document.querySelector('.nav-buttons');
+        if (navButtons) {
+            navButtons.style.display = 'flex';
+        }
         
         // Hide all navigation items first
         const navItems = {
