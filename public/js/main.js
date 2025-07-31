@@ -193,7 +193,11 @@ const Main = (function() {
         if (chapterDisplay) chapterDisplay.style.display = 'block';
         if (chapterLabel) chapterLabel.textContent = appState.chapter;
         
-        showNavigationButtons();
+        // Show navigation buttons when chapter is selected
+        const navButtons = document.querySelector('.nav-buttons');
+        if (navButtons) {
+            navButtons.style.display = 'flex';
+        }
     }
     
     function showChapterSelect() {
@@ -282,12 +286,10 @@ const Main = (function() {
     }
     
     function hideNavigationButtons() {
-        const navButtons = document.querySelectorAll('.nav-item button');
-        navButtons.forEach(button => {
-            if (button.parentElement) {
-                button.parentElement.style.visibility = 'hidden';
-            }
-        });
+        const navButtons = document.querySelector('.nav-buttons');
+        if (navButtons) {
+            navButtons.style.display = 'none';
+        }
     }
     
     function showNavigationButtons() {
@@ -484,10 +486,18 @@ const Main = (function() {
         unauthorized.style.display = 'none';
         mainMenu.style.display = 'block';
         
-        // Show navigation buttons container (was hidden by default in CSS)
+        // For STS 1 and 2, show nav buttons immediately (they don't need chapter selection)
+        // For STS 0, 3, 4, only show if chapter is selected
         const navButtons = document.querySelector('.nav-buttons');
         if (navButtons) {
-            navButtons.style.display = 'flex';
+            if (['1', '2'].includes(appState.sts)) {
+                // STS 1 and 2: Show immediately
+                navButtons.style.display = 'flex';
+            } else if (['0', '3', '4'].includes(appState.sts) && appState.chapter && appState.chapter !== 'Not provided') {
+                // STS 0, 3, 4: Only show if chapter is already selected
+                navButtons.style.display = 'flex';
+            }
+            // Otherwise keep hidden
         }
         
         // Hide all navigation items first
@@ -530,11 +540,6 @@ const Main = (function() {
                 button.parentElement.style.display = navItems[btnId] ? 'flex' : 'none';
             }
         });
-        
-        // For STS 0, 3, 4 - also hide navigation buttons if no chapter is selected
-        if (['0', '3', '4'].includes(appState.sts) && (!appState.chapter || appState.chapter === 'Not provided')) {
-            hideNavigationButtons();
-        }
     }
     
     // Track unsaved changes
