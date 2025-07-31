@@ -547,6 +547,12 @@ const Main = (function() {
         appState.hasUnsavedChanges = hasChanges;
     };
     
+    // Expose showPage function globally (called by onclick in HTML)
+    window.showPage = function(pageId) {
+        // Just call navigateToPage internally
+        navigateToPage(pageId);
+    };
+    
     // Public API
     return {
         init,
