@@ -193,8 +193,14 @@ const Main = (function() {
         if (chapterDisplay) chapterDisplay.style.display = 'block';
         if (chapterLabel) chapterLabel.textContent = appState.chapter;
         
-        // Show navigation buttons when chapter is selected
-        showNavigationButtons();
+        // Show the navigation buttons container
+        const navButtonsContainer = document.querySelector('.nav-buttons');
+        if (navButtonsContainer) {
+            navButtonsContainer.style.display = 'flex';
+        }
+        
+        // Re-apply security to ensure proper buttons are shown
+        applySecurityLevel();
     }
     
     function showChapterSelect() {
@@ -294,9 +300,6 @@ const Main = (function() {
         if (navButtonsContainer) {
             navButtonsContainer.style.display = 'flex';
         }
-        
-        // Then show/hide individual items based on security level
-        applySecurityLevel();
     }
     
     function showNavigationButtons() {
