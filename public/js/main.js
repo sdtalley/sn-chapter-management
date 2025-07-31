@@ -199,6 +199,12 @@ const Main = (function() {
     function showChapterSelect() {
         const chapterSelectSection = document.getElementById('chapter-select-section');
         const chapterDisplay = document.getElementById('chapter-display');
+        const chapterSelect = document.getElementById('chapter-select');
+        
+        // Reset the dropdown to placeholder
+        if (chapterSelect) {
+            chapterSelect.value = '';
+        }
         
         if (chapterSelectSection) chapterSelectSection.style.display = 'block';
         if (chapterDisplay) chapterDisplay.style.display = 'none';
