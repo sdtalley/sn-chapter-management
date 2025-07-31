@@ -27,11 +27,52 @@ const Main = (function() {
     window.CONFIG = {
         tokenEndpoint: 'https://oauth2.sky.blackbaud.com/token',
         apiBaseUrl: 'https://api.sky.blackbaud.com/',
-        tokenRefreshBuffer: 300000 // 5 minutes in milliseconds
+        tokenRefreshBuffer: 300000 // 5 minutes in milliseconds,
+        allowedDomains: ['https://www.sigmanu.org'] // Allowed parent domains
     };
     
     // Initialize application
     async function init() {
+        // Check iframe security first
+        if (window.top === window.self) {
+            // Not in an iframe - block access
+            document.body.innerHTML = `
+                <div style="text-align:center; padding:50px; font-family: Arial, sans-serif;">
+                    <h2 style="color: #721c24;">Access Denied</h2>
+                    <p style="color: #721c24;">This application must be accessed through the authorized portal.</p>
+                </div>
+            `;
+            return; // Stop initialization
+        }
+        
+        // Check domain validation
+        try {
+            const parentOrigin = document.referrer ? new URL(document.referrer).origin : null;
+            
+            if (parentOrigin && !CONFIG.allowedDomains.includes(parentOrigin)) {
+                // Embedded from unauthorized domain
+                document.body.innerHTML = `
+                    <div style="text-align:center; padding:50px; font-family: Arial, sans-serif;">
+                        <h2 style="color: #721c24;">Unauthorized Domain</h2>
+                        <p style="color: #721c24;">This application can only be embedded from authorized domains.</p>
+                        <p style="color: #6c757d; font-size: 12px; margin-top: 20px;">
+                            Detected origin: ${parentOrigin || 'Unknown'}
+                        </p>
+                    </div>
+                `;
+                return; // Stop initialization
+            }
+            
+            // If referrer is blocked (privacy settings), continue but log warning
+            if (!parentOrigin) {
+                console.warn('Could not determine parent origin - referrer may be blocked by privacy settings');
+            }
+        } catch (error) {
+            console.error('Error checking parent domain:', error);
+            // Continue initialization even if domain check fails
+        }
+        
+        // Continue with normal initialization
         parseURLParameters();
         
         // Store original chapter
