@@ -434,7 +434,7 @@ const Main = (function() {
         } else if (pageId === 'verify-initiates') {
             window.InitiatesModule.loadInitiates();
         } else if (pageId === 'roster-info') {
-            window.RosterModule.loadRosterInfo();
+            window.RosterModule.loadRoster();
         } else if (pageId === 'returning-students') {
             window.ReturningModule.loadReturningStudents();
         } else if (pageId === 'officer-info') {
