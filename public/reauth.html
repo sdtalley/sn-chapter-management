@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blackbaud Re-authentication</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .info {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #2196F3;
+        }
+        .error {
+            background: #ffebee;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #f44336;
+        }
+        .success {
+            background: #e8f5e9;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #4caf50;
+        }
+        button {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            display: block;
+            margin: 20px auto;
+        }
+        button:hover {
+            background: #1976D2;
+        }
+        .token-info {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            word-break: break-all;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Blackbaud Re-authentication</h1>
+        
+        <div class="info">
+            <strong>Why am I here?</strong><br>
+            The Blackbaud API refresh token has expired or become invalid. You need to re-authenticate to generate a new token.
+        </div>
+
+        <div id="status"></div>
+
+        <button onclick="startAuth()">Start Blackbaud Authentication</button>
+
+        <div id="token-display" style="display:none;">
+            <h3>New Refresh Token:</h3>
+            <div class="token-info" id="token-value"></div>
+            <div class="info">
+                <strong>Next Steps:</strong><br>
+                1. Copy the refresh token above<br>
+                2. Go to Vercel Dashboard → Project Settings → Environment Variables<br>
+                3. Update BLACKBAUD_REFRESH_TOKEN with this new value<br>
+                4. Redeploy your application
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Get URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        const error = urlParams.get('error');
+
+        // Check if we have an authorization code
+        if (code) {
+            exchangeCodeForToken(code);
+        } else if (error) {
+            showError('Authentication failed: ' + error);
+        }
+
+        function startAuth() {
+            // You'll need to set these values
+            const clientId = 'YOUR_CLIENT_ID'; // Replace with your actual client ID
+            const redirectUri = encodeURIComponent(window.location.origin + window.location.pathname);
+            
+            // Blackbaud OAuth2 authorization URL
+            const authUrl = `https://oauth2.sky.blackbaud.com/authorization?client_id=${clientId}&response_type=code&redirect_uri=${redirectUri}`;
+            
+            // Redirect to Blackbaud login
+            window.location.href = authUrl;
+        }
+
+        async function exchangeCodeForToken(code) {
+            showStatus('Exchanging authorization code for tokens...', 'info');
+            
+            try {
+                // Call your backend to exchange the code
+                const response = await fetch('/api/blackbaud?action=exchange-code', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ code, redirect_uri: window.location.origin + window.location.pathname })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to exchange code');
+                }
+
+                const data = await response.json();
+                
+                if (data.refresh_token) {
+                    showSuccess('Authentication successful!');
+                    document.getElementById('token-display').style.display = 'block';
+                    document.getElementById('token-value').textContent = data.refresh_token;
+                    
+                    // Clear the URL parameters
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                } else {
+                    throw new Error('No refresh token received');
+                }
+            } catch (error) {
+                showError('Failed to get tokens: ' + error.message);
+            }
+        }
+
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = type;
+            statusDiv.textContent = message;
+        }
+
+        function showError(message) {
+            showStatus(message, 'error');
+        }
+
+        function showSuccess(message) {
+            showStatus(message, 'success');
+        }
+    </script>
+</body>
+</html>
