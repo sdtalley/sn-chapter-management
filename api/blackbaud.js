@@ -101,7 +101,8 @@ async function getValidAccessToken() {
         'Authorization': `Basic ${Buffer.from(`${process.env.BLACKBAUD_CLIENT_ID}:${process.env.BLACKBAUD_CLIENT_SECRET}`).toString('base64')}`
       },
       body: new URLSearchParams({
-        grant_type: 'client_credentials'
+        grant_type: 'client_credentials',
+        scope: '' // Empty scope for all available scopes
       })
     });
 
