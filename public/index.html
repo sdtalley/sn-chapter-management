@@ -636,6 +636,12 @@
     <script src="js/admin.js"></script>
     
     <script>
+        // Check if we're coming back from Blackbaud auth for reauth purposes
+        if (sessionStorage.getItem('blackbaud_reauth') === 'true' && window.location.search.includes('code=')) {
+            // Redirect to reauth.html with the code
+            window.location.href = '/reauth.html' + window.location.search;
+        }
+
         // Configuration
         const CONFIG = window.CONFIG; // Now comes from main.js
         
