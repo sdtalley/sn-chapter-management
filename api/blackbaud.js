@@ -86,72 +86,39 @@ async function getValidAccessToken() {
     }
   }
   
-  // If refresh token failed or doesn't exist, use client credentials flow
-  console.log('Refresh token invalid or missing, using client credentials flow...');
+  // If refresh token failed or doesn't exist, we can't authenticate automatically
+  console.log('Refresh token invalid or missing - manual re-authentication required');
   
-  if (!process.env.BLACKBAUD_CLIENT_ID || !process.env.BLACKBAUD_CLIENT_SECRET) {
-    throw new Error('Blackbaud client credentials not configured in environment variables');
-  }
-  
+  // Send alert to Azure Logic App about the authentication failure
   try {
-    const tokenResponse = await fetch('https://oauth2.sky.blackbaud.com/token', {
+    const alertMessage = `BLACKBAUD AUTHENTICATION FAILED
+===========================================
+The refresh token is invalid or expired.
+
+Manual re-authentication is required to get a new refresh token.
+
+Please have an authorized user:
+1. Navigate to the application
+2. Go through the Blackbaud login process
+3. Once authenticated, update the BLACKBAUD_REFRESH_TOKEN environment variable in Vercel
+
+Error details: ${currentRefreshToken ? 'Refresh token invalid' : 'No refresh token found'}
+===========================================`;
+    
+    await fetch('https://prod-189.westus.logic.azure.com:443/workflows/af7823ce7d31421aa671a4cff7371d72/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=b-TFEo2iNFYqsvEG9GsrjFy7bbaMyZMz_MshptYhgwE', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': `Basic ${Buffer.from(`${process.env.BLACKBAUD_CLIENT_ID}:${process.env.BLACKBAUD_CLIENT_SECRET}`).toString('base64')}`
+        'Content-Type': 'application/json'
       },
-      body: new URLSearchParams({
-        grant_type: 'client_credentials',
-        scope: '' // Empty scope for all available scopes
-      })
+      body: JSON.stringify({ message: alertMessage })
     });
-
-    if (!tokenResponse.ok) {
-      const errorText = await tokenResponse.text();
-      console.error('Client credentials failed:', errorText);
-      throw new Error(`Client credentials authentication failed: ${tokenResponse.status} - ${errorText}`);
-    }
-
-    const tokenData = await tokenResponse.json();
-    
-    // Cache the new access token
-    tokenCache.accessToken = tokenData.access_token;
-    tokenCache.expiresAt = new Date().getTime() + ((tokenData.expires_in - 300) * 1000); // Expire 5 minutes early
-    
-    // If we got a refresh token, store it (some OAuth2 providers include it with client credentials)
-    if (tokenData.refresh_token) {
-      console.log('Got refresh token from client credentials - storing in Redis');
-      try {
-        await redis.set('blackbaud_refresh_token', tokenData.refresh_token);
-        console.log('Successfully stored new refresh token in Redis');
-      } catch (error) {
-        console.error('Failed to store refresh token in Redis:', error);
-        // Send alert to Azure Logic App
-        try {
-          const alertMessage = `===========================================
-IMPORTANT: Add this to your environment variables:
-BLACKBAUD_REFRESH_TOKEN=${tokenData.refresh_token}
-===========================================`;
-          
-          await fetch('https://prod-189.westus.logic.azure.com:443/workflows/af7823ce7d31421aa671a4cff7371d72/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=b-TFEo2iNFYqsvEG9GsrjFy7bbaMyZMz_MshptYhgwE', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ message: alertMessage })
-          });
-          console.log('Alert sent to Azure Logic App');
-        } catch (alertError) {
-          console.error('Failed to send alert:', alertError);
-        }
-      }
-    }
-    
-    return tokenCache.accessToken;
-  } catch (error) {
-    console.error('Failed to get access token:', error);
-    throw error;
+    console.log('Authentication failure alert sent to Azure Logic App');
+  } catch (alertError) {
+    console.error('Failed to send alert:', alertError);
   }
+  
+  // Throw a user-friendly error
+  throw new Error('Blackbaud authentication failed - refresh token is invalid or expired. Manual re-authentication required. Please contact your administrator.');
 }
 
 export default async function handler(req, res) {
