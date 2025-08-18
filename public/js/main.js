@@ -33,6 +33,13 @@ const Main = (function() {
     
     // Initialize application
     async function init() {
+
+        // Check if this is the reauth page - if so, skip iframe security
+        if (window.location.pathname.includes('/reauth.html')) {
+            console.log('Reauth page detected - skipping iframe security checks');
+            return; // Skip all initialization for reauth page
+        }
+
         // Check iframe security first
         if (window.top === window.self) {
             // Not in an iframe - block access
