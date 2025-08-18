@@ -99,7 +99,7 @@
             document.body.innerHTML = "<h1>Access Denied</h1>";
             throw new Error("Unauthorized");
         }
-
+        
         // Get URL parameters
         const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get('code');
@@ -114,8 +114,11 @@
 
         function startAuth() {
             // You'll need to set these values
-            const clientId = '1ab539d7-cb43-485f-9bfb-7dc5099d8a15'; // Replace with your actual client ID
-            const redirectUri = encodeURIComponent('https://sn-chapter-management.vercel.app');
+            const clientId = '1ab539d7-cb43-485f-9bfb-7dc5099d8a15'; // Your actual client ID
+            const redirectUri = encodeURIComponent('https://sn-chapter-management.vercel.app'); // Main app URL, NOT reauth.html
+            
+            // Store that we're doing reauth in session storage
+            sessionStorage.setItem('blackbaud_reauth', 'true');
             
             // Blackbaud OAuth2 authorization URL
             const authUrl = `https://oauth2.sky.blackbaud.com/authorization?client_id=${clientId}&response_type=code&redirect_uri=${redirectUri}`;
