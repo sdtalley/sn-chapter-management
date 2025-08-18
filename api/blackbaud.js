@@ -22,9 +22,9 @@ async function getValidAccessToken() {
     return tokenCache.accessToken;
   }
 
-  console.log('Getting new access token using refresh token');
+  console.log('Getting new access token...');
   
-  // Get current refresh token from Redis, fallback to env var
+  // First, try to use refresh token
   let currentRefreshToken;
   try {
     currentRefreshToken = await redis.get('blackbaud_refresh_token');
@@ -37,62 +37,120 @@ async function getValidAccessToken() {
   if (!currentRefreshToken) {
     currentRefreshToken = process.env.BLACKBAUD_REFRESH_TOKEN;
     console.log('Using refresh token from environment variable');
+  }
+  
+  // Try refresh token flow first if we have a refresh token
+  if (currentRefreshToken) {
+    try {
+      console.log('Attempting to use refresh token...');
+      
+      const tokenResponse = await fetch('https://oauth2.sky.blackbaud.com/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': `Basic ${Buffer.from(`${process.env.BLACKBAUD_CLIENT_ID}:${process.env.BLACKBAUD_CLIENT_SECRET}`).toString('base64')}`
+        },
+        body: new URLSearchParams({
+          grant_type: 'refresh_token',
+          refresh_token: currentRefreshToken
+        })
+      });
+
+      if (tokenResponse.ok) {
+        const tokenData = await tokenResponse.json();
+        
+        // Cache the new access token
+        tokenCache.accessToken = tokenData.access_token;
+        tokenCache.expiresAt = new Date().getTime() + ((tokenData.expires_in - 300) * 1000); // Expire 5 minutes early
+        
+        // Update the refresh token if a new one was provided
+        if (tokenData.refresh_token && tokenData.refresh_token !== currentRefreshToken) {
+          console.log('New refresh token received - updating Redis');
+          try {
+            await redis.set('blackbaud_refresh_token', tokenData.refresh_token);
+            console.log('Successfully updated refresh token in Redis');
+          } catch (error) {
+            console.error('Failed to update refresh token in Redis:', error);
+          }
+        }
+        
+        return tokenCache.accessToken;
+      } else {
+        const errorText = await tokenResponse.text();
+        console.error('Refresh token failed:', tokenResponse.status, errorText);
+        // Fall through to client credentials flow
+      }
+    } catch (error) {
+      console.error('Refresh token error:', error);
+      // Fall through to client credentials flow
+    }
+  }
+  
+  // If refresh token failed or doesn't exist, use client credentials flow
+  console.log('Refresh token invalid or missing, using client credentials flow...');
+  
+  if (!process.env.BLACKBAUD_CLIENT_ID || !process.env.BLACKBAUD_CLIENT_SECRET) {
+    throw new Error('Blackbaud client credentials not configured in environment variables');
+  }
+  
+  try {
+    const tokenResponse = await fetch('https://oauth2.sky.blackbaud.com/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': `Basic ${Buffer.from(`${process.env.BLACKBAUD_CLIENT_ID}:${process.env.BLACKBAUD_CLIENT_SECRET}`).toString('base64')}`
+      },
+      body: new URLSearchParams({
+        grant_type: 'client_credentials'
+      })
+    });
+
+    if (!tokenResponse.ok) {
+      const errorText = await tokenResponse.text();
+      console.error('Client credentials failed:', errorText);
+      throw new Error(`Client credentials authentication failed: ${tokenResponse.status} - ${errorText}`);
+    }
+
+    const tokenData = await tokenResponse.json();
     
-    // Store it in Redis for next time
-    try {
-      await redis.set('blackbaud_refresh_token', currentRefreshToken);
-      console.log('Stored env refresh token in Redis');
-    } catch (error) {
-      console.log('Failed to store in Redis:', error.message);
+    // Cache the new access token
+    tokenCache.accessToken = tokenData.access_token;
+    tokenCache.expiresAt = new Date().getTime() + ((tokenData.expires_in - 300) * 1000); // Expire 5 minutes early
+    
+    // If we got a refresh token, store it (some OAuth2 providers include it with client credentials)
+    if (tokenData.refresh_token) {
+      console.log('Got refresh token from client credentials - storing in Redis');
+      try {
+        await redis.set('blackbaud_refresh_token', tokenData.refresh_token);
+        console.log('Successfully stored new refresh token in Redis');
+      } catch (error) {
+        console.error('Failed to store refresh token in Redis:', error);
+        // Send alert to Azure Logic App
+        try {
+          const alertMessage = `===========================================
+IMPORTANT: Add this to your environment variables:
+BLACKBAUD_REFRESH_TOKEN=${tokenData.refresh_token}
+===========================================`;
+          
+          await fetch('https://prod-189.westus.logic.azure.com:443/workflows/af7823ce7d31421aa671a4cff7371d72/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=b-TFEo2iNFYqsvEG9GsrjFy7bbaMyZMz_MshptYhgwE', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ message: alertMessage })
+          });
+          console.log('Alert sent to Azure Logic App');
+        } catch (alertError) {
+          console.error('Failed to send alert:', alertError);
+        }
+      }
     }
+    
+    return tokenCache.accessToken;
+  } catch (error) {
+    console.error('Failed to get access token:', error);
+    throw error;
   }
-  
-  if (!currentRefreshToken) {
-    throw new Error('No refresh token available');
-  }
-  
-  // Get new access token using refresh token
-  const tokenResponse = await fetch('https://oauth2.sky.blackbaud.com/token', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Authorization': `Basic ${Buffer.from(`${process.env.BLACKBAUD_CLIENT_ID}:${process.env.BLACKBAUD_CLIENT_SECRET}`).toString('base64')}`
-    },
-    body: new URLSearchParams({
-      grant_type: 'refresh_token',
-      refresh_token: currentRefreshToken
-    })
-  });
-
-  if (!tokenResponse.ok) {
-    const errorText = await tokenResponse.text();
-    console.error('Token refresh failed:', errorText);
-    throw new Error(`Token refresh failed: ${tokenResponse.status} - ${errorText}`);
-  }
-
-  const tokenData = await tokenResponse.json();
-  
-  // Cache the new access token
-  tokenCache.accessToken = tokenData.access_token;
-  tokenCache.expiresAt = new Date().getTime() + ((tokenData.expires_in - 300) * 1000); // Expire 5 minutes early
-  
-  // IMPORTANT: Update the refresh token if a new one was provided
-  if (tokenData.refresh_token && tokenData.refresh_token !== currentRefreshToken) {
-    console.log('New refresh token received - updating Redis');
-    try {
-      await redis.set('blackbaud_refresh_token', tokenData.refresh_token);
-      console.log('Successfully updated refresh token in Redis');
-    } catch (error) {
-      console.error('Failed to update refresh token in Redis:', error);
-      // Still log it so you can manually update if needed
-      console.warn('===========================================');
-      console.warn('FAILED TO SAVE - MANUAL UPDATE NEEDED:');
-      console.warn(`BLACKBAUD_REFRESH_TOKEN=${tokenData.refresh_token}`);
-      console.warn('===========================================');
-    }
-  }
-  
-  return tokenCache.accessToken;
 }
 
 export default async function handler(req, res) {
@@ -226,7 +284,7 @@ export default async function handler(req, res) {
       return;
     }
 
-    // For auth action, just return success since we're using refresh tokens
+    // For auth action, just return success since we're using automatic token management
     if (action === 'auth') {
       // Get a fresh token to verify credentials work
       try {
@@ -235,7 +293,7 @@ export default async function handler(req, res) {
           access_token: accessToken,
           token_type: 'Bearer',
           expires_in: 3600,
-          message: 'Using server-side refresh token authentication'
+          message: 'Authentication successful'
         });
       } catch (error) {
         res.status(401).json({ error: 'Authentication failed: ' + error.message });
