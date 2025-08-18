@@ -94,6 +94,11 @@
     </div>
 
     <script>
+        const password = prompt("Enter admin password:");
+        if (password !== "7bbn@mericA25") {
+            document.body.innerHTML = "<h1>Access Denied</h1>";
+            throw new Error("Unauthorized");
+        }
         // Get URL parameters
         const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get('code');
