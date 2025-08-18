@@ -115,7 +115,7 @@
         function startAuth() {
             // You'll need to set these values
             const clientId = '1ab539d7-cb43-485f-9bfb-7dc5099d8a15'; // Replace with your actual client ID
-            const redirectUri = encodeURIComponent(window.location.origin + window.location.pathname);
+            const redirectUri = encodeURIComponent('https://sn-chapter-management.vercel.app');
             
             // Blackbaud OAuth2 authorization URL
             const authUrl = `https://oauth2.sky.blackbaud.com/authorization?client_id=${clientId}&response_type=code&redirect_uri=${redirectUri}`;
