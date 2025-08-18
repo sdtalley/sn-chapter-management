@@ -252,6 +252,51 @@ export default async function handler(req, res) {
       return;
     }
 
+
+    // After the get-advisor-chapters handler (around line 200-250)
+    // Before the auth handler
+    // Add this:
+
+    if (action === 'exchange-code' && req.method === 'POST') {
+      const { code, redirect_uri } = req.body;
+  
+      try {
+        console.log('Exchanging authorization code for tokens...');
+    
+        const tokenResponse = await fetch('https://oauth2.sky.blackbaud.com/token', {
+          method: 'POST',
+         headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Authorization': `Basic ${Buffer.from(`${process.env.BLACKBAUD_CLIENT_ID}:${process.env.BLACKBAUD_CLIENT_SECRET}`).toString('base64')}`
+          },
+         body: new URLSearchParams({
+            grant_type: 'authorization_code',
+            code: code,
+            redirect_uri: redirect_uri
+          })
+        });
+    
+        if (!tokenResponse.ok) {
+          const errorText = await tokenResponse.text();
+          throw new Error(`Token exchange failed: ${tokenResponse.status} - ${errorText}`);
+        }
+    
+        const tokenData = await tokenResponse.json();
+    
+        // Store the new refresh token in Redis
+        if (tokenData.refresh_token) {
+          await redis.set('blackbaud_refresh_token', tokenData.refresh_token);
+          console.log('New refresh token stored in Redis');
+        }
+    
+        res.json(tokenData);
+      } catch (error) {
+        console.error('Error exchanging code:', error);
+        res.status(500).json({ error: error.message });
+      }
+      return;
+    }
+
     // For auth action, just return success since we're using automatic token management
     if (action === 'auth') {
       // Get a fresh token to verify credentials work
