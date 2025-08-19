@@ -628,6 +628,18 @@ const CandidatesModule = (function() {
             console.log('Create relationship response:', createRelationshipResponse);
             
             // Step 7: Create custom fields
+            // Generate UUID v4 and remove hyphens
+            const generateUUID = () => {
+                // Generate UUID v4 following RFC 4122 specification
+                const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                    const r = Math.random() * 16 | 0;
+                    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                    return v.toString(16);
+                });
+                // Remove hyphens to get 32-character string
+                return uuid.replace(/-/g, '');
+            };
+            
             const customFields = [
                 {
                     category: "Candidate - Ceremony Date",
@@ -648,6 +660,10 @@ const CandidatesModule = (function() {
                 {
                     category: "Sigma Nu Code",
                     value: "Candidate"
+                },
+                {
+                    category: "Plaid GUID",
+                    value: generateUUID()
                 }
             ];
             
