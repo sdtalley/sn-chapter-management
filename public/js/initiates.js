@@ -28,6 +28,7 @@ const InitiatesModule = (function() {
         try {
             // Check if skips are allowed for this chapter
             const skipValidationDisabled = await API.checkAllowedSkips();
+            const lowerBadgeAllowed = await API.checkAllowedLowerBadge();
             
             // Use cached chapter data
             const chapterData = appState.chapterData;
@@ -62,6 +63,7 @@ const InitiatesModule = (function() {
             // Store in app state for validation
             appState.lastBadgeNumber = topBadgeNumber;
             appState.skipValidationDisabled = skipValidationDisabled;
+            appState.lowerBadgeAllowed = lowerBadgeAllowed;
             
             // Display initiates with top badge info
             displayInitiates(initiates, topBadgeNumber);
@@ -239,8 +241,8 @@ const InitiatesModule = (function() {
                             this.value = this.value.slice(0, 4);
                         }
                         
-                        // Validate against last badge number
-                        if (appState.lastBadgeNumber !== null && this.value) {
+                        // Validate against last badge number (unless lower badges are allowed)
+                        if (appState.lastBadgeNumber !== null && this.value && !appState.lowerBadgeAllowed) {
                             const enteredNumber = parseInt(this.value, 10);
                             if (enteredNumber <= appState.lastBadgeNumber) {
                                 this.setCustomValidity(`Badge number must be greater than ${appState.lastBadgeNumber}`);
@@ -248,6 +250,8 @@ const InitiatesModule = (function() {
                             } else {
                                 this.setCustomValidity('');
                             }
+                        } else {
+                            this.setCustomValidity('');
                         }
 
                         // Mark as having unsaved changes
@@ -428,19 +432,21 @@ const InitiatesModule = (function() {
             return;
         }
         
-        // Validate badge numbers are greater than last badge
-        if (appState.lastBadgeNumber !== null) {
+        // Validate badge numbers are greater than last badge (unless lower badges are allowed)
+        if (appState.lastBadgeNumber !== null && !appState.lowerBadgeAllowed) {
             const invalidBadges = changes.filter(i => {
                 const badgeNum = parseInt(i.badgeNumber, 10);
                 return badgeNum <= appState.lastBadgeNumber;
             });
-            
+
             if (invalidBadges.length > 0) {
                 const message = `Badge numbers must be greater than ${appState.lastBadgeNumber}. ${invalidBadges.length} initiate(s) have invalid badge numbers.`;
                 alert(message);
                 Utils.showStatus(message, 'error');
                 return;
             }
+        } else if (appState.lowerBadgeAllowed) {
+            console.log('Lower badge validation is disabled for this chapter');
         }
         
         // Check for duplicate badge numbers

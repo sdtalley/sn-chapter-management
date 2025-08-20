@@ -597,12 +597,12 @@
             <!-- Allow Skips Configuration -->
             <div class="allow-skips-section">
                 <h3>Badge Skip Configuration</h3>
-                
+    
                 <div class="loading-message" id="allow-skips-loading" style="display: none;">
                     <div class="spinner"></div>
                     <p>Loading configuration...</p>
                 </div>
-                
+    
                 <div id="allow-skips-content" style="display: none;">
                     <div class="allow-skips-control">
                         <label class="checkbox-label">
@@ -611,11 +611,18 @@
                         </label>
                         <p class="help-text">When enabled, initiates can be assigned non-consecutive badge numbers.</p>
                     </div>
+        
+                    <div class="allow-skips-control" style="margin-top: 15px;">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="allow-lower-badge-checkbox" class="allow-skip-checkbox">
+                            <span>Allow badge numbers lower than last badge for <strong id="current-chapter-name-lower">this chapter</strong></span>
+                        </label>
+                        <p class="help-text">When enabled, initiates can be assigned badge numbers lower than the last assigned badge.</p>
+                    </div>
                 </div>
-                
+    
                 <div id="allow-skips-error" class="error-message" style="display: none;">
-                    <p>Error loading configuration. Please try again.</p>
-                    <button class="btn" onclick="loadAllowSkipsConfig()">Retry</button>
+                    <p>Error loading configuration.</p>
                 </div>
             </div>
         </div>

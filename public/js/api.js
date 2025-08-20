@@ -504,34 +504,58 @@ const API = (function() {
     
     function displayAllowSkipsConfig(allowedSkips) {
         console.log('=== displayAllowSkipsConfig() started ===');
-        
-        const checkbox = document.getElementById('allow-skips-checkbox');
+    
+        const skipCheckbox = document.getElementById('allow-skips-checkbox');
+        const lowerCheckbox = document.getElementById('allow-lower-badge-checkbox');
         const chapterNameSpan = document.getElementById('current-chapter-name');
-        
-        if (checkbox && appState.chapter) {
-            // Update chapter name in label
+        const chapterNameSpanLower = document.getElementById('current-chapter-name-lower');
+    
+        if (appState.chapter) {
+            // Update chapter names in labels
             if (chapterNameSpan) {
                 chapterNameSpan.textContent = appState.chapter;
             }
+            if (chapterNameSpanLower) {
+                chapterNameSpanLower.textContent = appState.chapter;
+            }
             
-            // Set checkbox state
-            checkbox.checked = allowedSkips[appState.chapter] === true;
+            // Handle skip checkbox
+            if (skipCheckbox) {
+                // Set checkbox state for skips
+                skipCheckbox.checked = allowedSkips[appState.chapter] === true;
+                
+                // Remove any existing event listeners
+                const newSkipCheckbox = skipCheckbox.cloneNode(true);
+                skipCheckbox.parentNode.replaceChild(newSkipCheckbox, skipCheckbox);
+                
+                // Add event listener
+                newSkipCheckbox.addEventListener('change', function() {
+                    updateAllowSkips(appState.chapter, this.checked);
+                });
+            }
             
-            // Remove any existing event listeners
-            const newCheckbox = checkbox.cloneNode(true);
-            checkbox.parentNode.replaceChild(newCheckbox, checkbox);
-            
-            // Add event listener
-            newCheckbox.addEventListener('change', function() {
-                updateAllowSkips(appState.chapter, this.checked);
-            });
+            // Handle lower badge checkbox
+            if (lowerCheckbox) {
+                // Set checkbox state for lower badges
+                const lowerBadgeKey = `${appState.chapter}_lower`;
+                lowerCheckbox.checked = allowedSkips[lowerBadgeKey] === true;
+                
+                // Remove any existing event listeners
+                const newLowerCheckbox = lowerCheckbox.cloneNode(true);
+                lowerCheckbox.parentNode.replaceChild(newLowerCheckbox, lowerCheckbox);
+                
+                // Add event listener
+                newLowerCheckbox.addEventListener('change', function() {
+                    updateAllowLowerBadge(appState.chapter, this.checked);
+                });
+            }
         }
-        
+    
         // Show content
         Utils.hideElement('allow-skips-loading');
         Utils.showElement('allow-skips-content');
     }
-    
+
     async function updateAllowSkips(chapter, allowSkips) {
         console.log(`Updating allow skips for ${chapter} to ${allowSkips}`);
         
@@ -562,6 +586,39 @@ const API = (function() {
         }
     }
     
+    async function updateAllowLowerBadge(chapter, allowLower) {
+        console.log(`Updating allow lower badges for ${chapter} to ${allowLower}`);
+        
+        try {
+            const response = await fetch('/api/blackbaud?action=set-allowed-skips', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    chapter: `${chapter}_lower`, 
+                    allowSkips: allowLower 
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to update configuration');
+            }
+            
+            // Update local state
+            appState.allowedSkips[`${chapter}_lower`] = allowLower;
+            
+            Utils.showStatus(`Lower badge number validation ${allowLower ? 'disabled' : 'enabled'} for ${chapter}`, 'success');
+            
+        } catch (error) {
+            console.error('Error updating allow lower badges:', error);
+            Utils.showStatus('Failed to update configuration', 'error');
+            // Revert checkbox
+            const checkbox = document.getElementById('allow-lower-badge-checkbox');
+            if (checkbox) checkbox.checked = !allowLower;
+        }
+    }
+
     async function checkAllowedSkips() {
         if (!appState.chapter) return false;
         
@@ -582,6 +639,26 @@ const API = (function() {
         return false;
     }
     
+    async function checkAllowedLowerBadge() {
+        if (!appState.chapter) return false;
+        
+        try {
+            const response = await fetch('/api/blackbaud?action=get-allowed-skips', {
+                method: 'GET'
+            });
+            
+            if (response.ok) {
+                const allowedSkips = await response.json();
+                appState.allowedSkips = allowedSkips;
+                return allowedSkips[`${appState.chapter}_lower`] === true;
+            }
+        } catch (error) {
+            console.error('Error checking allowed lower badges:', error);
+        }
+        
+        return false;
+    }
+
     // Rate-limited API call wrapper (exposed for modules that make direct API calls)
     async function makeRateLimitedApiCall(endpoint, method = 'GET', body = null) {
         return rateLimitedRequest(async () => {
@@ -623,6 +700,8 @@ const API = (function() {
         displayAllowSkipsConfig,
         updateAllowSkips,
         checkAllowedSkips,
+        updateAllowLowerBadge,
+        checkAllowedLowerBadge,
         makeRateLimitedApiCall
     };
 })();
@@ -640,3 +719,4 @@ window.getChapterQuid = API.getChapterQuid;
 window.getChapterData = API.getChapterData;
 window.loadAllowSkipsConfig = API.loadAllowSkipsConfig;
 window.checkAllowedSkips = API.checkAllowedSkips;
+window.checkAllowedLowerBadge = API.checkAllowedLowerBadge;
