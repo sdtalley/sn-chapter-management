@@ -20,7 +20,9 @@ const Main = (function() {
         allowedSkips: {}, // Store allowed skips configuration
         chapterData: null, // Cache chapter data
         hasUnsavedChanges: false,
-        originalChapter: null // Store the original chapter from URL
+        originalChapter: null, // Store the original chapter from URL
+        inactivityTimer: null, // Timer for tracking inactivity
+        lastActivityTime: Date.now() // Track last user activity
     };
     
     // Configuration
@@ -28,7 +30,8 @@ const Main = (function() {
         tokenEndpoint: 'https://oauth2.sky.blackbaud.com/token',
         apiBaseUrl: 'https://api.sky.blackbaud.com/',
         tokenRefreshBuffer: 300000, // 5 minutes in milliseconds
-        allowedDomains: ['https://www.sigmanu.org'] // Allowed parent domains
+        allowedDomains: ['https://www.sigmanu.org'], // Allowed parent domains
+        inactivityTimeout: 300100 // 5 minutes in milliseconds (adjust as needed)
     };
     
     // Initialize application
@@ -88,6 +91,9 @@ const Main = (function() {
         loadStoredCredentials();
         checkTokenStatus();
         
+        // Initialize inactivity tracking
+        initInactivityTracking();
+
         // Initialize chapter dropdown if needed (for STS 0, 3, 4)
         await initializeChapterDropdown();
         
@@ -397,6 +403,115 @@ const Main = (function() {
         applySecurityLevel();
     }
     
+    // Inactivity tracking functions
+    function initInactivityTracking() {
+        console.log('Initializing inactivity tracking (5 minute timeout)');
+        
+        // List of events that indicate user activity
+        const activityEvents = [
+            'mousedown',
+            'mousemove',
+            'keypress',
+            'scroll',
+            'touchstart',
+            'click',
+            'keydown',
+            'focus'
+        ];
+        
+        // Reset activity timer
+        function resetActivityTimer() {
+            appState.lastActivityTime = Date.now();
+            
+            // Clear existing timer
+            if (appState.inactivityTimer) {
+                clearTimeout(appState.inactivityTimer);
+            }
+            
+            // Set new timer for 5 minutes
+            appState.inactivityTimer = setTimeout(() => {
+                handleInactivityTimeout();
+            }, CONFIG.inactivityTimeout);
+        }
+        
+        // Add event listeners for activity tracking
+        activityEvents.forEach(event => {
+            document.addEventListener(event, resetActivityTimer, true);
+        });
+        
+        // Also track activity in the iframe's parent if possible
+        try {
+            if (window.parent && window.parent !== window) {
+                activityEvents.forEach(event => {
+                    window.parent.document.addEventListener(event, resetActivityTimer, true);
+                });
+            }
+        } catch (e) {
+            // Cross-origin restriction - can't access parent document
+            console.log('Cannot track parent window activity due to cross-origin restrictions');
+        }
+        
+        // Start the timer
+        resetActivityTimer();
+    }
+
+    function handleInactivityTimeout() {
+        console.log('Inactivity timeout reached - logging out user');
+        
+        // Clear sensitive data first
+        appState.accessToken = null;
+        appState.tokenType = 'Bearer';
+        appState.expiresAt = null;
+        appState.clientId = null;
+        appState.clientSecret = null;
+        appState.subscriptionKey = null;
+        appState.chapterData = null;
+        appState.hasUnsavedChanges = false;
+        
+        // Clear stored credentials
+        if (typeof(Storage) !== "undefined") {
+            localStorage.removeItem('blackbaud_client_id');
+            localStorage.removeItem('blackbaud_client_secret');
+            localStorage.removeItem('blackbaud_subscription_key');
+        }
+        
+        // Clear refresh timer
+        if (appState.refreshTimer) {
+            clearTimeout(appState.refreshTimer);
+            appState.refreshTimer = null;
+        }
+        
+        // Show timeout message briefly
+        const mainMenu = document.getElementById('main-menu');
+        const unauthorized = document.getElementById('unauthorized');
+        
+        if (mainMenu) mainMenu.style.display = 'none';
+        if (unauthorized) {
+            unauthorized.style.display = 'block';
+            unauthorized.innerHTML = `
+                <div style="text-align:center; padding:50px; font-family: Arial, sans-serif;">
+                    <h2 style="color: #dc3545;">Session Expired</h2>
+                    <p style="color: #6c757d;">Your session has expired due to inactivity.</p>
+                    <p style="color: #6c757d;">Logging out...</p>
+                </div>
+            `;
+        }
+        
+        // Hide all pages
+        document.querySelectorAll('.page').forEach(page => {
+            page.style.display = 'none';
+        });
+        
+        // Send logout message to parent (this will trigger the logout button click)
+        try {
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({ type: 'session_timeout', source: 'sn_chapter_management' }, '*');
+            }
+        } catch (e) {
+            console.error('Could not notify parent frame of timeout:', e);
+        }
+    }
+
     // Load stored credentials (placeholder)
     function loadStoredCredentials() {
         // In a real application, you'd load these from secure server-side storage
