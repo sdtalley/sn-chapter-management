@@ -678,6 +678,7 @@ const Main = (function() {
         
         // Hide all navigation items first
         const navItems = {
+            'btn-export-contact': false,
             'btn-member-directory': false,
             'btn-verify-candidates': false,
             'btn-verify-initiates': false,
@@ -691,20 +692,25 @@ const Main = (function() {
         
         // Show navigation items based on sts value
         switch(appState.sts) {
-            case '0': // Show all items including Admin
+            case '0': // Admin - Show all items including Admin and Export
                 Object.keys(navItems).forEach(btn => navItems[btn] = true);
                 break;
-            case '1': // Show all items except Admin
-            case '3': // STS 3 same as STS 1
+            case '1': // Standard user - Show all items except Admin and Export
                 Object.keys(navItems).forEach(btn => {
-                    navItems[btn] = btn !== 'btn-admin';
+                    navItems[btn] = (btn !== 'btn-admin' && btn !== 'btn-export-contact');
                 });
                 break;
-            case '2': // Show only Fee Status, Member Directory, and Roster (view-only)
+            case '3': // Officer level - Show all items including Export but not Admin
+                Object.keys(navItems).forEach(btn => {
+                    navItems[btn] = (btn !== 'btn-admin');
+                });
+                break;
+            case '2': // View-only - Show only Fee Status, Member Directory, and Roster
             case '4': // STS 4 same as STS 2
                 navItems['btn-fee-status'] = true;
                 navItems['btn-member-directory'] = true;
                 navItems['btn-roster-info'] = true;
+                // btn-export-contact remains false
                 break;
         }
         
