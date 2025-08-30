@@ -119,6 +119,18 @@ const Utils = (function() {
             }
         }, 150);
     }
+
+    // Open Plaid via parent page message
+    function openPlaid() {
+        if (window.parent && window.parent !== window) {
+            window.parent.postMessage({ 
+                type: 'open_plaid',
+                source: 'sn_chapter_management' 
+            }, '*');
+        } else {
+            showStatus('This function requires the application to be embedded in the parent page.', 'error');
+        }
+    }
     
     // Error Display Helpers
     function showError(elementId, message) {
@@ -219,6 +231,7 @@ const Utils = (function() {
         getDateFromFormattedText,
         getApprovalValueFromText,
         resizeIframe,
+        openPlaid,
         showError,
         showRosterError,
         showOfficerError,

@@ -680,6 +680,7 @@ const Main = (function() {
         const navItems = {
             'btn-export-contact': false,
             'btn-member-directory': false,
+            'btn-plaid': false,
             'btn-verify-candidates': false,
             'btn-verify-initiates': false,
             'btn-roster-info': false,
@@ -709,6 +710,7 @@ const Main = (function() {
             case '4': // STS 4 same as STS 2
                 navItems['btn-fee-status'] = true;
                 navItems['btn-member-directory'] = true;
+                navItems['btn-plaid'] = true;
                 navItems['btn-roster-info'] = true;
                 // btn-export-contact remains false
                 break;
